@@ -1,9 +1,9 @@
 ---
 name: pi-a2a-communication
-summary: "A2A v1.0 spec-compliant client extension for pi. Characterization tests done, spec fixes applied. Next: client-side tool polish, streaming improvements, package publish."
+summary: "A2A v1.0 spec-compliant client extension for pi. 84 tests passing. Installed and ready. Next: M4.1 client polish, then npm publish."
 status: active
-phase: "Phase 1: A2A Client Extension (pi package)"
-progress: 25
+phase: "M4: Client Polish — v0.2.0-alpha.2"
+progress: 40
 tracked: true
 created: 2026-06-18
 updated: 2026-06-18
@@ -13,74 +13,71 @@ updated: 2026-06-18
 
 ## [S-TIGHT]
 
-**Forked from DrOlu/pi-a2a-communication v1.0.1. A2A v1.0 spec compliance fixes applied. Characterization tests passing. This is the CLIENT extension (slash commands + tools). The standalone gateway server is a separate project: pi-a2a-gateway.**
+**A2A v1.0 spec-compliant pi extension. 84 tests passing. Installed in pi. Client-only package — server code belongs in pi-a2a-gateway.**
 
 ## Current State
 
-| Component | ID | Status | Priority |
-|-----------|-----|--------|----------|
-| A2A v1.0 Spec Compliance | M1.5 | ✅ Done | — |
-| Characterization Tests | M1.4 | ✅ Done | — |
-| Agent Card Generator | M2.2 | ✅ Done | — |
-| Client Tool Polish | M4.1 | ⬜ Not started | 🟡 Medium |
-| Streaming SSE Client | M4.2 | ⬜ Not started | 🟡 Medium |
-| Package Publish to npm | M4.3 | ⬜ Not started | 🟡 Medium |
+| Component | Status | Details |
+|-----------|--------|---------|
+| Spec compliance | ✅ Done | 10 fixes applied: method names, agent-card path, resubscribe, push config, extended card |
+| Characterization tests | ✅ Done | 4 suites (types, config, server, task-manager), 74 tests |
+| Spec compliance tests | ✅ Done | 10 tests, all passing |
+| Package identity | ✅ Done | `pi-a2a-communication` v0.1.0-alpha.1, installed via `pi install` |
+| Agent Cards | ✅ Done | 8 cards + fleet registry in `~/.pi/agent/a2a/agents/` |
 
-## Milestone Progress (from pi-cross-node-comms PLAN)
+## Completed (M1–M2)
 
-| Milestone | Task | Status | Tracked In |
-|-----------|------|--------|------------|
-| M1.1 | Fork pi-a2a-communication | ✅ Done | pi-cross-node-comms |
-| M1.2 | Audit source code | ✅ Done | pi-cross-node-comms |
-| M1.3 | Set up test framework | ✅ Done | pi-cross-node-comms |
-| M1.4 | Write characterization tests | ✅ Done | pi-cross-node-comms |
-| M1.5 | Update pi-package.json + rename | ✅ Done | This project |
-| M1.6 | Fix A2A v1.0 spec compliance | ✅ Done | pi-cross-node-comms |
-| M2.2 | Generate Agent Cards | ✅ Done | pi-cross-node-comms |
-| M4.1 | Client tool polish | ⬜ | This project |
-| M4.2 | Streaming SSE client improvements | ⬜ | This project |
-| M4.3 | Package publish | ⬜ | This project |
+- [x] M1.1: Fork to `carlosfrias/pi-a2a-communication`
+- [x] M1.2: Audit source code (7 files, 3,260 lines, 10 critical gaps)
+- [x] M1.3: Vitest framework (84 tests)
+- [x] M1.4: Characterization tests (4 suites)
+- [x] M1.5: Package renamed to `pi-a2a-communication` v0.1.0-alpha.1
+- [x] Spec compliance: JSON-RPC methods, agent-card path, resubscribe, push config, extended card
+- [x] M2.2: Agent Cards generated for 7 fleet nodes + orchestrator
+- [x] Project split: client (this package) vs server (pi-a2a-gateway)
 
 ## Active Work
 
-- [ ] **M4.1: Client tool polish** — Improve slash commands and tool functions for production use
-- [ ] **M4.2: Streaming SSE client** — Enhance client-side streaming support
-- [ ] **M4.3: Package publish** — Publish to npm as pi-a2a-communication
-
-## Key Gaps (from Source Audit)
-
-| Gap | Severity | Description |
-|-----|----------|-------------|
-| `executePiTask()` stub | 🔴 Critical | Returns placeholder string — server-only concern, moves to pi-a2a-gateway |
-| Enterprise types unused | 🟡 Medium | `LoadBalanceStrategy`, `AgentPool`, `workflows` defined but not implemented |
-| CORS: `Access-Control-Allow-Origin: *` | 🟡 Medium | Insecure for production — server concern, moves to pi-a2a-gateway |
-| In-memory task store | 🟡 Medium | `this.tasks = new Map()` — no persistence across restarts |
-| No rate limiting | 🟡 Medium | Production ingress needs rate limiting — server concern |
+- [ ] **M4.1: Client tool polish** — Improve `/a2a-send` formatting, `/a2a-discover` display, error handling
+- [ ] **M4.2: Streaming SSE client** — Improve `sendStreamingMessage` UX in pi console
+- [ ] **M4.3: Package publish** — Publish to npm as `pi-a2a-communication`
 
 ## Design Decisions
 
 | Decision | Choice | Rationale | Date |
 |----------|--------|-----------|------|
-| Fork pi-a2a-communication | Fork then enhance | Base package has protocol implementation but no tests, no streaming, no execution bridge. Fork allows TDD-driven development. | 2026-06-18 |
-| A2A v1.0 spec compliance first | Spec compliance before features | Protocol compliance is foundational. Can't build features on a non-compliant base. | 2026-06-18 |
-| Separate client from server | pi-a2a-communication = client, pi-a2a-gateway = server | Client extension (slash commands + tools) is a pi package. Server/gateway is a standalone binary. Different deployment models, different lifecycles. | 2026-06-18 |
-| Keep a2a-server.ts for local testing | Local test server in client package | Useful for development and testing. Production server is pi-a2a-gateway. | 2026-06-18 |
+| Fork then enhance | Fork DrOlu v1.0.1 | Base has protocol code but no tests; TDD approach on fork | 2026-06-18 |
+| Spec compliance first | Fix before features | Protocol compliance is foundational | 2026-06-18 |
+| Client/server split | Client in this package, server in pi-a2a-gateway | Different deployment models and lifecycles | 2026-06-18 |
+| Keep a2a-server.ts locally | Dev/test server stays in client package | Useful for local testing; production server is pi-a2a-gateway | 2026-06-18 |
 
-## Handoff Notes
+## Key Files
 
-**Project freshly renamed from pi-a2a-gateway to pi-a2a-communication.** M1 milestones (fork, audit, tests, spec fixes) are done. The package now has a clear identity: CLIENT EXTENSION only. Server responsibilities moved to pi-a2a-gateway (separate project). Next milestones are client-side polish and package publishing.
+| File | Purpose |
+|------|---------|
+| `index.ts` | Pi extension entry point, slash commands, tools |
+| `a2a-client.ts` | A2A client for calling remote agents |
+| `a2a-server.ts` | Local test server (production server is pi-a2a-gateway) |
+| `task-manager.ts` | Task lifecycle management |
+| `agent-discovery.ts` | Agent Card discovery and caching |
+| `config.ts` | Configuration management |
+| `types.ts` | Type definitions including A2A_METHODS, AGENT_CARD_PATH |
+| `tests/` | 84 tests (74 characterization + 10 spec-compliance) |
+| `scripts/generate-agent-cards.ts` | Fleet Agent Card generator |
 
-**Cross-references:**
-- Parent project: [pi-cross-node-comms](../pi-cross-node-comms/AGENTS.md) — A2A migration tracked in its PLAN
-- Sibling project: [pi-a2a-gateway](../pi-a2a-gateway/AGENTS.md) — standalone A2A server
-- Migration plan: [A2A-migration-plan.md](../../../personal-vault/02-Areas/Infrastructure/pi-cross-node-comms/wiki/architecture/A2A-migration-plan.md)
-- Executive paper: [A2A-migration-executive-paper.md](../../../personal-vault/02-Areas/Infrastructure/pi-cross-node-comms/wiki/architecture/A2A-migration-executive-paper.md)
+## Cross-References
+
+| Project | Relationship |
+|---------|--------------|
+| [pi-a2a-gateway](../pi-a2a-gateway/AGENTS.md) | Standalone A2A server (sibling) |
+| [pi-cross-node-comms](../pi-cross-node-comms/AGENTS.md) | Parent project, A2A migration tracked in its PLAN |
+| [A2A Migration Plan](../../../personal-vault/02-Areas/Infrastructure/pi-cross-node-comms/wiki/architecture/A2A-migration-plan.md) | Full migration strategy |
 
 ## Version History
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| v0.1.0-alpha.1 | 2026-06-18 | Initial fork, spec compliance fixes, TDD scaffold, FPB project setup |
+| v0.1.0-alpha.1 | 2026-06-18 | Fork, spec fixes, TDD scaffold, project split |
 
 ---
 
