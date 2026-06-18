@@ -1,17 +1,16 @@
 {
-  "name": "pi-a2a-communication",
-  "version": "1.0.0",
-  "description": "Enterprise-grade A2A protocol implementation for pi coding agent",
-  "author": "pi-extensions",
+  "name": "pi-a2a-gateway",
+  "version": "0.1.0-alpha.1",
+  "description": "A2A gateway for pi — forked from pi-a2a-communication, adding spec compliance, streaming, and coms-net bridge",
+  "author": "Carlos Frias <carlos@frias.io>",
+  "contributors": ["DrOlu/pi-a2a-communication (original)"],
   "license": "MIT",
   "category": "communication",
-  "tags": ["a2a", "multi-agent", "distributed", "enterprise", "orchestration"],
-  "repository": "https://github.com/DrOlu/pi-a2a-communication",
-  "homepage": "https://github.com/DrOlu/pi-a2a-communication#readme",
-  "npm": "https://www.npmjs.com/package/pi-a2a-communication",
-  "installation": {
-    "npm": "npm install pi-a2a-communication",
-    "pi": "cd ~/.pi/agent/extensions && git clone https://github.com/DrOlu/pi-a2a-communication.git"
+  "tags": ["a2a", "multi-agent", "distributed", "gateway", "coms-net-bridge"],
+  "repository": "https://github.com/carlosfrias/pi-a2a-gateway",
+  "compatibility": {
+    "pi": ">=1.0.0",
+    "node": ">=18.0.0"
   },
   "commands": [
     "/a2a-discover",
@@ -26,19 +25,13 @@
     "/a2a-help"
   ],
   "tools": ["a2a_call", "a2a_parallel"],
-  "compatibility": {
-    "pi": ">=1.0.0",
-    "node": ">=18.0.0"
-  },
-  "features": [
-    "Agent discovery via Agent Cards",
-    "Single, parallel, chain, async task execution",
-    "A2A server mode",
-    "Enterprise security (OAuth2, mTLS, Bearer, API Key)",
-    "Streaming and SSE support",
-    "Health monitoring",
-    "Task lifecycle management"
-  ],
-  "screenshots": [],
-  "documentation": "https://github.com/DrOlu/pi-a2a-communication/blob/main/README.md"
+  "changes": [
+    "Forked from pi-a2a-communication v1.0.1",
+    "Renamed to pi-a2a-gateway",
+    "Adding TDD test suite",
+    "A2A v1.0 spec compliance fixes (JSON-RPC methods, agent-card path)",
+    "Adding SendStreamingMessage SSE support",
+    "Adding push notification support",
+    "Adding coms-net bridge layer"
+  ]
 }
