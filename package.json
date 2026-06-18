@@ -1,5 +1,5 @@
 {
-  "name": "pi-a2a-gateway",
+  "name": "pi-a2a-communication",
   "version": "0.1.0-alpha.1",
   "description": "Enterprise-grade A2A (Agent2Agent) protocol implementation for pi coding agent - enables multi-node, multi-agent collaboration across enterprise environments",
   "type": "module",
@@ -42,12 +42,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/carlosfrias/pi-a2a-gateway.git"
+    "url": "git+https://github.com/carlosfrias/pi-a2a-communication.git"
   },
   "bugs": {
-    "url": "https://github.com/carlosfrias/pi-a2a-gateway/issues"
+    "url": "https://github.com/carlosfrias/pi-a2a-communication/issues"
   },
-  "homepage": "https://github.com/carlosfrias/pi-a2a-gateway#readme",
+  "homepage": "https://github.com/carlosfrias/pi-a2a-communication#readme",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"

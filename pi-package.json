@@ -1,13 +1,13 @@
 {
-  "name": "pi-a2a-gateway",
+  "name": "pi-a2a-communication",
   "version": "0.1.0-alpha.1",
-  "description": "A2A gateway for pi — forked from pi-a2a-communication, adding spec compliance, streaming, and coms-net bridge",
+  "description": "A2A client extension for pi — provides slash commands and tools for A2A v1.0 protocol communication",
   "author": "Carlos Frias <carlos@frias.io>",
   "contributors": ["DrOlu/pi-a2a-communication (original)"],
   "license": "MIT",
   "category": "communication",
-  "tags": ["a2a", "multi-agent", "distributed", "gateway", "coms-net-bridge"],
-  "repository": "https://github.com/carlosfrias/pi-a2a-gateway",
+  "tags": ["a2a", "multi-agent", "distributed", "communication", "pi-extension"],
+  "repository": "https://github.com/carlosfrias/pi-a2a-communication",
   "compatibility": {
     "pi": ">=1.0.0",
     "node": ">=18.0.0"
@@ -27,11 +27,11 @@
   "tools": ["a2a_call", "a2a_parallel"],
   "changes": [
     "Forked from pi-a2a-communication v1.0.1",
-    "Renamed to pi-a2a-gateway",
+    "Renamed to pi-a2a-communication (client extension identity)",
     "Adding TDD test suite",
     "A2A v1.0 spec compliance fixes (JSON-RPC methods, agent-card path)",
     "Adding SendStreamingMessage SSE support",
     "Adding push notification support",
-    "Adding coms-net bridge layer"
+    "A2A server code retained for local testing only (production gateway is pi-a2a-gateway)"
   ]
 }
