@@ -14,7 +14,7 @@ last_updated: 2026-06-18
 
 | Version | Date | Description |
 |---------|------|-------------|
-| v0.1.0-alpha.1 | 2026-06-18 | Fork from DrOlu v1.0.1, A2A v1.0 spec fixes, TDD scaffold, project split |
+| v0.1.0-alpha.1 | 2026-06-18 | Fork from DrOlu v1.0.1, A2A v1.0 spec fixes, TDD scaffold, project split, **installed as pi extension** |
 
 ### Upcoming Releases
 
