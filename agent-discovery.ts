@@ -12,6 +12,7 @@ import type {
   CachedAgent,
   AgentHealth,
 } from "./types.js";
+import { AGENT_CARD_PATH } from "./types.js";
 
 /**
  * Agent Discovery class
@@ -327,7 +328,7 @@ export class AgentDiscovery {
    * Get Agent Card URL
    */
   private getAgentCardUrl(baseUrl: string): string {
-    return `${baseUrl}${this.config.agentCardPath}`;
+    return `${baseUrl}${AGENT_CARD_PATH}`;
   }
 
   /**

@@ -20,7 +20,9 @@ import type {
   ClientConfig,
   SecurityConfig,
   AgentCard,
+  PushNotificationConfig,
 } from "./types.js";
+import { A2A_METHODS, AGENT_CARD_PATH } from "./types.js";
 
 /**
  * A2A Client class
@@ -43,7 +45,7 @@ export class A2AClient {
     message: Message,
     options: TaskOptions = {}
   ): Promise<A2ATask | Message> {
-    const request = this.createRequest("sendMessage", {
+    const request = this.createRequest(A2A_METHODS.MESSAGE_SEND, {
       message,
       configuration: {
         acceptedOutputModes: agent.defaultOutputModes || ["text/plain", "application/json"],
@@ -80,7 +82,7 @@ export class A2AClient {
     onUpdate: TaskUpdateCallback,
     options: TaskOptions = {}
   ): Promise<A2ATask> {
-    const request = this.createRequest("sendStreamingMessage", {
+    const request = this.createRequest(A2A_METHODS.MESSAGE_STREAM, {
       message,
       configuration: {
         acceptedOutputModes: agent.defaultOutputModes || ["text/plain", "application/json"],
@@ -144,7 +146,7 @@ export class A2AClient {
    * Get task status
    */
   async getTask(agent: RemoteAgent, taskId: string, historyLength?: number): Promise<A2ATask> {
-    const request = this.createRequest("getTask", {
+    const request = this.createRequest(A2A_METHODS.TASKS_GET, {
       id: taskId,
       historyLength: historyLength ?? 10,
     });
@@ -162,7 +164,7 @@ export class A2AClient {
    * Cancel a task
    */
   async cancelTask(agent: RemoteAgent, taskId: string): Promise<A2ATask> {
-    const request = this.createRequest("cancelTask", {
+    const request = this.createRequest(A2A_METHODS.TASKS_CANCEL, {
       id: taskId,
     });
 
@@ -184,7 +186,7 @@ export class A2AClient {
     onUpdate: TaskUpdateCallback,
     signal?: AbortSignal
   ): Promise<void> {
-    const request = this.createRequest("subscribeToTask", {
+    const request = this.createRequest(A2A_METHODS.TASKS_SUBSCRIBE, {
       id: taskId,
     });
 
@@ -223,11 +225,132 @@ export class A2AClient {
   }
 
   /**
+   * Resubscribe to task updates after connection loss (A2A v1.0 spec)
+   */
+  async resubscribeToTask(
+    agent: RemoteAgent,
+    taskId: string,
+    onUpdate: TaskUpdateCallback,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const request = this.createRequest(A2A_METHODS.TASKS_RESUBSCRIBE, {
+      id: taskId,
+    });
+
+    return new Promise((resolve, reject) => {
+      const abortController = new AbortController();
+      
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          abortController.abort();
+          resolve();
+        });
+      }
+
+      this.sendStreamingRequest(agent, request, abortController.signal, (update) => {
+        if (update.type === "status_update") {
+          onUpdate({
+            id: update.taskId,
+            contextId: update.contextId,
+            status: update.status,
+          });
+          
+          const state = update.status.state;
+          if (["completed", "failed", "canceled", "rejected"].includes(state)) {
+            resolve();
+          }
+        } else if (update.type === "artifact_update") {
+          onUpdate({
+            id: update.taskId,
+            contextId: update.contextId,
+            artifacts: [update.artifact],
+          });
+        }
+      }).catch(reject);
+    });
+  }
+
+  /**
+   * Set push notification config for a task (A2A v1.0 spec)
+   */
+  async setPushNotificationConfig(
+    agent: RemoteAgent,
+    taskId: string,
+    config: PushNotificationConfig
+  ): Promise<PushNotificationConfig> {
+    const request = this.createRequest(A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_SET, {
+      id: taskId,
+      pushNotificationConfig: config,
+    });
+
+    const response = await this.sendRequest(agent, request);
+    
+    if (response.error) {
+      throw new Error(`A2A error ${response.error.code}: ${response.error.message}`);
+    }
+
+    return (response.result as { pushNotificationConfig: PushNotificationConfig }).pushNotificationConfig;
+  }
+
+  /**
+   * Get push notification config for a task (A2A v1.0 spec)
+   */
+  async getPushNotificationConfig(
+    agent: RemoteAgent,
+    taskId: string
+  ): Promise<PushNotificationConfig> {
+    const request = this.createRequest(A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_GET, {
+      id: taskId,
+    });
+
+    const response = await this.sendRequest(agent, request);
+    
+    if (response.error) {
+      throw new Error(`A2A error ${response.error.code}: ${response.error.message}`);
+    }
+
+    return (response.result as { pushNotificationConfig: PushNotificationConfig }).pushNotificationConfig;
+  }
+
+  /**
+   * Delete push notification config for a task (A2A v1.0 spec)
+   */
+  async deletePushNotificationConfig(
+    agent: RemoteAgent,
+    taskId: string
+  ): Promise<void> {
+    const request = this.createRequest(A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_DELETE, {
+      id: taskId,
+    });
+
+    const response = await this.sendRequest(agent, request);
+    
+    if (response.error) {
+      throw new Error(`A2A error ${response.error.code}: ${response.error.message}`);
+    }
+  }
+
+  /**
+   * Get authenticated extended agent card (A2A v1.0 spec)
+   */
+  async getAuthenticatedExtendedCard(agent: RemoteAgent): Promise<AgentCard> {
+    const request = this.createRequest(A2A_METHODS.AGENT_AUTHENTICATED_EXTENDED_CARD, {});
+
+    const response = await this.sendRequest(agent, request);
+    
+    if (response.error) {
+      throw new Error(`A2A error ${response.error.code}: ${response.error.message}`);
+    }
+
+    return response.result as AgentCard;
+  }
+
+  /**
    * Discover agent at URL (fetch Agent Card)
    */
   async discoverAgent(url: string): Promise<AgentCard & { url: string }> {
     const agentUrl = new URL(url);
-    const cardPath = "/.well-known/agent-card";
+    const cardPath = AGENT_CARD_PATH;
     const fullUrl = `${agentUrl.origin}${cardPath}`;
     
     const response = await this.httpGet(fullUrl);

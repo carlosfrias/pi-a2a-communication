@@ -1,8 +1,53 @@
 /**
- * Type definitions for pi-a2a-communication extension
+ * Type definitions for pi-a2a-gateway extension
  * 
- * Based on A2A Protocol Specification (a2a-protocol.org)
+ * Based on A2A Protocol v1.0.0 Specification (a2a-protocol.org)
  */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A2A v1.0.0 SPEC CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * A2A v1.0.0 JSON-RPC method names
+ * See: https://a2a-protocol.org/v1.0.0/specification/ Section 7
+ */
+export const A2A_METHODS = {
+  /** Send a message to an agent (non-streaming) */
+  MESSAGE_SEND: 'message/send',
+  /** Send a message to an agent (streaming SSE) */
+  MESSAGE_STREAM: 'message/stream',
+  /** Get task status */
+  TASKS_GET: 'tasks/get',
+  /** Cancel a task */
+  TASKS_CANCEL: 'tasks/cancel',
+  /** Subscribe to task updates (SSE) */
+  TASKS_SUBSCRIBE: 'tasks/subscribe',
+  /** Resubscribe to task updates after connection loss */
+  TASKS_RESUBSCRIBE: 'tasks/resubscribe',
+  /** Set push notification config for a task */
+  TASKS_PUSH_NOTIFICATION_CONFIG_SET: 'tasks/pushNotificationConfig/set',
+  /** Get push notification config for a task */
+  TASKS_PUSH_NOTIFICATION_CONFIG_GET: 'tasks/pushNotificationConfig/get',
+  /** Delete push notification config for a task */
+  TASKS_PUSH_NOTIFICATION_CONFIG_DELETE: 'tasks/pushNotificationConfig/delete',
+  /** Get authenticated extended agent card */
+  AGENT_AUTHENTICATED_EXTENDED_CARD: 'agent/authenticatedExtendedCard',
+} as const;
+
+/** Type for A2A method name strings */
+export type A2AMethodName = typeof A2A_METHODS[keyof typeof A2A_METHODS];
+
+/**
+ * A2A v1.0.0 Agent Card discovery path
+ * See: https://a2a-protocol.org/v1.0.0/specification/ Section 5
+ */
+export const AGENT_CARD_PATH = '/.well-known/agent.json';
+
+/**
+ * @deprecated Use AGENT_CARD_PATH instead. Kept for backward compat.
+ */
+export const LEGACY_AGENT_CARD_PATH = '/.well-known/agent-card';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // A2A PROTOCOL TYPES
@@ -293,6 +338,28 @@ export interface PushNotificationConfig {
     scheme: string;
     credentials: string;
   };
+}
+
+/**
+ * Parameters for setting push notification config
+ */
+export interface PushNotificationConfigSetParams {
+  id: string;
+  pushNotificationConfig: PushNotificationConfig;
+}
+
+/**
+ * Parameters for getting push notification config
+ */
+export interface PushNotificationConfigGetParams {
+  id: string;
+}
+
+/**
+ * Parameters for deleting push notification config
+ */
+export interface PushNotificationConfigDeleteParams {
+  id: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

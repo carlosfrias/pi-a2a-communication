@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { A2A_METHODS, AGENT_CARD_PATH } from '../../types';
 
 /**
  * Spec Compliance Tests — A2A v1.0.0 Protocol
@@ -46,34 +47,34 @@ describe('[SPEC] JSON-RPC Method Names', () => {
   ] as const;
 
   it('[SPEC] should use "message/send" not "sendMessage" for sending messages', () => {
-    // Current code uses "sendMessage" — spec requires "message/send"
+    // Current code uses A2A_METHODS.MESSAGE_SEND — spec requires "message/send"
     const specMethod = 'message/send';
-    const currentMethod = 'sendMessage';
-    expect(currentMethod).toBe(specMethod); // WILL FAIL — expected
+    const currentMethod = A2A_METHODS.MESSAGE_SEND;
+    expect(currentMethod).toBe(specMethod);
   });
 
   it('[SPEC] should use "message/stream" not "sendStreamingMessage" for streaming', () => {
     const specMethod = 'message/stream';
-    const currentMethod = 'sendStreamingMessage';
-    expect(currentMethod).toBe(specMethod); // WILL FAIL — expected
+    const currentMethod = A2A_METHODS.MESSAGE_STREAM;
+    expect(currentMethod).toBe(specMethod);
   });
 
   it('[SPEC] should use "tasks/get" not "getTask" for retrieving task status', () => {
     const specMethod = 'tasks/get';
-    const currentMethod = 'getTask';
-    expect(currentMethod).toBe(specMethod); // WILL FAIL — expected
+    const currentMethod = A2A_METHODS.TASKS_GET;
+    expect(currentMethod).toBe(specMethod);
   });
 
   it('[SPEC] should use "tasks/cancel" not "cancelTask" for canceling tasks', () => {
     const specMethod = 'tasks/cancel';
-    const currentMethod = 'cancelTask';
-    expect(currentMethod).toBe(specMethod); // WILL FAIL — expected
+    const currentMethod = A2A_METHODS.TASKS_CANCEL;
+    expect(currentMethod).toBe(specMethod);
   });
 
   it('[SPEC] should use "tasks/subscribe" not "subscribeToTask" for SSE subscriptions', () => {
     const specMethod = 'tasks/subscribe';
-    const currentMethod = 'subscribeToTask';
-    expect(currentMethod).toBe(specMethod); // WILL FAIL — expected
+    const currentMethod = A2A_METHODS.TASKS_SUBSCRIBE;
+    expect(currentMethod).toBe(specMethod);
   });
 
   it('[SPEC] should define all required A2A method names', () => {
@@ -105,21 +106,21 @@ describe('[SPEC] Agent Card Discovery', () => {
 
   it('[SPEC] should serve Agent Card at /.well-known/agent.json (not agent-card)', () => {
     const specPath = '/.well-known/agent.json';
-    const currentPath = '/.well-known/agent-card';
-    expect(currentPath).toBe(specPath); // WILL FAIL — expected
+    const currentPath = AGENT_CARD_PATH;
+    expect(currentPath).toBe(specPath);
   });
 
   it('[SPEC] client should discover agents at /.well-known/agent.json', () => {
     const specDiscoveryPath = '/.well-known/agent.json';
-    const currentDiscoveryPath = '/.well-known/agent-card';
-    expect(currentDiscoveryPath).toBe(specDiscoveryPath); // WILL FAIL — expected
+    const currentDiscoveryPath = AGENT_CARD_PATH;
+    expect(currentDiscoveryPath).toBe(specDiscoveryPath);
   });
 
   it('[SPEC] should support Extended Agent Card for authenticated details', () => {
     // Spec: when capabilities.extendedAgentCard === true,
     // client should fetch extended card via agent/authenticatedExtendedCard
-    const hasExtendedCardMethod = false; // Current code doesn't implement this
-    expect(hasExtendedCardMethod).toBe(true); // WILL FAIL — expected
+    const hasExtendedCardMethod = A2A_METHODS.AGENT_AUTHENTICATED_EXTENDED_CARD === 'agent/authenticatedExtendedCard';
+    expect(hasExtendedCardMethod).toBe(true);
   });
 });
 
@@ -304,9 +305,9 @@ describe('[SPEC] Streaming with SSE', () => {
   });
 
   it('[SPEC] client must support resubscription via tasks/resubscribe', () => {
-    // Current code has no tasks/resubscribe implementation
-    const hasResubscribe = false;
-    expect(hasResubscribe).toBe(true); // WILL FAIL — expected
+    // A2A_METHODS now includes tasks/resubscribe
+    const hasResubscribe = A2A_METHODS.TASKS_RESUBSCRIBE === 'tasks/resubscribe';
+    expect(hasResubscribe).toBe(true);
   });
 });
 
@@ -326,9 +327,9 @@ describe('[SPEC] Push Notifications', () => {
   });
 
   it('[SPEC] client must be able to set push notification config via tasks/pushNotificationConfig/set', () => {
-    // Current code defines PushNotificationConfig type but never uses it
-    const hasPushNotificationMethod = false;
-    expect(hasPushNotificationMethod).toBe(true); // WILL FAIL — expected
+    // A2A_METHODS now includes push notification config methods
+    const hasPushNotificationMethod = A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_SET === 'tasks/pushNotificationConfig/set';
+    expect(hasPushNotificationMethod).toBe(true);
   });
 
   it('[SPEC] push notification payload must include taskId for client to call tasks/get', () => {

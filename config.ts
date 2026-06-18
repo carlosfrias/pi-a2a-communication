@@ -32,7 +32,7 @@ const DEFAULTS: A2AConfig = {
   discovery: {
     cacheEnabled: true,
     cacheTtl: 300000, // 5 minutes
-    agentCardPath: "/.well-known/agent-card",
+    agentCardPath: "/.well-known/agent.json",
     timeout: 10000,
   },
   security: {

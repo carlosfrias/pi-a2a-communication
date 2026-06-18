@@ -21,6 +21,7 @@ import type {
   TaskState,
   StreamResponse,
 } from "./types.js";
+import { A2A_METHODS, AGENT_CARD_PATH } from "./types.js";
 
 /**
  * Task handler function type
@@ -163,9 +164,13 @@ export class A2AServer {
       }
 
       // Route requests
-      if (path === "/.well-known/agent-card") {
+      if (path === "/.well-known/agent.json") {
         await this.handleAgentCard(req, res);
+      } else if (path === "/" || path === "") {
+        // A2A v1.0 spec: single endpoint with JSON-RPC method dispatch
+        await this.handleJsonRPCRequest(req, res);
       } else if (path === "/sendMessage" || path === "/sendStreamingMessage") {
+        // Legacy path-based routes (kept for backward compat, dispatch via JSON-RPC)
         await this.handleSendMessage(req, res, path === "/sendStreamingMessage");
       } else if (path.startsWith("/tasks/")) {
         await this.handleTaskRequest(req, res, path);
@@ -178,6 +183,391 @@ export class A2AServer {
       console.error("A2A server error:", error);
       this.sendError(res, 500, "Internal Server Error");
     }
+  }
+
+  /**
+   * Handle JSON-RPC request at the single A2A endpoint (v1.0 spec)
+   */
+  private async handleJsonRPCRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    if (req.method !== "POST") {
+      this.sendError(res, 405, "Method Not Allowed");
+      return;
+    }
+
+    const body = await this.readBody(req);
+    let request: JSONRPCRequest;
+    try {
+      request = JSON.parse(body);
+    } catch {
+      this.sendJSONRPCError(res, null, -32700, "Parse error");
+      return;
+    }
+
+    // Validate JSON-RPC 2.0
+    if (request.jsonrpc !== "2.0" || !request.method) {
+      this.sendJSONRPCError(res, request.id ?? null, -32600, "Invalid Request");
+      return;
+    }
+
+    const method = request.method;
+
+    switch (method) {
+      case A2A_METHODS.MESSAGE_SEND:
+      case A2A_METHODS.MESSAGE_STREAM: {
+        const streaming = method === A2A_METHODS.MESSAGE_STREAM;
+        await this.handleJsonRPCSendMessage(req, res, request, streaming);
+        break;
+      }
+      case A2A_METHODS.TASKS_GET: {
+        await this.handleJsonRPCTasksGet(req, res, request);
+        break;
+      }
+      case A2A_METHODS.TASKS_CANCEL: {
+        await this.handleJsonRPCTasksCancel(req, res, request);
+        break;
+      }
+      case A2A_METHODS.TASKS_SUBSCRIBE: {
+        await this.handleJsonRPCTasksSubscribe(req, res, request);
+        break;
+      }
+      case A2A_METHODS.TASKS_RESUBSCRIBE: {
+        await this.handleJsonRPCTasksResubscribe(req, res, request);
+        break;
+      }
+      case A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_SET: {
+        await this.handleJsonRPCPushNotificationConfigSet(req, res, request);
+        break;
+      }
+      case A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_GET: {
+        await this.handleJsonRPCPushNotificationConfigGet(req, res, request);
+        break;
+      }
+      case A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_DELETE: {
+        await this.handleJsonRPCPushNotificationConfigDelete(req, res, request);
+        break;
+      }
+      case A2A_METHODS.AGENT_AUTHENTICATED_EXTENDED_CARD: {
+        await this.handleJsonRPCAuthenticatedExtendedCard(req, res, request);
+        break;
+      }
+      default:
+        this.sendJSONRPCError(res, request.id ?? null, -32601, "Method not found");
+    }
+  }
+
+  /**
+   * Handle message/send or message/stream via JSON-RPC dispatch
+   */
+  private async handleJsonRPCSendMessage(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest,
+    streaming: boolean
+  ): Promise<void> {
+    const { message, configuration, metadata } = (request.params as { message?: Message; configuration?: { returnImmediately?: boolean }; metadata?: Record<string, unknown> } || {});
+
+    if (!message) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: message required");
+      return;
+    }
+
+    const task = this.createTask(message, configuration, metadata);
+    this.tasks.set(task.id, task);
+
+    if (streaming) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.writeHead(200);
+      this.sendSSE(res, { type: "task", task });
+
+      this.processTaskStreaming(task, res).catch(error => {
+        console.error("Task processing error:", error);
+        task.status.state = "failed";
+        task.status.message = {
+          messageId: this.generateId(),
+          role: "agent",
+          parts: [{ type: "text", text: String(error) }],
+        };
+        this.sendSSE(res, { type: "status_update", taskId: task.id, contextId: task.contextId || "", status: task.status });
+        res.end();
+      });
+    } else {
+      if (configuration?.returnImmediately) {
+        this.sendJSONRPCResponse(res, request.id ?? null, { task });
+        this.processTask(task).catch(console.error);
+      } else {
+        try {
+          const completedTask = await this.processTask(task);
+          this.sendJSONRPCResponse(res, request.id ?? null, { task: completedTask });
+        } catch (error) {
+          task.status.state = "failed";
+          task.isError = true;
+          task.error = String(error);
+          this.sendJSONRPCResponse(res, request.id ?? null, { task });
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle tasks/get via JSON-RPC dispatch
+   */
+  private async handleJsonRPCTasksGet(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string; historyLength?: number } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    const response: any = { ...task };
+    if (params.historyLength && task.history) {
+      response.history = task.history.slice(-params.historyLength);
+    }
+    this.sendJSONRPCResponse(res, request.id ?? null, response);
+  }
+
+  /**
+   * Handle tasks/cancel via JSON-RPC dispatch
+   */
+  private async handleJsonRPCTasksCancel(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    task.status.state = "canceled";
+    this.sendJSONRPCResponse(res, request.id ?? null, task);
+  }
+
+  /**
+   * Handle tasks/subscribe via JSON-RPC dispatch
+   */
+  private async handleJsonRPCTasksSubscribe(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.writeHead(200);
+
+    if (!this.subscribers.has(taskId)) {
+      this.subscribers.set(taskId, new Set());
+    }
+    this.subscribers.get(taskId)!.add(res);
+
+    this.sendSSE(res, { type: "task", task });
+
+    req.on("close", () => {
+      this.subscribers.get(taskId)?.delete(res);
+    });
+  }
+
+  /**
+   * Handle tasks/resubscribe via JSON-RPC dispatch (A2A v1.0 spec)
+   * Reconnects to an existing SSE stream for a task.
+   */
+  private async handleJsonRPCTasksResubscribe(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    // Check if task is in a terminal state
+    const terminalStates: TaskState[] = ["completed", "failed", "canceled", "rejected"];
+    if (terminalStates.includes(task.status.state)) {
+      // Task already completed — return the final state
+      this.sendJSONRPCResponse(res, request.id ?? null, { task });
+      return;
+    }
+
+    // Reconnect to the SSE stream
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.writeHead(200);
+
+    if (!this.subscribers.has(taskId)) {
+      this.subscribers.set(taskId, new Set());
+    }
+    this.subscribers.get(taskId)!.add(res);
+
+    // Send current state
+    this.sendSSE(res, { type: "task", task });
+
+    req.on("close", () => {
+      this.subscribers.get(taskId)?.delete(res);
+    });
+  }
+
+  /**
+   * Handle tasks/pushNotificationConfig/set via JSON-RPC dispatch (A2A v1.0 spec)
+   */
+  private async handleJsonRPCPushNotificationConfigSet(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string; pushNotificationConfig?: { url: string; token?: string; authentication?: { scheme: string; credentials: string } } } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    if (!params.pushNotificationConfig) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: pushNotificationConfig required");
+      return;
+    }
+
+    // Store push notification config on the task metadata
+    if (!task.metadata) {
+      task.metadata = {};
+    }
+    task.metadata.pushNotificationConfig = params.pushNotificationConfig;
+
+    this.sendJSONRPCResponse(res, request.id ?? null, { pushNotificationConfig: params.pushNotificationConfig });
+  }
+
+  /**
+   * Handle tasks/pushNotificationConfig/get via JSON-RPC dispatch (A2A v1.0 spec)
+   */
+  private async handleJsonRPCPushNotificationConfigGet(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    const config = task.metadata?.pushNotificationConfig;
+    if (!config) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Push notification config not found");
+      return;
+    }
+
+    this.sendJSONRPCResponse(res, request.id ?? null, { pushNotificationConfig: config });
+  }
+
+  /**
+   * Handle tasks/pushNotificationConfig/delete via JSON-RPC dispatch (A2A v1.0 spec)
+   */
+  private async handleJsonRPCPushNotificationConfigDelete(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    const params = request.params as { id?: string } || {};
+    const taskId = params.id;
+    if (!taskId) {
+      this.sendJSONRPCError(res, request.id ?? null, -32602, "Invalid params: id required");
+      return;
+    }
+
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.sendJSONRPCError(res, request.id ?? null, -32001, "Task not found");
+      return;
+    }
+
+    if (task.metadata?.pushNotificationConfig) {
+      delete task.metadata.pushNotificationConfig;
+    }
+
+    this.sendJSONRPCResponse(res, request.id ?? null, null);
+  }
+
+  /**
+   * Handle agent/authenticatedExtendedCard via JSON-RPC dispatch (A2A v1.0 spec)
+   */
+  private async handleJsonRPCAuthenticatedExtendedCard(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    request: JSONRPCRequest
+  ): Promise<void> {
+    // Verify authentication — this endpoint requires auth
+    if (!this.isAuthenticated(req)) {
+      res.setHeader("WWW-Authenticate", "Bearer");
+      this.sendJSONRPCError(res, request.id ?? null, -32002, "Authentication required");
+      return;
+    }
+
+    // Return extended agent card with additional details
+    const extendedCard = {
+      ...this.agentCard,
+      // Add extended/authenticated details
+      capabilities: {
+        ...this.agentCard.capabilities,
+      },
+    };
+
+    this.sendJSONRPCResponse(res, request.id ?? null, extendedCard);
   }
 
   /**
