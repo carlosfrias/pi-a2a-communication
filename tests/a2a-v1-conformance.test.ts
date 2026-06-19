@@ -1,27 +1,26 @@
 /**
  * A2A v1.0 Protocol Conformance Test Suite
- * for pi-a2a-communication@1.0.1
+ * for pi-a2a-communication (local fork v0.1.0-alpha.1)
  *
- * This test suite validates compliance with the A2A Protocol v1.0 specification.
- * It can be run against any A2A server implementation to check conformance.
+ * Tests the LOCAL fork against the A2A Protocol v1.0 specification.
+ *
+ * Spec gaps identified (S1–S6):
+ *   S1: JSON-RPC errors return HTTP 400 (convention: HTTP 200)
+ *   S2: 401 responses lack WWW-Authenticate header (RFC 7235: MUST)
+ *   S3: /.well-known/agent-card.json not supported (spec: MUST)
+ *   S4: /message:send and /message:stream not supported (spec HTTP/REST binding)
+ *   S5: /sendMessage lacks try/catch for JSON.parse (uncaught → HTTP 500)
+ *   S6: JSON-RPC method names are slash-separated, not PascalCase (spec: SendMessage)
+ *
+ * Passing features:
+ *   ✅ /.well-known/agent.json (local fork path, NOT spec path)
+ *   ✅ / root JSON-RPC dispatcher (accepts slash-separated methods only)
+ *   ✅ Bearer token authentication
+ *   ✅ /sendMessage and /sendStreamingMessage (legacy paths)
  *
  * Usage:
- *   npm install pi-a2a-communication vitest
- *   npx vitest run a2a-v1-conformance.test.ts
- *
- * References:
- *   - A2A Protocol spec: https://a2a-protocol.org
- *   - Google A2A GitHub: https://github.com/google/A2A
- *
- * Test Results (pi-a2a-communication@1.0.1):
- *   ✅ PASS — Agent Card served at /.well-known/agent-card
- *   ✅ PASS — Bearer token authentication enforced
- *   ❌ FAIL — JSON-RPC errors return HTTP 400 (spec: HTTP 200)
- *   ❌ FAIL — 401 responses lack WWW-Authenticate header (spec: MUST include)
- *   ❌ FAIL — /.well-known/agent.json returns 404 (spec: MUST support)
- *   ❌ FAIL — /message/send returns 404 (spec: MUST support)
- *   ⚠️  NOTE — /sendMessage works but is a legacy path (spec: /message/send)
- *   ⚠️  NOTE — / (root) has no JSON-RPC dispatcher (spec: single endpoint)
+ *   cd workshop/02-Areas/Infrastructure/pi-a2a-communication
+ *   npx vitest run a2a-v1-conformance
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -30,7 +29,7 @@ import http from 'node:http';
 
 // ─── Test Configuration ───────────────────────────────────────────────────────
 
-const TEST_PORT = 19876;
+const TEST_PORT = 29876;
 const TEST_HOST = '127.0.0.1';
 const TEST_TOKEN = 'test-conformance-token';
 const TEST_BASE = `http://${TEST_HOST}:${TEST_PORT}`;
@@ -43,17 +42,19 @@ interface HttpResponse {
   status: number;
   headers: Record<string, string>;
   body: any;
+  raw: string;
 }
 
 function request(
   method: string,
   path: string,
-  body?: object,
+  body?: object | string,
   token?: string
 ): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, TEST_BASE);
-    const payload = body ? JSON.stringify(body) : undefined;
+    const isString = typeof body === 'string';
+    const payload = body ? (isString ? body : JSON.stringify(body)) : undefined;
 
     const options: http.RequestOptions = {
       hostname: TEST_HOST,
@@ -61,14 +62,14 @@ function request(
       path: url.pathname + url.search,
       method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload as string).toString() } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     };
 
     const req = http.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => (data += chunk));
+      res.on('data', (chunk: Buffer) => (data += chunk));
       res.on('end', () => {
         const headers: Record<string, string> = {};
         for (let i = 0; i < res.rawHeaders.length; i += 2) {
@@ -76,11 +77,7 @@ function request(
         }
         let parsed: any = data;
         try { parsed = JSON.parse(data); } catch {}
-        resolve({
-          status: res.statusCode ?? 0,
-          headers,
-          body: parsed,
-        });
+        resolve({ status: res.statusCode ?? 0, headers, body: parsed, raw: data });
       });
     });
 
@@ -97,119 +94,133 @@ describe('A2A v1.0 Protocol Conformance', () => {
   beforeAll(async () => {
     server = new A2AServer(
       { enabled: true, port: TEST_PORT, host: TEST_HOST },
-      { defaultScheme: 'bearer', bearerToken: TEST_TOKEN }
+      { defaultScheme: 'bearer', bearerToken: TEST_TOKEN },
+      null
     );
     await server.start();
+    await new Promise(r => setTimeout(r, 200));
   });
 
   afterAll(async () => {
-    await server.stop();
+    if (server?.isRunning()) {
+      await server.stop();
+    }
   });
 
-  // ─── Issue 1: JSON-RPC Errors Must Return HTTP 200 ────────────────────────
+  // ─── S3: Agent Card Discovery Path ────────────────────────────────────────
   //
-  // A2A v1.0 Spec §5.4: "JSON-RPC responses MUST use HTTP 200 status code,
-  // regardless of whether the response indicates a success or an error."
-  // RFC 4627 §5: "The response MUST use HTTP 200 if the JSON-RPC message
-  // was successfully received and parsed, even if the result is an error."
-  //
-  // Current behavior: sendJSONRPCError() uses HTTP 400 (writeHead(400))
-  // Expected behavior: JSON-RPC errors should return HTTP 200 with the
-  //   error in the response body.
+  // A2A v1.0 Spec §8.2, §14.3: "Well-Known URI: /.well-known/agent-card.json"
+  // The local fork routes /.well-known/agent.json (not spec-compliant).
+  // The published npm v1.0.1 routes /.well-known/agent-card (also not spec-compliant).
+  // Neither implementation serves the correct spec path.
 
-  describe('JSON-RPC error HTTP status codes', () => {
-    it('MUST return HTTP 200 for JSON-RPC method-not-found errors', async () => {
+  describe('S3: Agent Card discovery paths', () => {
+    it('MUST serve Agent Card at /.well-known/agent-card.json (A2A v1.0 spec path)', async () => {
+      const res = await request('GET', '/.well-known/agent-card.json', undefined, TEST_TOKEN);
+      // Spec: The agent card MUST be discoverable at /.well-known/agent-card.json
+      expect(res.status).toBe(200); // ❌ FAILS: returns 404
+    });
+
+    it('SHOULD serve Agent Card at /.well-known/agent.json for backward compat', async () => {
+      // The local fork serves this path, but it is NOT the spec path
+      const res = await request('GET', '/.well-known/agent.json', undefined, TEST_TOKEN);
+      expect(res.status).toBe(200); // ✅ PASSES (local fork path)
+      expect(res.body.name).toBe('pi-coding-agent');
+    });
+
+    it('SHOULD serve Agent Card at /.well-known/agent-card for legacy compat', async () => {
+      // Many A2A clients use this path (npm v1.0.1 did). The fork doesn't support it.
+      const res = await request('GET', '/.well-known/agent-card', undefined, TEST_TOKEN);
+      expect(res.status).toBe(200); // ❌ FAILS: returns 404
+    });
+  });
+
+  // ─── S1: JSON-RPC Errors Must Return HTTP 200 ──────────────────────────────
+  //
+  // JSON-RPC over HTTP convention (not in core JSON-RPC 2.0 spec, which is
+  // transport-agnostic): JSON-RPC error responses SHOULD use HTTP 200.
+  // The A2A v1.0 spec examples show HTTP 200 for successful responses but don't
+  // explicitly mandate HTTP 200 for error responses.
+  //
+  // Current behavior: sendJSONRPCError() uses HTTP 400 (res.writeHead(400))
+  // Recommendation: Change to HTTP 200 for JSON-RPC error transport neutrality.
+
+  describe('S1: JSON-RPC error HTTP status codes', () => {
+    it('SHOULD return HTTP 200 for JSON-RPC invalid params errors (convention)', async () => {
       const res = await request('POST', '/', {
         jsonrpc: '2.0',
         id: '1',
+        method: 'SendMessage',
+        params: {}, // missing required 'message' field
+      }, TEST_TOKEN);
+
+      // Convention: HTTP 200 with JSON-RPC error body
+      // Current: HTTP 400 with JSON-RPC error body
+      expect(res.status).toBe(200); // ❌ FAILS: returns 400
+      expect(res.body.jsonrpc).toBe('2.0');
+      expect(res.body.error?.code).toBe(-32602);
+    });
+
+    it('SHOULD return HTTP 200 for JSON-RPC method-not-found errors (convention)', async () => {
+      const res = await request('POST', '/', {
+        jsonrpc: '2.0',
+        id: '2',
         method: 'nonexistent/method',
         params: {},
       }, TEST_TOKEN);
 
-      // Spec: HTTP 200 with JSON-RPC error body
-      // Current: HTTP 400 or 404
-      expect(res.status).toBe(200); // ❌ FAILS: returns 400 or 404
-    });
-
-    it('MUST return HTTP 200 for JSON-RPC invalid params errors', async () => {
-      const res = await request('POST', '/sendMessage', {
-        jsonrpc: '2.0',
-        id: '2',
-        method: 'message/send',
-        params: {}, // missing required 'message' field
-      }, TEST_TOKEN);
-
-      // Spec: HTTP 200 with error.code -32602
-      // Current: HTTP 400
       expect(res.status).toBe(200); // ❌ FAILS: returns 400
-      if (res.body.jsonrpc) {
-        expect(res.body.error?.code).toBe(-32602);
-      }
+      expect(res.body.jsonrpc).toBe('2.0');
+      expect(res.body.error?.code).toBe(-32601);
     });
 
-    it('MUST return HTTP 200 for JSON-RPC parse errors', async () => {
-      // Send malformed JSON
-      const res = await new Promise<HttpResponse>((resolve, reject) => {
-        const req = http.request(
-          {
-            hostname: TEST_HOST,
-            port: TEST_PORT,
-            path: '/sendMessage',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${TEST_TOKEN}`,
-            },
-          },
-          (res) => {
-            let data = '';
-            res.on('data', (chunk) => (data += chunk));
-            res.on('end', () => {
-              const headers: Record<string, string> = {};
-              for (let i = 0; i < res.rawHeaders.length; i += 2) {
-                headers[res.rawHeaders[i].toLowerCase()] = res.rawHeaders[i + 1];
-              }
-              let parsed: any = data;
-              try { parsed = JSON.parse(data); } catch {}
-              resolve({ status: res.statusCode ?? 0, headers, body: parsed });
-            });
-          }
-        );
-        req.on('error', reject);
-        req.write('{malformed json');
-        req.end();
-      });
+    it('SHOULD return HTTP 200 for JSON-RPC parse errors (convention)', async () => {
+      // Root dispatcher has try/catch for JSON.parse → returns -32700 properly
+      const res = await request('POST', '/', '{malformed json' as any, TEST_TOKEN);
 
-      // Spec: HTTP 200 with error.code -32700
-      expect(res.status).toBe(200); // ❌ FAILS: likely returns 400
+      expect(res.status).toBe(200); // ❌ FAILS: returns 400
+      expect(res.body.jsonrpc).toBe('2.0');
+      expect(res.body.error?.code).toBe(-32700);
+      // Note: The server uses `id ?? 0` instead of `id: null` for parse errors.
+      // JSON-RPC 2.0 spec §5.1: "id MUST be Null if there was an error detecting the request id."
+      expect(res.body.id).toBeNull(); // ❌ FAILS: returns id:0
     });
   });
 
-  // ─── Issue 2: WWW-Authenticate Header on 401 Responses ───────────────────
+  // ─── S5: /sendMessage Parse Error Handling ──────────────────────────────────
+  //
+  // The legacy /sendMessage handler calls JSON.parse(body) without try/catch.
+  // Uncaught SyntaxError propagates to top-level catch → HTTP 500.
+  // Should return a JSON-RPC parse error (code -32700) instead.
+
+  describe('S5: Legacy path /sendMessage parse error handling', () => {
+    it('MUST handle malformed JSON gracefully on /sendMessage', async () => {
+      const res = await request('POST', '/sendMessage', '{malformed json' as any, TEST_TOKEN);
+
+      // Spec: HTTP 200 with JSON-RPC parse error (code -32700)
+      // Current: HTTP 500 "Internal Server Error" (uncaught SyntaxError)
+      expect(res.status).toBe(200); // ❌ FAILS: returns 500
+    });
+  });
+
+  // ─── S2: WWW-Authenticate Header on 401 Responses ──────────────────────────
   //
   // RFC 7235 §2.1: "A server generating a 401 response MUST send a
   //   WWW-Authenticate header field containing at least one challenge."
-  // A2A v1.0 spec: Bearer token auth MUST include WWW-Authenticate
-  //   header on 401 responses.
-  //
-  // Current behavior: The main handleRequest() sendError(401) does NOT
-  //   include WWW-Authenticate. Only the extended agent card handler
-  //   (line 449) sets it, which is unreachable for most 401 paths.
 
-  describe('WWW-Authenticate header on 401 responses', () => {
-    it('MUST include WWW-Authenticate header on 401 response', async () => {
-      const res = await request('GET', '/.well-known/agent-card');
+  describe('S2: WWW-Authenticate header on 401 responses', () => {
+    it('MUST include WWW-Authenticate header on 401 response (RFC 7235)', async () => {
+      const res = await request('GET', '/.well-known/agent.json');
 
       expect(res.status).toBe(401);
       expect(res.headers['www-authenticate']).toBeDefined(); // ❌ FAILS: header missing
-      expect(res.headers['www-authenticate']).toMatch(/^Bearer/i); // ❌ FAILS
     });
 
-    it('MUST include WWW-Authenticate with realm on 401 for protected paths', async () => {
-      const res = await request('POST', '/sendMessage', {
+    it('MUST include WWW-Authenticate header on 401 for JSON-RPC requests', async () => {
+      const res = await request('POST', '/', {
         jsonrpc: '2.0',
         id: '1',
-        method: 'message/send',
+        method: 'SendMessage',
         params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
       }); // no auth token
 
@@ -218,68 +229,105 @@ describe('A2A v1.0 Protocol Conformance', () => {
     });
   });
 
-  // ─── Issue 3: Agent Card Discovery Path ───────────────────────────────────
+  // ─── S4: A2A v1.0 HTTP/REST Endpoint Paths ────────────────────────────────
   //
-  // A2A v1.0 Spec §3.1: "Agent Cards MUST be discoverable at
-  //   /.well-known/agent.json following RFC 8615."
+  // A2A v1.0 defines TWO transport bindings:
+  //   1. HTTP/REST binding (§11.3.1): POST /message:send, POST /message:stream
+  //   2. JSON-RPC binding (§9.2): Single endpoint POST /rpc with method dispatch
   //
-  // Current behavior: Only /.well-known/agent-card is supported.
-  //   The spec path /.well-known/agent.json returns 404.
-  //
-  // Note: The server does respond on /.well-known/agent-card, which is
-  //   the path used by some implementations, but the canonical spec
-  //   path is /.well-known/agent.json.
+  // The local fork only supports /sendMessage and /sendStreamingMessage (legacy).
 
-  describe('Agent Card discovery paths', () => {
-    it('MUST serve Agent Card at /.well-known/agent.json (RFC 8615)', async () => {
-      const res = await request('GET', '/.well-known/agent.json', undefined, TEST_TOKEN);
+  describe('S4: A2A v1.0 HTTP/REST endpoint paths', () => {
+    it('MUST accept POST /message:send (A2A v1.0 HTTP/REST binding)', async () => {
+      // A2A v1.0 §11.3.1: HTTP/REST binding uses colon-separated paths
+      const res = await request('POST', '/message:send', {
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'SendMessage',
+        params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
+      }, TEST_TOKEN);
 
       expect(res.status).toBe(200); // ❌ FAILS: returns 404
-      expect(res.body.name).toBeDefined();
     });
 
-    it('SHOULD also serve Agent Card at /.well-known/agent-card (legacy)', async () => {
-      const res = await request('GET', '/.well-known/agent-card', undefined, TEST_TOKEN);
+    it('MUST accept POST /message:stream (A2A v1.0 HTTP/REST binding)', async () => {
+      const res = await request('POST', '/message:stream', {
+        jsonrpc: '2.0',
+        id: '2',
+        method: 'SendStreamingMessage',
+        params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
+      }, TEST_TOKEN);
 
-      expect(res.status).toBe(200); // ✅ PASSES
-      expect(res.body.name).toBeDefined();
+      expect(res.status).toBe(200); // ❌ FAILS: returns 404
+    });
+
+    it('MUST support JSON-RPC dispatch at POST /rpc (A2A v1.0 JSON-RPC binding)', async () => {
+      // A2A v1.0 §9.2: JSON-RPC binding uses a single /rpc endpoint
+      const res = await request('POST', '/rpc', {
+        jsonrpc: '2.0',
+        id: '3',
+        method: 'SendMessage',
+        params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
+      }, TEST_TOKEN);
+
+      expect(res.status).toBe(200); // ❌ FAILS: returns 404
     });
   });
 
-  // ─── Issue 4: A2A v1.0 Endpoint Paths ─────────────────────────────────────
+  // ─── S6: JSON-RPC Method Names ────────────────────────────────────────────
   //
-  // A2A v1.0 Spec §4.1: The primary endpoint for sending messages is
-  //   POST /message/send (not /sendMessage).
-  // A2A v1.0 Spec §4.2: The primary endpoint for streaming is
-  //   POST /message/stream (not /sendStreamingMessage).
+  // A2A v1.0 §5.3, §9.4: JSON-RPC method names are PascalCase:
+  //   SendMessage, SendStreamingMessage, GetTask, CancelTask, etc.
   //
-  // Current behavior: Only /sendMessage and /sendStreamingMessage work.
-  //   The spec paths /message/send and /message/stream return 404.
-  //
-  // The server also lacks a root JSON-RPC dispatcher (path "/" returns 404),
-  //   which the spec defines as the primary endpoint for all JSON-RPC methods.
+  // The local fork uses slash-separated lowercase: message/send, tasks/get, etc.
+  // The root dispatcher accepts slash-separated methods only.
 
-  describe('A2A v1.0 endpoint paths', () => {
-    it('MUST accept POST /message/send (spec path)', async () => {
-      const res = await request('POST', '/message/send', {
+  describe('S6: JSON-RPC method names must be PascalCase (A2A v1.0)', () => {
+    it('MUST accept "SendMessage" method (A2A v1.0 PascalCase)', async () => {
+      // The root dispatcher only accepts slash-separated methods (message/send).
+      // A spec-compliant client sending "SendMessage" gets Method not found.
+      const res = await request('POST', '/', {
         jsonrpc: '2.0',
         id: '1',
-        method: 'message/send',
+        method: 'SendMessage',
         params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
       }, TEST_TOKEN);
 
-      expect(res.status).toBe(200); // ❌ FAILS: returns 404
+      // Should return 200 with result; currently returns -32601 Method not found
+      expect(res.status).toBe(200); // ❌ FAILS: returns 400 (method not found)
+      expect(res.body.result).toBeDefined(); // ❌ FAILS: returns error
     });
 
-    it('MUST accept POST /message/stream (spec path)', async () => {
-      const res = await request('POST', '/message/stream', {
+    it('MUST accept "GetTask" method (A2A v1.0 PascalCase)', async () => {
+      const res = await request('POST', '/', {
         jsonrpc: '2.0',
         id: '2',
-        method: 'message/stream',
-        params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
+        method: 'GetTask',
+        params: { id: 'nonexistent' },
       }, TEST_TOKEN);
 
-      expect(res.status).toBe(200); // ❌ FAILS: returns 404
+      // Should return 200 with task-not-found error; currently returns -32601
+      expect(res.status).toBe(200); // ❌ FAILS: returns 400
+    });
+  });
+
+  // ─── PASSING: Working Features ────────────────────────────────────────────
+
+  describe('Working A2A features (PASSING)', () => {
+    it('MUST reject requests without Authorization header', async () => {
+      const res = await request('GET', '/.well-known/agent.json');
+      expect(res.status).toBe(401); // ✅
+    });
+
+    it('MUST reject requests with wrong token', async () => {
+      const res = await request('GET', '/.well-known/agent.json', undefined, 'wrong-token');
+      expect(res.status).toBe(401); // ✅
+    });
+
+    it('MUST accept requests with correct Bearer token', async () => {
+      const res = await request('GET', '/.well-known/agent.json', undefined, TEST_TOKEN);
+      expect(res.status).toBe(200); // ✅
+      expect(res.body.name).toBe('pi-coding-agent');
     });
 
     it('SHOULD accept POST /sendMessage (legacy path)', async () => {
@@ -290,10 +338,15 @@ describe('A2A v1.0 Protocol Conformance', () => {
         params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
       }, TEST_TOKEN);
 
-      expect(res.status).toBe(200); // ✅ PASSES
+      expect(res.status).toBe(200); // ✅
+      expect(res.body.jsonrpc).toBe('2.0');
+      expect(res.body.result).toBeDefined();
     });
 
-    it('SHOULD support JSON-RPC dispatch at root path /', async () => {
+    it('SHOULD support JSON-RPC dispatch at root path / (slash-separated methods)', async () => {
+      // NOTE: This passes because the root dispatcher accepts slash-separated
+      // method names (message/send). A spec-compliant client using PascalCase
+      // (SendMessage) would get Method not found. See S6.
       const res = await request('POST', '/', {
         jsonrpc: '2.0',
         id: '4',
@@ -301,65 +354,36 @@ describe('A2A v1.0 Protocol Conformance', () => {
         params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } },
       }, TEST_TOKEN);
 
-      // Spec §4: "The server MUST support a single JSON-RPC endpoint"
-      expect(res.status).toBe(200); // ❌ FAILS: returns 404
-    });
-  });
-
-  // ─── Issue 5 (bonus): Bearer Token Comparison ────────────────────────────
-  //
-  // RFC 6750 §2.1: "The access token is sent in the Authorization header
-  //   field using the Bearer authentication scheme."
-  // Note: Case-sensitive comparison of the Bearer token is a common bug.
-  //   The current implementation uses exact string match which is correct,
-  //   but we verify it doesn't accept case-variations of "Bearer".
-
-  describe('Bearer token validation', () => {
-    it('MUST reject requests without Authorization header', async () => {
-      const res = await request('GET', '/.well-known/agent-card');
-      expect(res.status).toBe(401); // ✅ PASSES
-    });
-
-    it('MUST reject requests with wrong token', async () => {
-      const res = await request('GET', '/.well-known/agent-card', undefined, 'wrong-token');
-      expect(res.status).toBe(401); // ✅ PASSES
-    });
-
-    it('MUST accept requests with correct Bearer token', async () => {
-      const res = await request('GET', '/.well-known/agent-card', undefined, TEST_TOKEN);
-      expect(res.status).toBe(200); // ✅ PASSES
+      expect(res.status).toBe(200); // ✅ (only for slash-separated methods)
+      expect(res.body.jsonrpc).toBe('2.0');
+      expect(res.body.result).toBeDefined();
     });
   });
 
   // ─── Summary ──────────────────────────────────────────────────────────────
   //
-  // Conformance Results for pi-a2a-communication@1.0.1:
+  // Conformance Results for pi-a2a-communication (local fork v0.1.0-alpha.1):
   //
-  // | ID  | Severity | Issue                                        | Status |
-  // |-----|----------|----------------------------------------------|--------|
-  // | S1  | HIGH     | JSON-RPC errors return HTTP 400 (spec: 200) | ❌     |
-  // | S2  | MEDIUM   | 401 responses lack WWW-Authenticate header  | ❌     |
-  // | S3  | MEDIUM   | /.well-known/agent.json not supported (404)   | ❌     |
-  // | S4  | HIGH     | /message/send and /message/stream return 404 | ❌     |
-  // | S4b | LOW      | No root JSON-RPC dispatcher at / (404)       | ❌     |
-  // | S5  | —        | Bearer token auth works correctly             | ✅     |
-  // | S6  | —        | /.well-known/agent-card (legacy) works       | ✅     |
-  // | S7  | —        | /sendMessage (legacy) works                  | ✅     |
+  // | ID  | Severity | Issue                                              | Status |
+  // |-----|----------|----------------------------------------------------|--------|
+  // | S1  | MEDIUM   | JSON-RPC errors return HTTP 400 (convention: 200) | ❌     |
+  // | S2  | HIGH     | 401 responses lack WWW-Authenticate header (RFC 7235)| ❌    |
+  // | S3  | HIGH     | /.well-known/agent-card.json not supported (spec path)| ❌    |
+  // | S4  | HIGH     | /message:send, /message:stream, /rpc not supported  | ❌     |
+  // | S5  | HIGH     | /sendMessage uncaught parse error → HTTP 500       | ❌     |
+  // | S6  | HIGH     | Method names slash-separated, not PascalCase        | ❌     |
+  // | S6b | LOW      | id:0 instead of id:null in parse errors            | ❌     |
+  // | —   | ✅       | /.well-known/agent.json (local fork path)          | ✅     |
+  // | —   | ✅       | Bearer token authentication                        | ✅     |
+  // | —   | ✅       | /sendMessage (legacy path)                         | ✅     |
+  // | —   | ✅       | / root JSON-RPC dispatcher (slash-separated only)  | ✅     |
   //
-  // Recommended fixes (by file:line in dist/a2a-server.js):
-  //
-  //   S1: Line ~866: Change res.writeHead(400) → res.writeHead(200)
-  //      in sendJSONRPCError()
-  //
-  //   S2: Line ~126: Add res.setHeader('WWW-Authenticate', 'Bearer')
-  //      before sendError(res, 401, 'Unauthorized')
-  //
-  //   S3: Line ~130: Add path === '/.well-known/agent.json' to the
-  //      route alongside '/.well-known/agent-card'
-  //
-  //   S4: Line ~137: Add '/message/send' and '/message/stream' routes
-  //      alongside '/sendMessage' and '/sendStreamingMessage'
-  //
-  //   S4b: Line ~148: Add root path '/' handler that dispatches
-  //      JSON-RPC methods (message/send, message/stream, tasks/get, etc.)
+  // Fix locations (in a2a-server.ts):
+  //   S1:  sendJSONRPCError() → change res.writeHead(400) to res.writeHead(200)
+  //   S2:  isAuthenticated() rejection → add res.setHeader('WWW-Authenticate', 'Bearer')
+  //   S3:  Add '/.well-known/agent-card.json' route alongside '/.well-known/agent.json'
+  //   S4:  Add '/message:send', '/message:stream', '/rpc' routes
+  //   S5:  Add try/catch around JSON.parse in handleSendMessage()
+  //   S6:  Add PascalCase method name mapping in root JSON-RPC dispatcher
+  //   S6b: Change `id ?? 0` to `id: null` in parse error responses
 });

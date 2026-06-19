@@ -1,459 +1,261 @@
+---
+title: A2A v1.0 Conformance Report
+created: 2026-06-19
+version: 2.0
+status: audit-complete
+auditors:
+  - deepseek-v4-pro:cloud (validation)
+  - kimi-k2.7-code:cloud (audit)
+---
+
 # A2A v1.0 Protocol Conformance Report
 
-**Subject:** pi-a2a-communication@1.0.1 — Spec Compliance Gaps  
+**Subject:** `pi-a2a-communication` (local fork v0.1.0-alpha.1)  
+**Published npm:** `pi-a2a-communication@1.0.1`  
 **Date:** 2026-06-19  
-**Author:** Carlos Frias  
-**Scope:** A2A Protocol v1.0 specification compliance audit  
-**Package:** [npm:pi-a2a-communication@1.0.1](https://www.npmjs.com/package/pi-a2a-communication)  
-**Upstream:** [DrOlu/pi-a2a-communication](https://github.com/DrOlu/pi-a2a-communication)  
+**Test Suite:** `tests/a2a-v1-conformance.test.ts` (19 tests, 6 passing, 13 failing)
 
 ---
 
 ## Executive Summary
 
-We deployed `pi-a2a-communication@1.0.1` across a 7-node fleet and conducted a protocol conformance audit against the [A2A Protocol v1.0 specification](https://a2a-protocol.org). The implementation is **functional** — it correctly handles Bearer auth, serves Agent Cards, processes tasks, and streams results. However, it has **5 spec compliance gaps** that will cause interoperability failures with compliant A2A clients.
+The local fork of `pi-a2a-communication` has **partial** A2A v1.0 spec compliance. It added a root JSON-RPC dispatcher (`/`) and the `/.well-known/agent.json` discovery path (which is **not** the correct spec path — see S3). **7 spec gaps (S1–S6b) identified by deepseek-v4-pro:cloud (validation) and kimi-k2.7-code:cloud (audit).** The local fork has partial A2A v1.0 compliance — root dispatcher and `/.well-known/agent.json` work, but neither path matches the spec (`/.well-known/agent-card.json`).
 
-**Bottom line:** The package works for our fleet because we control both sides. Any third-party A2A client that follows the spec will fail to discover agents, send messages, or handle errors correctly.
+### Validation & Audit
 
-| ID | Severity | Issue | Spec Requirement | Current Behavior |
-|----|----------|-------|-------------------|------------------|
-| S1 | 🔴 High | JSON-RPC errors return HTTP 400 | HTTP 200 per JSON-RPC 2.0 | `writeHead(400)` |
-| S2 | 🟡 Medium | 401 responses lack `WWW-Authenticate` | RFC 7235 §2.1 | Header omitted |
-| S3 | 🟡 Medium | `/.well-known/agent.json` returns 404 | A2A Spec §3.1 / RFC 8615 | Only `agent-card` works |
-| S4 | 🔴 High | `/message/send` and `/message/stream` return 404 | A2A Spec §4.1-4.2 | Only `/sendMessage` works |
-| S4b | 🟠 Medium | No root JSON-RPC dispatcher at `/` | A2A Spec §4 | `/` returns 404 |
+This report was validated by two independent models:
+- **deepseek-v4-pro:cloud** — Found critical path errors (S3 uses wrong spec path, S4 tests wrong URLs, S6 undocumented gap with PascalCase methods)
+- **kimi-k2.7-code:cloud** — Found additional gaps (missing task method tests, SSE contract, CORS, security edge cases, `id ?? 0` bug)
 
 ---
 
-## Background: What A2A Is
+## Spec Gap Summary
 
-The **Agent-to-Agent (A2A) Protocol** is an open standard published by Google for inter-agent communication. It defines how AI agents discover each other, negotiate capabilities, and exchange tasks.
+| ID  | Severity | Issue | Spec Requirement | Status |
+|-----|----------|-------|-----------------|--------|
+| S1  | MEDIUM   | JSON-RPC errors return HTTP 400 | JSON-RPC over HTTP convention: HTTP 200 | ❌ FAIL |
+| S2  | HIGH     | 401 responses lack `WWW-Authenticate` header | RFC 7235 §2.1: MUST include on 401 | ❌ FAIL |
+| S3  | HIGH     | Wrong Agent Card discovery path | A2A v1.0 §8.2: `/.well-known/agent-card.json` | ❌ FAIL |
+| S4  | HIGH     | Missing HTTP/REST and JSON-RPC binding paths | A2A v1.0 §9.2/§11.3: `/rpc`, `/message:send` | ❌ FAIL |
+| S5  | HIGH     | `/sendMessage` uncaught parse error → HTTP 500 | JSON-RPC §5.1: parse error code -32700 | ❌ FAIL |
+| S6  | HIGH     | Method names slash-separated, not PascalCase | A2A v1.0 §5.3: `SendMessage`, `GetTask`, etc. | ❌ FAIL |
+| S6b | LOW      | `id: 0` instead of `id: null` in parse errors | JSON-RPC §5.1: id MUST be null on parse error | ❌ FAIL |
 
-The protocol has two layers:
+### Passing Features
+
+| Feature | Path | Status |
+|---------|------|--------|
+| Agent Card (local path) | `/.well-known/agent.json` | ✅ PASS |
+| Bearer token auth | All protected paths | ✅ PASS |
+| Legacy message endpoint | `/sendMessage` | ✅ PASS |
+| Root JSON-RPC dispatcher | `/` (slash-separated methods only) | ✅ PASS |
+
+---
+
+## Detailed Findings
+
+### S1: JSON-RPC Error HTTP Status Codes (MEDIUM)
+
+**Finding:** `sendJSONRPCError()` uses `res.writeHead(400)` for all JSON-RPC errors.
+
+**Spec basis:** The JSON-RPC 2.0 core specification is transport-agnostic and does not mandate HTTP status codes. However, the JSON-RPC over HTTP convention (used by most implementations) recommends HTTP 200 for all JSON-RPC responses, with errors in the response body.
+
+**Fix:** Change `res.writeHead(400)` to `res.writeHead(200)` in `sendJSONRPCError()`.
 
 ```mermaid
 graph LR
-    subgraph "A2A Protocol Stack"
-        D["<b>Agent Discovery</b><br/>GET /.well-known/agent.json<br/>(RFC 8615)"]
-        T["<b>Task Lifecycle</b><br/>POST /message/send<br/>POST /message/stream<br/>POST /tasks/{id}"]
-        J["<b>JSON-RPC 2.0</b><br/>All task operations<br/>use JSON-RPC envelopes"]
-    end
-    D --> T --> J
+    Client -->|JSON-RPC request| Server
+    Server -->|HTTP 400 + JSON-RPC error| Client
+    style Server fill:#ff6b6b
 ```
 
-An A2A client that follows the spec will:
-
-1. **Discover** — `GET /.well-known/agent.json` to fetch an Agent Card
-2. **Authenticate** — `Authorization: Bearer <token>` header
-3. **Send tasks** — `POST /message/send` with a JSON-RPC 2.0 envelope
-4. **Handle errors** — Expect HTTP 200 with a JSON-RPC error body
-
-The current implementation breaks steps 1, 3, and 4.
-
----
-
-## Issue S1: JSON-RPC Errors Use Wrong HTTP Status Code
-
-### The Spec
-
-JSON-RPC 2.0 ([RFC 4627](https://www.jsonrpc.org/specification)) and the A2A specification both require that **JSON-RPC error responses use HTTP 200**. The HTTP status code indicates transport success; the error is communicated inside the JSON-RPC envelope.
-
-> A JSON-RPC response MUST use HTTP 200, even when the response contains an error.  
-> — JSON-RPC 2.0 Specification, §5
-
-### The Bug
-
-```mermaid
-sequenceDiagram
-    participant Client as A2A Client
-    participant Server as pi-a2a-communication
-
-    Client->>Server: POST /sendMessage<br/>{"jsonrpc":"2.0","id":"1",<br/>"method":"invalid","params":{}}
-    
-    Note over Server: sendJSONRPCError() calls<br/>res.writeHead(400)
-    
-    Server-->>Client: HTTP/1.1 400 Bad Request<br/>{"jsonrpc":"2.0","id":"1",<br/>"error":{"code":-32601,"message":"Method not found"}}
-    
-    Note over Client: ❌ Client sees HTTP 400<br/>and may retry or abort<br/>without parsing JSON-RPC body
-```
-
-### Evidence
-
-```bash
-# Method not found → returns HTTP 400 (spec: HTTP 200)
-$ curl -s -i -X POST http://localhost:10000/sendMessage \
-  -H "Authorization: Bearer lab-fleet-2026" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":"1","method":"nonexistent","params":{}}'
-
-HTTP/1.1 400 Bad Request          ← ❌ Should be 200
-Content-Type: application/json
-{"jsonrpc":"2.0","id":"1","error":{"code":-32601,"message":"Method not found"}}
-```
-
-### Root Cause
-
-File: `dist/a2a-server.js`, line ~859-867:
-
-```javascript
-sendJSONRPCError(res, id, code, message, data) {
-    const response = {
-        jsonrpc: "2.0",
-        id: id ?? 0,
-        error: { code, message, data },
-    };
-    res.setHeader("Content-Type", "application/json");
-    res.writeHead(400);   // ← BUG: Should be 200
-    res.end(JSON.stringify(response));
-}
-```
-
-### Fix
-
-```javascript
-res.writeHead(200);   // JSON-RPC errors are application-level, not transport-level
-```
-
-### Impact
-
-- **Compliant clients** will treat HTTP 400 as a transport error and may not parse the JSON-RPC body
-- **Retry logic** will trigger unnecessarily (400 = "bad request, don't retry" vs 200 + JSON-RPC error = "understood, but failed")
-- **HTTP load balancers** may classify these as real errors and circuit-break the endpoint
-
----
-
-## Issue S2: Missing WWW-Authenticate Header on 401 Responses
-
-### The Spec
-
-RFC 7235 §2.1 requires that **any 401 response MUST include a `WWW-Authenticate` header**:
-
-> A server generating a 401 (Unauthorized) response MUST send a `WWW-Authenticate` header field containing at least one challenge.  
-> — RFC 7235, Section 2.1
-
-### The Bug
-
-```mermaid
-sequenceDiagram
-    participant Client as A2A Client
-    participant Server as pi-a2a-communication
-
-    Client->>Server: GET /.well-known/agent-card<br/>(no Authorization header)
-    
-    Note over Server: isAuthenticated() returns false<br/>sendError(401, "Unauthorized")<br/>No WWW-Authenticate header set
-    
-    Server-->>Client: HTTP/1.1 401 Unauthorized<br/>Content-Type: application/json<br/>{"error":"Unauthorized"}
-    
-    Note over Client: ❌ No WWW-Authenticate header<br/>Client cannot discover<br/>required auth scheme
-```
-
-### Evidence
-
-```bash
-# 401 response without WWW-Authenticate
-$ curl -sI http://localhost:10000/.well-known/agent-card
-
-HTTP/1.1 401 Unauthorized
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
-Content-Type: application/json
-                                     ← ❌ No WWW-Authenticate header
-```
-
-### Root Cause
-
-File: `dist/a2a-server.js`, line ~126:
-
-```javascript
-// Check authentication
-if (!this.isAuthenticated(req)) {
-    this.sendError(res, 401, "Unauthorized");  // ← No WWW-Authenticate header
-    return;
-}
-```
-
-Note: Line ~449 *does* set `WWW-Authenticate: Bearer` in the extended agent card handler, but this code path is unreachable because the main auth check at line ~126 fires first and returns 401 without the header.
-
-### Fix
-
-```javascript
-if (!this.isAuthenticated(req)) {
-    res.setHeader("WWW-Authenticate", "Bearer");
-    this.sendError(res, 401, "Unauthorized");
-    return;
-}
-```
-
-### Impact
-
-- **OAuth2/Bearer clients** rely on `WWW-Authenticate` to discover the required auth scheme
-- **HTTP client libraries** (like Python `requests` or `httpx`) automatically retry with auth when they see `WWW-Authenticate: Bearer`
-- Without the header, clients receive 401 and have no way to know what authentication is required
-
----
-
-## Issue S3: Wrong Agent Card Discovery Path
-
-### The Spec
-
-A2A v1.0 §3.1 and RFC 8615 require Agent Cards to be discoverable at:
-
-> `GET /.well-known/agent.json`
-
-This follows the well-known URI convention (`.json` extension for machine-readable documents, per RFC 8615 §3).
-
-### The Bug
-
-```mermaid
-graph TD
-    A["A2A Client"] -->|GET /.well-known/agent.json<br/>SPEC PATH| B["Server"]
-    B -->|❌ 404 Not Found| A
-    
-    A -->|GET /.well-known/agent-card<br/>LEGACY PATH| B
-    B -->|✅ 200 OK + Agent Card| A
-    
-    style A fill:#f9f,stroke:#333
-    style B fill:#bbf,stroke:#333
-```
-
-### Evidence
-
-```bash
-# Spec path → 404
-$ curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: Bearer lab-fleet-2026" \
-  http://localhost:10000/.well-known/agent.json
-404
-
-# Legacy path → 200
-$ curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: Bearer lab-fleet-2026" \
-  http://localhost:10000/.well-known/agent-card
-200
-```
-
-### Root Cause
-
-File: `dist/a2a-server.js`, line ~130:
-
-```javascript
-if (path === "/.well-known/agent-card") {      // ← Only legacy path
-    await this.handleAgentCard(req, res);
-}
-```
-
-Only `agent-card` is recognized. The spec path `agent.json` falls through to the 404 handler.
-
-### Fix
-
-```javascript
-if (path === "/.well-known/agent-card" || path === "/.well-known/agent.json") {
-    await this.handleAgentCard(req, res);
-}
-```
-
-### Impact
-
-- **Spec-compliant discovery agents** will fail to find the Agent Card
-- **A2A registry services** that crawl `/.well-known/agent.json` will get 404
-- Only clients that hardcode `/agent-card` (legacy path) will succeed
-
----
-
-## Issue S4: Wrong Message Endpoint Paths
-
-### The Spec
-
-A2A v1.0 §4 defines the message endpoints as:
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/message/send` | Send a message (synchronous) |
-| `POST` | `/message/stream` | Send a message (streaming SSE) |
-| `POST` | `/` | JSON-RPC dispatch (all methods) |
-
-### The Bug
-
+**Expected:**
 ```mermaid
 graph LR
-    subgraph "A2A v1.0 Spec Paths"
-        A["/message/send"]
-        B["/message/stream"]
-        C["/ (root)"]
-    end
-    
-    subgraph "Current Implementation"
-        D["/sendMessage"]
-        E["/sendStreamingMessage"]
-        F["❌ No root handler"]
-    end
-    
-    A -->|404| X["❌ Not Found"]
-    B -->|404| X2["❌ Not Found"]
-    C -->|404| X3["❌ Not Found"]
-    D -->|200| Y["✅ Works"]
-    E -->|200| Y2["✅ Works"]
-    
-    style X fill:#f66
-    style X2 fill:#f66
-    style X3 fill:#f66
-    style Y fill:#6f6
-    style Y2 fill:#6f6
+    Client -->|JSON-RPC request| Server
+    Server -->|HTTP 200 + JSON-RPC error| Client
+    style Server fill:#51cf66
 ```
 
-### Evidence
+### S2: Missing WWW-Authenticate Header (HIGH)
 
-```bash
-# Spec path: /message/send → 404
-$ curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:10000/message/send \
-  -H "Authorization: Bearer lab-fleet-2026" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{...}}'
-404
+**Finding:** The `isAuthenticated()` rejection at line 162 calls `sendError(res, 401, "Unauthorized")` without setting `WWW-Authenticate`.
 
-# Legacy path: /sendMessage → 200
-$ curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:10000/sendMessage \
-  -H "Authorization: Bearer lab-fleet-2026" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{...}}'
-200
+**Spec basis:** RFC 7235 §2.1 explicitly mandates: "A server generating a 401 (Unauthorized) response MUST send a WWW-Authenticate header field."
 
-# Root JSON-RPC dispatcher: / → 404
-$ curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:10000/ \
-  -H "Authorization: Bearer lab-fleet-2026" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{...}}'
-404
-```
+**Fix:** Add `res.setHeader('WWW-Authenticate', 'Bearer realm="a2a"')` before the 401 response.
 
-### Root Cause
+### S3: Wrong Agent Card Discovery Path (HIGH)
 
-File: `dist/a2a-server.js`, line ~129-148:
+**Finding:** The local fork routes `/.well-known/agent.json`. The published npm v1.0.1 routes `/.well-known/agent-card`. Neither matches the A2A v1.0 spec path.
 
-```javascript
-// Route requests
-if (path === "/.well-known/agent-card") {
-    await this.handleAgentCard(req, res);
-}
-else if (path === "/sendMessage" || path === "/sendStreamingMessage") {
-    // ← Legacy paths only, no /message/send or /message/stream
-    await this.handleSendMessage(req, res, path === "/sendStreamingMessage");
-}
-else if (path.startsWith("/tasks/")) {
-    await this.handleTaskRequest(req, res, path);
-}
-else if (path === "/tasks") {
-    await this.handleListTasks(req, res);
-}
-else {
-    this.sendError(res, 404, "Not Found");  // ← No root dispatcher
-}
-```
+**Spec basis:** A2A v1.0 §8.2 and §14.3 define the Well-Known URI as `/.well-known/agent-card.json`. This has been consistent since v0.3.0.
 
-### Fix
+| Path | Implementation | Spec |
+|------|---------------|------|
+| `/.well-known/agent-card.json` | ❌ 404 | ✅ Required |
+| `/.well-known/agent.json` | ✅ 200 (local fork) | ❌ Not in spec |
+| `/.well-known/agent-card` | ❌ 404 (local) / ✅ 200 (npm v1.0.1) | ❌ Not in spec |
 
-```javascript
-// Add spec-compliant paths alongside legacy paths
-if (path === "/.well-known/agent-card" || path === "/.well-known/agent.json") {
-    await this.handleAgentCard(req, res);
-}
-else if (path === "/message/send" || path === "/sendMessage" ||
-         path === "/message/stream" || path === "/sendStreamingMessage") {
-    const streaming = path === "/message/stream" || path === "/sendStreamingMessage";
-    await this.handleSendMessage(req, res, streaming);
-}
-else if (path === "/" || path === "") {
-    // JSON-RPC dispatcher for root endpoint
-    await this.handleJsonRPCRequest(req, res);
-}
-// ... rest of routing
-```
+**Fix:** Route `/.well-known/agent-card.json` as the primary path. Keep `/.well-known/agent.json` and `/.well-known/agent-card` for backward compat.
 
-### Impact
+### S4: Missing A2A v1.0 Transport Binding Paths (HIGH)
 
-- **Any spec-compliant A2A client** will fail to send messages
-- This is the highest-impact bug — message sending is the core A2A operation
-- The legacy paths work, so existing integrations are unaffected, but new integrations following the spec will break
+**Finding:** The server only supports legacy `/sendMessage` and `/sendStreamingMessage` paths.
 
----
-
-## Interoperability Impact Matrix
+**A2A v1.0 defines TWO transport bindings:**
 
 ```mermaid
 graph TD
-    subgraph "A2A Client Type"
-        C1["Spec-Compliant Client<br/>(uses /message/send,<br/>/.well-known/agent.json,<br/>expects HTTP 200)"]
-        C2["Legacy Client<br/>(uses /sendMessage,<br/>/.well-known/agent-card,<br/>tolerates HTTP 400)"]
-        C3["Our Fleet<br/>(uses /sendMessage,<br/>/.well-known/agent-card,<br/>tolerates HTTP 400)"]
+    subgraph "A2A v1.0 Transport Bindings"
+        A["JSON-RPC Binding<br/>POST /rpc<br/>Method dispatch via body"]
+        B["HTTP/REST Binding<br/>POST /message:send<br/>POST /message:stream<br/>POST /tasks:get<br/>etc."]
     end
-    
-    subgraph "Outcome"
-        F["❌ Complete Failure"]
-        P["⚠️ Partial (degraded)"]
-        W["✅ Works"]
-    end
-    
-    C1 --> F
-    C2 --> P
-    C3 --> W
-    
-    style F fill:#f66,color:#fff
-    style P fill:#ff6,color:#333
-    style W fill:#6f6,color:#333
 ```
 
-| Client Type | Discovery | Auth | Send Message | Error Handling | Overall |
-|-------------|-----------|------|-------------|---------------|---------|
-| **Spec-compliant** | ❌ 404 on `agent.json` | ❌ No `WWW-Authenticate` | ❌ 404 on `/message/send` | ❌ HTTP 400 hides JSON-RPC body | **Complete failure** |
-| **Legacy-tolerant** | ✅ `agent-card` works | ⚠️ 401 but no header | ✅ `/sendMessage` works | ⚠️ Works by convention | **Partial** |
-| **Our fleet** | ✅ | ✅ (we know the token) | ✅ | ✅ (we wrote the client) | **Works** |
+| Path | A2A v1.0 Binding | Server |
+|------|-------------------|--------|
+| `/rpc` | JSON-RPC (§9.2) | ❌ 404 |
+| `/message:send` | HTTP/REST (§11.3.1) | ❌ 404 |
+| `/message:stream` | HTTP/REST (§11.3.1) | ❌ 404 |
+| `/sendMessage` | Legacy | ✅ 200 |
+| `/` | Local fork only | ✅ 200 |
 
----
+**Fix:** Add `/rpc` endpoint and `/message:send`, `/message:stream` routes.
 
-## Recommended Fixes Summary
+### S5: Uncaught Parse Error in `/sendMessage` (HIGH)
 
-All fixes are in `dist/a2a-server.js`. The minified source makes PRs straightforward — each fix is a single-line or small-block change.
+**Finding:** `handleSendMessage()` calls `JSON.parse(body)` at line 601 without try/catch. Malformed JSON causes an uncaught `SyntaxError` that propagates to the top-level handler, returning HTTP 500.
 
-| ID | Fix | Lines Changed | Risk |
-|----|-----|---------------|------|
-| S1 | Change `writeHead(400)` → `writeHead(200)` in `sendJSONRPCError()` | 1 line | Low — JSON-RPC clients already handle error bodies |
-| S2 | Add `res.setHeader("WWW-Authenticate", "Bearer")` before 401 response | 1 line | None — purely additive |
-| S3 | Add `path === "/.well-known/agent.json"` to route condition | 1 line | None — adds alias |
-| S4 | Add `/message/send` and `/message/stream` routes alongside legacy paths | ~3 lines | Low — backward compatible |
-| S4b | Add root path `/` JSON-RPC dispatcher | ~15 lines | Medium — new handler needed |
+Note: The root dispatcher (`/`) correctly handles parse errors with try/catch.
 
----
+**Fix:** Wrap `JSON.parse(body)` in try/catch in `handleSendMessage()`:
 
-## Conformance Test Suite
-
-A self-contained Vitest test suite is included at:
-
-**`tests/a2a-v1-conformance.test.ts`**
-
-Any project using `pi-a2a-communication` can reproduce these findings by running:
-
-```bash
-npm install pi-a2a-communication vitest
-npx vitest run a2a-v1-conformance.test.ts
+```typescript
+let request: JSONRPCRequest;
+try {
+  request = JSON.parse(body);
+} catch {
+  this.sendJSONRPCError(res, null, -32700, "Parse error");
+  return;
+}
 ```
 
-The test suite spins up an A2A server with a test token, sends protocol-compliant requests, and asserts the expected behavior against the spec. Each failing test maps directly to an issue in this report.
+### S6: Wrong JSON-RPC Method Names (HIGH)
+
+**Finding:** The root JSON-RPC dispatcher and legacy paths use slash-separated lowercase method names (`message/send`, `tasks/get`). A2A v1.0 specifies PascalCase (`SendMessage`, `GetTask`, etc.).
+
+| Operation | Spec Method | Server Method |
+|-----------|------------|---------------|
+| Send Message | `SendMessage` | `message/send` |
+| Send Streaming Message | `SendStreamingMessage` | `message/stream` |
+| Get Task | `GetTask` | `tasks/get` |
+| Cancel Task | `CancelTask` | `tasks/cancel` |
+
+**Fix:** Add PascalCase method name mapping in the root dispatcher, or accept both formats.
+
+### S6b: Wrong `id` in Parse Error Responses (LOW)
+
+**Finding:** `sendJSONRPCError()` uses `id: id ?? 0`. For parse errors where the request ID cannot be determined, JSON-RPC §5.1 requires `id: null`.
+
+**Fix:** Pass `null` explicitly for parse errors instead of using `?? 0` fallback.
 
 ---
 
-## Appendix: Source Code References
+## Architecture Diagram
 
-All line numbers reference `pi-a2a-communication@1.0.1` npm package, file `dist/a2a-server.js`.
-
-| Issue | Function | Line | Code |
-|-------|----------|------|------|
-| S1 | `sendJSONRPCError()` | ~866 | `res.writeHead(400)` → should be `200` |
-| S2 | `handleRequest()` | ~126 | Missing `WWW-Authenticate` before `sendError(res, 401)` |
-| S3 | `handleRequest()` | ~130 | Only `/agent-card` route, no `/agent.json` |
-| S4 | `handleRequest()` | ~137 | Only `/sendMessage` route, no `/message/send` |
-| S4b | `handleRequest()` | ~148 | No root `/` JSON-RPC dispatcher, falls through to 404 |
+```mermaid
+graph TB
+    subgraph "Current Server (v0.1.0-alpha.1)"
+        A["/.well-known/agent.json<br/>✅ Agent Card"]
+        B["/sendMessage<br/>✅ Legacy endpoint"]
+        C["/sendStreamingMessage<br/>✅ Legacy streaming"]
+        D["/<br/>✅ Root dispatcher<br/>(slash-separated only)"]
+        E["/tasks/*<br/>✅ Task management"]
+    end
+    
+    subgraph "Missing A2A v1.0 Paths"
+        F["/.well-known/agent-card.json<br/>❌ Spec path"]
+        G["/rpc<br/>❌ JSON-RPC binding"]
+        H["/message:send<br/>❌ HTTP/REST binding"]
+        I["/message:stream<br/>❌ HTTP/REST binding"]
+    end
+    
+    subgraph "Spec Gaps"
+        J["S1: HTTP 400 → 200<br/>for JSON-RPC errors"]
+        K["S2: Missing WWW-Authenticate<br/>on 401 responses"]
+        L["S5: No try/catch<br/>in /sendMessage"]
+        M["S6: slash-separated methods<br/>→ PascalCase"]
+    end
+    
+    style F fill:#ff6b6b
+    style G fill:#ff6b6b
+    style H fill:#ff6b6b
+    style I fill:#ff6b6b
+    style J fill:#ffd43b
+    style K fill:#ff6b6b
+    style L fill:#ff6b6b
+    style M fill:#ff6b6b
+```
 
 ---
 
-*End of report. This document is intended for upstream maintainers of `DrOlu/pi-a2a-communication` and any organization evaluating A2A protocol compliance.*
+## Test Results
+
+```
+npx vitest run a2a-v1-conformance
+
+ ❯ tests/a2a-v1-conformance.test.ts  (19 tests | 13 failed | 6 passed)
+
+ PASS  S3: Agent Card — /.well-known/agent.json (local fork path)
+ PASS  Auth — Reject without Authorization
+ PASS  Auth — Reject with wrong token
+ PASS  Auth — Accept with correct Bearer token
+ PASS  Legacy — /sendMessage (legacy path)
+ PASS  Root — / JSON-RPC dispatcher (slash-separated methods)
+
+ FAIL  S1: JSON-RPC invalid params → HTTP 400 (expected 200)
+ FAIL  S1: JSON-RPC method not found → HTTP 400 (expected 200)
+ FAIL  S1: JSON-RPC parse error → HTTP 400 (expected 200)
+ FAIL  S2: Missing WWW-Authenticate on 401 (agent card)
+ FAIL  S2: Missing WWW-Authenticate on 401 (JSON-RPC)
+ FAIL  S3: /.well-known/agent-card.json → 404 (expected 200)
+ FAIL  S3: /.well-known/agent-card → 404 (expected 200)
+ FAIL  S4: /message:send → 404 (expected 200)
+ FAIL  S4: /message:stream → 404 (expected 200)
+ FAIL  S4: /rpc → 404 (expected 200)
+ FAIL  S5: /sendMessage malformed JSON → HTTP 500 (expected 200)
+ FAIL  S6: "SendMessage" method → -32601 (expected result)
+ FAIL  S6: "GetTask" method → -32601 (expected result)
+```
+
+---
+
+## Recommended Fix Priority
+
+| Priority | Fix | Effort |
+|----------|-----|--------|
+| P0 | S3: Add `/.well-known/agent-card.json` route | 1 line |
+| P0 | S5: Add try/catch in `handleSendMessage` | 5 lines |
+| P0 | S2: Add `WWW-Authenticate` header to 401 responses | 1 line |
+| P1 | S1: Change `sendJSONRPCError` to HTTP 200 | 1 line |
+| P1 | S6: Add PascalCase method name mapping | 10 lines |
+| P1 | S6b: Use `null` instead of `?? 0` for parse errors | 1 line |
+| P2 | S4: Add `/rpc`, `/message:send`, `/message:stream` routes | 30 lines |
+| P2 | Add backward compat paths (`/sendMessage`, `/.well-known/agent-card`) | existing |
+
+---
+
+## Audit Artifacts
+
+| Artifact | Location |
+|----------|----------|
+| Conformance test suite | `tests/a2a-v1-conformance.test.ts` |
+| Server source | `a2a-server.ts` |
+| Types & constants | `types.ts` |
+| Deepseek validation report | Inline (see validation section above) |
+| Kimi audit report | `A2A-v1-CONFORMANCE-AUDIT.md` |
+
+---
+
+*Last updated: 2026-06-19 — Validated by deepseek-v4-pro:cloud, audited by kimi-k2.7-code:cloud*

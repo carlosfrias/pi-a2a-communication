@@ -1,7 +1,7 @@
 ---
 name: pi-a2a-communication
 phase: "M5: Upstream Integration — Fork Archived"
-progress: 90
+progress: 95
 status: active
 last_updated: 2026-06-19
 ---
@@ -15,7 +15,7 @@ last_updated: 2026-06-19
 | Version | Date | Description |
 |---------|------|-------------|
 | v1.0.1 (upstream) | 2026-06-18 | Deployed to all 7 fleet nodes via `pi install npm:pi-a2a-communication` |
-| v0.1.0-alpha.1 (fork) | 2026-06-18 | Fork with A2A v1.0 spec fixes, 84 tests — **to be archived** |
+| v0.1.0-alpha.1 (fork) | 2026-06-18 | Fork with A2A v1.0 spec fixes, 84 tests — **archived** |
 
 ---
 
@@ -26,17 +26,21 @@ last_updated: 2026-06-19
 - [x] M5.3: Deploy Agent Cards to all fleet nodes
 - [x] M5.4: Verify A2A servers on all 7 nodes (44 integration tests passing)
 - [x] M5.5: Archive fork (`carlosfrias/pi-a2a-communication`)
-- [>] M5.6: Submit spec compliance issues to upstream (`DrOlu/a2a-communication`) — Deferred
-- [ ] M5.7: Remove fork from pi-a2a-gateway dev dependencies
+- [x] M5.6: Conformance audit completed (7 gaps: S1–S6b)
+- [>] M5.7: Submit spec compliance issues to upstream (`DrOlu/pi-a2a-communication`) — Deferred
+- [ ] M5.8: Remove fork from pi-a2a-gateway dev dependencies
 
-## Spec Compliance Issues to Upstream
+## Spec Compliance Gaps to Upstream (S1–S6b)
 
-| Issue | Fix | Priority |
-|-------|-----|----------|
-| HTTP 400 for JSON-RPC errors | Return HTTP 200 with JSON-RPC error body | High |
-| No WWW-Authenticate on 401 | Add `WWW-Authenticate: Bearer` header | Medium |
-| tasks/get response format | Return `{result: {task: ...}}` not `{task: ...}` | Medium |
-| Legacy API paths | Add `/message/send` and `/.well-known/agent.json` as aliases | Low |
+| ID | Severity | Issue | Fix | Priority |
+|----|----------|-------|-----|----------|
+| S1 | Medium | JSON-RPC errors return HTTP 400 | Return HTTP 200 with JSON-RPC error body | P1 |
+| S2 | High | 401 responses lack `WWW-Authenticate` | Add `WWW-Authenticate: Bearer` header | P0 |
+| S3 | High | Wrong Agent Card path (`/.well-known/agent-card.json`) | Add spec path, keep legacy paths for compat | P0 |
+| S4 | High | Missing `/rpc`, `/message:send`, `/message:stream` | Add A2A v1.0 transport binding routes | P2 |
+| S5 | High | `/sendMessage` uncaught parse error → HTTP 500 | Add try/catch around `JSON.parse` | P0 |
+| S6 | High | Method names slash-separated, not PascalCase | Add PascalCase method mapping in dispatcher | P1 |
+| S6b | Low | `id: 0` instead of `id: null` in parse errors | Use `null` for unknown request IDs | P1 |
 
 ---
 
