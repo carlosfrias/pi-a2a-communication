@@ -210,7 +210,23 @@ export class A2AServer {
       return;
     }
 
-    const method = request.method;
+    const rawMethod = request.method;
+
+    // A2A v1.0 §5.3: Method names are PascalCase (SendMessage, GetTask, etc.)
+    // Map PascalCase to internal slash-separated names for backward compat.
+    const PASCAL_CASE_MAP: Record<string, string> = {
+      'SendMessage': A2A_METHODS.MESSAGE_SEND,
+      'SendStreamingMessage': A2A_METHODS.MESSAGE_STREAM,
+      'GetTask': A2A_METHODS.TASKS_GET,
+      'CancelTask': A2A_METHODS.TASKS_CANCEL,
+      'SubscribeToTask': A2A_METHODS.TASKS_SUBSCRIBE,
+      'ResubscribeToTask': A2A_METHODS.TASKS_RESUBSCRIBE,
+      'SetPushNotificationConfig': A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_SET,
+      'GetPushNotificationConfig': A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_GET,
+      'DeletePushNotificationConfig': A2A_METHODS.TASKS_PUSH_NOTIFICATION_CONFIG_DELETE,
+      'GetAuthenticatedExtendedCard': A2A_METHODS.AGENT_AUTHENTICATED_EXTENDED_CARD,
+    };
+    const method = PASCAL_CASE_MAP[rawMethod] ?? rawMethod;
 
     switch (method) {
       case A2A_METHODS.MESSAGE_SEND:
@@ -1025,7 +1041,7 @@ export class A2AServer {
   private sendJSONRPCResponse(res: http.ServerResponse, id: string | number | null, result: unknown): void {
     const response: JSONRPCResponse = {
       jsonrpc: "2.0",
-      id: id ?? 0,
+      id: id ?? null,
       result,
     };
     
@@ -1046,12 +1062,12 @@ export class A2AServer {
   ): void {
     const response: JSONRPCResponse = {
       jsonrpc: "2.0",
-      id: id ?? 0,
+      id: id ?? null,
       error: { code, message, data },
     };
     
     res.setHeader("Content-Type", "application/json");
-    res.writeHead(400);
+    res.writeHead(200);
     res.end(JSON.stringify(response));
   }
 
