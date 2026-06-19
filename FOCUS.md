@@ -28,11 +28,7 @@ updated: 2026-06-19
 ## Active Work
 
 - [x] **Archive fork** — `carlosfrias/pi-a2a-communication` archived on GitHub
-- [ ] **Upstream spec fixes** — Submit issues/PRs to `DrOlu/a2a-communication` for:
-  - HTTP 400 for JSON-RPC errors (should be 200 per spec)
-  - No `WWW-Authenticate` header on 401 responses
-  - `tasks/get` returns task directly (should return `result.task`)
-  - Legacy paths (`/sendMessage` vs `/message/send`, `/.well-known/agent-card` vs `/.well-known/agent.json`)
+- [>] **Upstream spec fixes** — Deferred (not submitting issues to DrOlu/a2a-communication at this time)
 
 ## Key Decisions
 

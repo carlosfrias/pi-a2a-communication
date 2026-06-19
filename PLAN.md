@@ -26,7 +26,7 @@ last_updated: 2026-06-19
 - [x] M5.3: Deploy Agent Cards to all fleet nodes
 - [x] M5.4: Verify A2A servers on all 7 nodes (44 integration tests passing)
 - [x] M5.5: Archive fork (`carlosfrias/pi-a2a-communication`)
-- [ ] M5.6: Submit spec compliance issues to upstream (`DrOlu/a2a-communication`)
+- [>] M5.6: Submit spec compliance issues to upstream (`DrOlu/a2a-communication`) — Deferred
 - [ ] M5.7: Remove fork from pi-a2a-gateway dev dependencies
 
 ## Spec Compliance Issues to Upstream
