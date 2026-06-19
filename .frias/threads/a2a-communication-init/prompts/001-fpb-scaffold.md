@@ -36,6 +36,5 @@ pi-a2a-communication was forked from DrOlu/pi-a2a-communication v1.0.1. Original
 
 - pi-a2a-communication = CLIENT EXTENSION (pi package with slash commands and tools)
 - pi-a2a-gateway = STANDALONE SERVER (replaces coms-net hub)
-- Workshop is authoritative for AGENTS.md, FOCUS.md, PLAN.md, WORKBENCH.md
-- Vault is authoritative for wiki content (workshop wiki links to vault)
+- Vault is authoritative for documentation-domain files (FOCUS.md, PLAN.md, WORKBENCH.md, AGENTS.md vault flavor, wiki content, journal). Workshop is authoritative for code-domain files (source code, tests, configuration, .frias/ process artifacts). AGENTS.md exists in both flavors: vault uses wikilinks, workshop uses relative markdown paths.
 - Anti-drift rules CA-1 through CA-6 for client, GA-1 through GA-6 for gateway
