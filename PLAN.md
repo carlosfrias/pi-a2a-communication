@@ -43,8 +43,8 @@ last_updated: 2026-06-19
 ### Remaining
 
 - [ ] M6.8: All 19 conformance tests passing ✅ **DONE**
-- [ ] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
-- [ ] M6.10: Push to GitHub, verify repo writable
+- [x] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
+- [x] M6.10: Push to GitHub, verify repo writable
 - [ ] M6.11: Reinstall on fleet nodes with updated fork
 
 ## Spec Compliance Gaps (S1–S6b) — All Fixed ✅

@@ -21,8 +21,8 @@ project: pi-a2a-communication
 
 ## 📋 Next up
 
-- [ ] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
-- [ ] M6.10: Push to GitHub
+- [x] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
+- [x] M6.10: Push to GitHub
 - [ ] M6.11: Reinstall on fleet nodes with updated fork
 
 ---
