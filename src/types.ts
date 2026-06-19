@@ -39,15 +39,26 @@ export const A2A_METHODS = {
 export type A2AMethodName = typeof A2A_METHODS[keyof typeof A2A_METHODS];
 
 /**
- * A2A v1.0.0 Agent Card discovery path
+ * A2A v1.0 Agent Card discovery path
  * See: https://a2a-protocol.org/v1.0.0/specification/ Section 5
+ *
+ * Per A2A v1.0 §8.2 and RFC 8615, the spec-compliant path is
+ * /.well-known/agent-card.json (with .json suffix).
+ * The local fork path /.well-known/agent.json is kept for backward compat.
  */
-export const AGENT_CARD_PATH = '/.well-known/agent.json';
+export const AGENT_CARD_PATH = '/.well-known/agent-card.json';
 
 /**
  * @deprecated Use AGENT_CARD_PATH instead. Kept for backward compat.
+ * This was the local fork path, not the spec path.
  */
-export const LEGACY_AGENT_CARD_PATH = '/.well-known/agent-card';
+export const LEGACY_AGENT_CARD_PATH_LOCAL = '/.well-known/agent.json';
+
+/**
+ * @deprecated Use AGENT_CARD_PATH instead. Kept for backward compat.
+ * This was the npm v1.0.1 path, also not spec-compliant.
+ */
+export const LEGACY_AGENT_CARD_PATH_NPM = '/.well-known/agent-card';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // A2A PROTOCOL TYPES

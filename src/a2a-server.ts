@@ -159,12 +159,13 @@ export class A2AServer {
 
       // Check authentication
       if (!this.isAuthenticated(req)) {
+        res.setHeader("WWW-Authenticate", "Bearer");
         this.sendError(res, 401, "Unauthorized");
         return;
       }
 
       // Route requests
-      if (path === "/.well-known/agent.json") {
+      if (path === "/.well-known/agent-card.json" || path === "/.well-known/agent.json" || path === "/.well-known/agent-card") {
         await this.handleAgentCard(req, res);
       } else if (path === "/" || path === "") {
         // A2A v1.0 spec: single endpoint with JSON-RPC method dispatch
@@ -598,7 +599,13 @@ export class A2AServer {
     }
 
     const body = await this.readBody(req);
-    const request: JSONRPCRequest = JSON.parse(body);
+    let request: JSONRPCRequest;
+    try {
+      request = JSON.parse(body);
+    } catch {
+      this.sendJSONRPCError(res, null, -32700, "Parse error");
+      return;
+    }
 
     // Validate request
     if (request.jsonrpc !== "2.0" || !request.method) {
