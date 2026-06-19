@@ -1,9 +1,9 @@
 ---
 name: pi-a2a-communication
-summary: "Fork reactivated for M6: implementing 7 A2A v1.0 spec compliance gaps (S1–S6b). Conformance suite: 6/19 passing, targeting 19/19."
+summary: "M6 spec compliance: 7 A2A v1.0 gaps (S1–S6b), conformance suite 6/19. Vault-primary documentation drift corrected across 9 files."
 status: active
 phase: "M6: Spec Compliance Implementation"
-progress: 5
+progress: 7
 tracked: true
 created: 2026-06-18
 updated: 2026-06-19
@@ -13,19 +13,28 @@ updated: 2026-06-19
 
 ## [S-TIGHT]
 
-**Fork reactivated for M6 spec compliance. Implementing 7 A2A v1.0 spec gaps (S1–S6b). Conformance suite: 6/19 passing, targeting 19/19. TDD mandatory — conformance suite is source of truth.**
+**M6 spec compliance: implementing 7 A2A v1.0 gaps (S1–S6b). Conformance suite: 6/19 passing. Vault-primary documentation drift corrected across FDP, root AGENTS.md, and sync infrastructure.**
 
 ## What's Done
 
 - ✅ M5 complete: Upstream v1.0.1 deployed, fork archived, conformance audit done
 - ✅ Conformance audit: 7 gaps (S1–S6b) identified, 19-test suite (6/19 pass)
 - ✅ Validated by deepseek-v4-pro:cloud, audited by kimi-k2.7-code:cloud
+- ✅ Vault-primary documentation drift audit: 16 findings, 9 corrections applied
+- ✅ FDP LIFECYCLE.md step 11 corrected (git repo + workshop + vault copies)
+- ✅ Root AGENTS.md step 10 corrected (vault sync → cross-workspace sync)
+- ✅ FPB scaffold prompt corrected (workshop + vault copies)
+- ✅ RESUME-GUIDE.md corrected (workshop canonical → vault canonical)
+- ✅ sync-shadows.sh README corrected (unidirectional → bidirectional by file type)
 - ✅ All prior items remain (see PLAN.md for M1–M5 history)
 
 ## Active Work
 
 - [/] M6.1: Fix S2 (P0) — Add `WWW-Authenticate: Bearer` header on 401 responses
 - [/] M6.2: Fix S5 (P0) — Add try/catch for `JSON.parse` in `/sendMessage`
+
+## Next Steps
+
 - [ ] M6.3: Fix S3 (P0) — Add `/.well-known/agent-card.json` discovery path
 - [ ] M6.4: Fix S6 (P1) — Add PascalCase method name mapping in dispatcher
 - [ ] M6.5: Fix S1 (P1) — Return HTTP 200 for JSON-RPC error responses
@@ -44,7 +53,8 @@ updated: 2026-06-19
 | Agent Cards | `~/.pi/agent/a2a/agents/{hostname}-agent.json` | Per-node identity | 2026-06-18 |
 | Archive fork | Yes → Reactivated | Archived for M5; reactivated for M6 spec fixes | 2026-06-19 |
 | Reactivate fork for M6 | Yes | Upstream not responding; we need spec-compliant A2A | 2026-06-19 |
-| M6 priority order | S2/S5 first (P0) | Security & crash bugs before spec paths | 2026-06-19 |
+| M6 priority order | P0 first (S2,S5,S3) | Security/crash bugs before spec paths | 2026-06-19 |
+| Vault-primary documentation | Vault authoritative for docs | Rule 26 enforced across 9 files | 2026-06-19 |
 
 ## Spec Compliance Gaps (S1–S6b)
 
