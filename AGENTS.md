@@ -93,7 +93,7 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 | Understand A2A v1.0 spec | `tests/a2a-v1-conformance.test.ts` — conformance suite (source of truth) |
 | Read architecture docs | `wiki/pi-a2a-communication/Home.md` — start here |
 | Read conformance report | `wiki/A2A-v1-Conformance-Report.md` — full audit with Mermaid diagrams |
-| Read audit findings | `A2A-v1-CONFORMANCE-AUDIT.md` — detailed code-level findings |
+| Read audit findings | `wiki/A2A-v1-Conformance-Audit.md` — detailed code-level findings |
 
 ## Discovery Path
 

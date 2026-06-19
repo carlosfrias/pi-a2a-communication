@@ -97,7 +97,7 @@ pi-a2a-communication/
 ├── tsconfig.json             # TypeScript config
 ├── tsconfig.cjs.json         # CommonJS config
 ├── LICENSE                   # MIT License
-├── GALLERY_SUBMISSION.md     # Gallery submission doc
+├── gallery-submission.md     # Gallery submission doc
 └── pi-package.json           # Legacy manifest
 ```
 
@@ -131,7 +131,7 @@ The package is **ready for pi.dev/packages** gallery inclusion:
 **To submit to pi.dev/packages:**
 1. Visit https://shittycodingagent.ai/packages (gallery URL)
 2. Submit package: `npm:pi-a2a-communication`
-3. Or contact pi maintainers with GALLERY_SUBMISSION.md
+3. Or contact pi maintainers with gallery-submission.md
 
 ### 📝 Files Created/Updated
 
@@ -145,7 +145,7 @@ The package is **ready for pi.dev/packages** gallery inclusion:
 | `task-manager.ts` | Orchestration |
 | `config.ts` | Config mgmt |
 | `package.json` | npm + pi manifest |
-| `GALLERY_SUBMISSION.md` | Gallery doc |
+| `gallery-submission.md` | Gallery doc |
 | `README.md` | Full docs |
 | `LICENSE` | MIT |
 

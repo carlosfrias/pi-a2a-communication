@@ -134,7 +134,7 @@ The conformance test suite (`tests/a2a-v1-conformance.test.ts`) is the source of
 
 - [A2A v1 Spec Compliance](../a2a-v1-spec-compliance.md) — compliance audit results
 - [A2A v1 Conformance Report](../A2A-v1-Conformance-Report.md) — full executive report with Mermaid diagrams
-- [A2A v1 Conformance Audit](../../../A2A-v1-CONFORMANCE-AUDIT.md) — detailed code-level findings
+- [A2A v1 Conformance Audit](../../A2A-v1-Conformance-Audit.md) — detailed code-level findings
 
 ### Commands and Tools
 
@@ -311,7 +311,7 @@ Key files in the code repo:
 | `tests/a2a-v1-conformance.test.ts` | A2A v1.0 spec conformance tests (source of truth) |
 | `tests/spec-compliance/` | Unit-level spec compliance tests |
 | `tests/characterization/` | Characterization test suites |
-| `A2A-v1-CONFORMANCE-AUDIT.md` | Detailed code-level audit findings |
+| `wiki/A2A-v1-Conformance-Audit.md` | Detailed code-level audit findings |
 | `README.md` | Full usage documentation with examples |
 | `pi-package.json` | Pi extension manifest (commands, tools) |
 

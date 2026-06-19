@@ -98,7 +98,7 @@ pi -e npm:pi-a2a-communication
 
 1. **Contact pi maintainer** (Mario Zechner) via GitHub or Discord
 2. **Reference this package:** `npm:pi-a2a-communication`
-3. **Share documentation:** GALLERY_SUBMISSION.md
+3. **Share documentation:** gallery-submission.md
 4. **Request addition** to shittycodingagent.ai/packages
 
 ---
@@ -106,7 +106,7 @@ pi -e npm:pi-a2a-communication
 ## Gallery Submission Ready
 
 All documentation prepared:
-- ✅ `GALLERY_SUBMISSION.md` - Complete submission doc
+- ✅ `gallery-submission.md` - Complete submission doc
 - ✅ `pi-package.json` - Package manifest
 - ✅ `README.md` - Full documentation
 - ✅ Properly tagged with `pi-package` keyword
