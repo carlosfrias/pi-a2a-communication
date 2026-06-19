@@ -1,6 +1,6 @@
 ---
 name: pi-a2a-communication
-summary: "M6 COMPLETE. All 7 spec gaps fixed. 19/19 conformance tests passing. Ready for fleet deploy."
+summary: "M6 COMPLETE. All 7 spec gaps fixed. 19/19 conformance tests passing. Fleet deployed — all 7 nodes on v0.2.0-alpha.1."
 status: active
 phase: "M6: Spec Compliance Implementation"
 progress: 10
@@ -13,7 +13,7 @@ updated: 2026-06-19
 
 ## [S-TIGHT]
 
-**M6 COMPLETE. All 7 A2A v1.0 spec gaps (S1–S6b) fixed. 19/19 conformance tests passing. Ready for fleet deploy.**
+**M6 COMPLETE. All 7 A2A v1.0 spec gaps (S1–S6b) fixed. 19/19 conformance tests passing. Fleet deployed — all 7 nodes on v0.2.0-alpha.1.**
 
 ## What's Done
 
@@ -30,7 +30,7 @@ updated: 2026-06-19
 
 - [x] M6.9: Version bump to `0.2.0-alpha.1`
 - [x] M6.10: Push to GitHub
-- [ ] M6.11: Reinstall on fleet nodes with updated fork
+- [x] M6.11: Reinstall on fleet nodes with updated fork
 
 ## Key Decisions
 
