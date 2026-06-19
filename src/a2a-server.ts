@@ -168,7 +168,16 @@ export class A2AServer {
       if (path === "/.well-known/agent-card.json" || path === "/.well-known/agent.json" || path === "/.well-known/agent-card") {
         await this.handleAgentCard(req, res);
       } else if (path === "/" || path === "") {
-        // A2A v1.0 spec: single endpoint with JSON-RPC method dispatch
+        // A2A v1.0 spec: root endpoint with JSON-RPC method dispatch
+        await this.handleJsonRPCRequest(req, res);
+      } else if (path === "/rpc") {
+        // A2A v1.0 §9.2: JSON-RPC binding endpoint
+        await this.handleJsonRPCRequest(req, res);
+      } else if (path === "/message:send") {
+        // A2A v1.0 §11.3.1: HTTP/REST binding for sending messages
+        await this.handleJsonRPCRequest(req, res);
+      } else if (path === "/message:stream") {
+        // A2A v1.0 §11.3.1: HTTP/REST binding for streaming messages
         await this.handleJsonRPCRequest(req, res);
       } else if (path === "/sendMessage" || path === "/sendStreamingMessage") {
         // Legacy path-based routes (kept for backward compat, dispatch via JSON-RPC)
