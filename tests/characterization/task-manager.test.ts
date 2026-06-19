@@ -9,9 +9,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * instead of throwing). This behavioral contract must be locked before changes.
  */
 
-import { TaskManager } from '../../task-manager';
-import { A2AClient } from '../../a2a-client';
-import { ConfigManager } from '../../config';
+import { TaskManager } from '../../src/task-manager';
+import { A2AClient } from '../../src/a2a-client';
+import { ConfigManager } from '../../src/config';
 import * as path from 'node:path';
 import * as os from 'node:os';
 

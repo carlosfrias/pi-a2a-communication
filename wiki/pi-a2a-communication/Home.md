@@ -28,6 +28,7 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| [Learning & Resources](./guides/learning-and-resources.md) | A2A protocol fundamentals, tutorials, best practices, deployment patterns | ✅ Complete |
 | [Installation](./guides/installation.md) | How to install and configure the extension | 🟡 Planned |
 
 ## Reference

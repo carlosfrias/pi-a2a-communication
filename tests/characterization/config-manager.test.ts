@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // We need to test the actual module. Since ConfigManager reads from disk,
 // we'll mock the file system paths to use a temp directory.
-import { ConfigManager } from '../../config';
+import { ConfigManager } from '../../src/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';

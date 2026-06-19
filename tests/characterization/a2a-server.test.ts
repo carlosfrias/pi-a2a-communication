@@ -14,7 +14,7 @@ import * as os from 'node:os';
  * Characterization tests establish the baseline before spec-compliance changes.
  */
 
-import { A2AServer } from '../../a2a-server';
+import { A2AServer } from '../../src/a2a-server';
 
 const TEST_PORT = 18923; // High port to avoid conflicts
 const TEST_HOST = '127.0.0.1';

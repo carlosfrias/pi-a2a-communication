@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { A2A_METHODS, AGENT_CARD_PATH } from '../../types';
+import { A2A_METHODS, AGENT_CARD_PATH } from '../../src/types';
 
 /**
  * Spec Compliance Tests — A2A v1.0.0 Protocol

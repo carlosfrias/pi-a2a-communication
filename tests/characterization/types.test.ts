@@ -40,7 +40,7 @@ import type {
   AgentHealth,
   LoadBalanceStrategy,
   AgentPool
-} from '../../types';
+} from '../../src/types';
 
 describe('Type Definitions — Characterization', () => {
   describe('AgentCard', () => {
