@@ -1,7 +1,7 @@
 ---
 name: pi-a2a-communication
 phase: "M6: Spec Compliance Implementation"
-progress: 7
+progress: 5
 status: active
 last_updated: 2026-06-19
 ---
@@ -50,20 +50,6 @@ Target: Fix all 7 A2A v1.0 spec gaps (S1–S6b). 19/19 conformance tests passing
 - [ ] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
 - [ ] M6.10: Push to GitHub, verify repo writable
 - [ ] M6.11: Reinstall on fleet nodes with updated fork
-
-## M5.5+: Documentation Drift Audit & Correction (Done)
-
-- [x] Audit: Found 16 instances where documentation implied workshop-authoritative direction (contradicts Rule 26)
-- [x] Validation: deepseek-v4-pro:cloud confirmed findings and corrections
-- [x] Audit: kimi-k2.7-code:cloud identified operational gaps (sync script, write-path ambiguity, WORKBENCH.md policy)
-- [x] Correction: Root AGENTS.md step 10 — "Vault sync" → "Cross-workspace sync" with vault-authoritative directionality
-- [x] Correction: FDP LIFECYCLE.md step 11 — same directionality fix (git repo pushed)
-- [x] Correction: FDP LIFECYCLE.md workshop copy — added missing step 10 (cross-workspace sync)
-- [x] Correction: FPB scaffold prompt — "Workshop authoritative for docs" → "Vault authoritative for documentation-domain files"
-- [x] Correction: RESUME-GUIDE.md — "Workshop (canonical)" → "Workshop (code/generation)" / "Vault (canonical documentation)"
-- [x] Correction: sync-shadows.sh README — unidirectional → bidirectional by file type
-- [x] Sync: All FDP files synced to workshop and vault copies
-- [x] Git: 3 commits pushed (FDP repo, root AGENTS, pi-a2a-communication)
 
 ## Spec Compliance Gaps to Upstream (S1–S6b)
 
@@ -123,7 +109,6 @@ Target: Fix all 7 A2A v1.0 spec gaps (S1–S6b). 19/19 conformance tests passing
 | Reactivate fork for M6 | Yes | Upstream not responding; we need spec-compliant A2A |
 | Fix priority | P0 first (S2,S5,S3) | Security/crash bugs before spec paths |
 | TDD mandatory | Conformance suite is source of truth | No gap is "fixed" until its test passes |
-| Vault-primary documentation | Vault authoritative for docs | Rule 26 enforced across 9 files |
 
 ---
 

@@ -1,9 +1,9 @@
 ---
 name: pi-a2a-communication
-summary: "M6 spec compliance: 7 A2A v1.0 gaps (S1–S6b), conformance suite 6/19. Vault-primary documentation drift corrected across 9 files."
+summary: "M6 spec compliance: 7 A2A v1.0 gaps (S1–S6b), conformance suite 6/19. Next: implement S2 and S5 fixes."
 status: active
 phase: "M6: Spec Compliance Implementation"
-progress: 7
+progress: 5
 tracked: true
 created: 2026-06-18
 updated: 2026-06-19
@@ -13,19 +13,13 @@ updated: 2026-06-19
 
 ## [S-TIGHT]
 
-**M6 spec compliance: implementing 7 A2A v1.0 gaps (S1–S6b). Conformance suite: 6/19 passing. Vault-primary documentation drift corrected across FDP, root AGENTS.md, and sync infrastructure.**
+**M6 spec compliance: implementing 7 A2A v1.0 gaps (S1–S6b). Conformance suite: 6/19 passing, targeting 19/19. TDD mandatory — conformance suite is source of truth.**
 
 ## What's Done
 
 - ✅ M5 complete: Upstream v1.0.1 deployed, fork archived, conformance audit done
 - ✅ Conformance audit: 7 gaps (S1–S6b) identified, 19-test suite (6/19 pass)
 - ✅ Validated by deepseek-v4-pro:cloud, audited by kimi-k2.7-code:cloud
-- ✅ Vault-primary documentation drift audit: 16 findings, 9 corrections applied
-- ✅ FDP LIFECYCLE.md step 11 corrected (git repo + workshop + vault copies)
-- ✅ Root AGENTS.md step 10 corrected (vault sync → cross-workspace sync)
-- ✅ FPB scaffold prompt corrected (workshop + vault copies)
-- ✅ RESUME-GUIDE.md corrected (workshop canonical → vault canonical)
-- ✅ sync-shadows.sh README corrected (unidirectional → bidirectional by file type)
 - ✅ All prior items remain (see PLAN.md for M1–M5 history)
 
 ## Active Work
@@ -54,7 +48,6 @@ updated: 2026-06-19
 | Archive fork | Yes → Reactivated | Archived for M5; reactivated for M6 spec fixes | 2026-06-19 |
 | Reactivate fork for M6 | Yes | Upstream not responding; we need spec-compliant A2A | 2026-06-19 |
 | M6 priority order | P0 first (S2,S5,S3) | Security/crash bugs before spec paths | 2026-06-19 |
-| Vault-primary documentation | Vault authoritative for docs | Rule 26 enforced across 9 files | 2026-06-19 |
 
 ## Spec Compliance Gaps (S1–S6b)
 
@@ -69,7 +62,7 @@ updated: 2026-06-19
 | S6b | 🟢 Low | `id: 0` instead of `id: null` in parse errors | JSON-RPC §5.1 |
 
 → Full report: [A2A-v1-Conformance-Report](./wiki/A2A-v1-Conformance-Report.md)
-→ Audit report: `A2A-v1-CONFORMANCE-AUDIT.md` (in code repo)
+→ Audit report: `A2A-v1-Conformance-Report.md` (in code repo)
 
 ## Cross-References
 
@@ -77,6 +70,7 @@ updated: 2026-06-19
 |---------|--------|----------------|
 | pi-a2a-gateway | ❌ Archived | [FOCUS](../../../04-Archive/Infrastructure/pi-a2a-gateway/FOCUS.md) |
 | pi-cross-node-comms | ❌ Archived — replaced by A2A | [FOCUS](../../../04-Archive/Infrastructure/pi-cross-node-comms/FOCUS.md) |
+| vault-accessibility | 🔀 Vault-primary drift audit moved here | [FOCUS](../../../../personal-vault/02-Areas/Infrastructure/vault-accessibility/FOCUS.md) |
 
 ---
 
