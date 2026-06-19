@@ -1,11 +1,30 @@
 ---
 name: pi-a2a-communication Wiki Home
-updated: 2026-06-18
+updated: 2026-06-19
 ---
 
 # pi-a2a-communication — Wiki Home
 
 Start here. Documentation lives in the **vault** per FDP TOPOLOGY. Workshop wiki files link to vault originals.
+
+## ⚡ Current Status
+
+**v1.0.1 (upstream)** deployed to all 7 fleet nodes. Fork archived. A2A fully operational. Coms-net removed.
+
+| Milestone | Status |
+|-----------|--------|
+| Fleet deployment | ✅ All 7 nodes, A2A on port 10000 |
+| Coms-net removal | ✅ A4 complete |
+| Spec compliance audit | ✅ 5 gaps found |
+| Upstream spec fixes | ⏭️ Deferred |
+
+## Key Documents
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| [A2A v1.0 Conformance Report](../A2A-v1-Conformance-Report.md) | Executive report with Mermaid diagrams, evidence, fixes | ✅ Complete |
+| [Conformance Test Suite](../../tests/a2a-v1-conformance.test.ts) | Self-contained Vitest test suite | ✅ Complete |
+| [Spec Compliance Summary](→ vault wiki/reference/a2a-v1-spec-compliance.md) | Audit results table | ✅ Complete |
 
 ## Architecture
 
@@ -13,7 +32,7 @@ Start here. Documentation lives in the **vault** per FDP TOPOLOGY. Workshop wiki
 |----------|-------------|--------|
 | [Agent Definitions](./_meta/Agent-Definitions.md) | A2A agent types and their roles | 🟡 Draft |
 | [Architecture](./_meta/Architecture.md) | System architecture overview | 🟡 Draft |
-| [Coms-net Bridge](./_meta/Coms-net-Bridge.md) | A2A ↔ coms-net bridge design (moves to pi-a2a-gateway) | 🟡 Draft |
+| [Coms-net Bridge](./_meta/Coms-net-Bridge.md) | ~~A2A ↔ coms-net bridge design~~ ARCHIVED | [-] Cancelled |
 
 ## Guides
 
@@ -78,10 +97,10 @@ personal-vault/02-Areas/Infrastructure/pi-a2a-communication/   ← Documentation
 | Project | Description |
 |---------|-------------|
 | [pi-a2a-gateway](../../pi-a2a-gateway/wiki/pi-a2a-gateway/Home.md) | Standalone A2A server replacing coms-net hub |
-| [pi-cross-node-comms](../../pi-cross-node-comms/wiki/Home.md) | Parent project — A2A migration tracked there |
+| [pi-cross-node-comms](../../pi-cross-node-comms/wiki/Home.md) | ❌ Archived — replaced by A2A |
 
 ---
 
 > 📋 **Checkbox states:** `[ ]` To Do | `[/]` In Progress | `[~]` Good Enough | `[x]` Done | `[>]` Deferred | `[!]` Blocked | `[-]` Cancelled
 
-*Last updated: 2026-06-18*
+*Last updated: 2026-06-19*
