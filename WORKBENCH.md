@@ -12,6 +12,7 @@ project: pi-a2a-communication
 
 ## ✅ Recently done
 
+- 📅 2026-06-19: **P0 complete** — S2 (WWW-Authenticate), S3 (agent-card.json path), S5 (parse error handling). Conformance suite: 11/19 passing.
 - 📅 2026-06-19: Conformance audit completed — 7 gaps (S1–S6b) identified, validated by deepseek-v4-pro and kimi-k2.7
 - 📅 2026-06-19: Conformance test suite written — 19 tests (6 pass, 13 fail)
 - 📅 2026-06-19: Fork reactivated for M6 spec compliance
@@ -24,16 +25,9 @@ project: pi-a2a-communication
 
 ## 🔨 Current work
 
-- [/] M6.1: Fix S2 — Add WWW-Authenticate header on 401 responses
-- [/] M6.2: Fix S5 — Add try/catch for JSON.parse in /sendMessage
-
-## 📋 Next up
-
-- [ ] M6.3: Fix S3 — Add /.well-known/agent-card.json discovery path
-- [ ] M6.4: Fix S6 — Add PascalCase method name mapping
-- [ ] M6.5: Fix S1 — Return HTTP 200 for JSON-RPC error responses
-- [ ] M6.6: Fix S6b — Use id: null instead of id: 0
-- [ ] M6.7: Fix S4 — Add transport binding routes
+- [ ] M6.4: Fix S6 (P1) — Add PascalCase method name mapping
+- [ ] M6.5: Fix S1 (P1) — Return HTTP 200 for JSON-RPC error responses
+- [ ] M6.6: Fix S6b (P1) — Use `id: null` instead of `id: 0`
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: pi-a2a-communication
 phase: "M6: Spec Compliance Implementation"
-progress: 5
+progress: 8
 status: active
 last_updated: 2026-06-19
 ---
@@ -24,15 +24,15 @@ Target: Fix all 7 A2A v1.0 spec gaps (S1–S6b). 19/19 conformance tests passing
 
 ## M6: Spec Compliance Implementation (Current)
 
-- [/] M6.1: Fix S2 (P0) — Add `WWW-Authenticate: Bearer` header on all 401 responses
-  - Files: `a2a-server.ts` (auth middleware, line 162)
-  - Test: `a2a-v1-conformance.test.ts` S2 suite
-- [/] M6.2: Fix S5 (P0) — Add try/catch for `JSON.parse` in `/sendMessage` handler
-  - Files: `a2a-server.ts` (handleSendMessage, line ~601)
-  - Test: `a2a-v1-conformance.test.ts` S5 suite
-- [ ] M6.3: Fix S3 (P0) — Add `/.well-known/agent-card.json` discovery path (keep legacy paths)
-  - Files: `a2a-server.ts` (route registration, line 167), `types.ts` (AGENT_CARD_PATH, line 45)
-  - Test: `a2a-v1-conformance.test.ts` S3 suite
+- [x] M6.1: Fix S2 (P0) — Added `WWW-Authenticate: Bearer` header on all 401 responses
+  - Files: `a2a-server.ts` (isAuthenticated rejection handler)
+  - Test: `a2a-v1-conformance.test.ts` S2 suite ✅
+- [x] M6.2: Fix S5 (P0) — Added try/catch for `JSON.parse` in `/sendMessage` handler
+  - Files: `a2a-server.ts` (handleSendMessage)
+  - Test: `a2a-v1-conformance.test.ts` S5 suite ✅ (returns -32700; HTTP 200 is S1)
+- [x] M6.3: Fix S3 (P0) — Added `/.well-known/agent-card.json` spec path + legacy compat paths
+  - Files: `a2a-server.ts` (route handler), `types.ts` (AGENT_CARD_PATH, LEGACY constants)
+  - Test: `a2a-v1-conformance.test.ts` S3 suite ✅
 - [ ] M6.4: Fix S6 (P1) — Add PascalCase method name mapping in dispatcher
   - Files: `a2a-server.ts` (root dispatcher, line ~254), `types.ts` (method constants)
   - Test: `a2a-v1-conformance.test.ts` S6 suite

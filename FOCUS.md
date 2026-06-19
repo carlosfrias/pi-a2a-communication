@@ -3,7 +3,7 @@ name: pi-a2a-communication
 summary: "M6 spec compliance: 7 A2A v1.0 gaps (S1–S6b), conformance suite 6/19. Next: implement S2 and S5 fixes."
 status: active
 phase: "M6: Spec Compliance Implementation"
-progress: 5
+progress: 8
 tracked: true
 created: 2026-06-18
 updated: 2026-06-19
@@ -13,7 +13,7 @@ updated: 2026-06-19
 
 ## [S-TIGHT]
 
-**M6 spec compliance: implementing 7 A2A v1.0 gaps (S1–S6b). Conformance suite: 6/19 passing, targeting 19/19. TDD mandatory — conformance suite is source of truth.**
+**M6 P0 complete. S2/S3/S5 fixed, conformance suite 11/19 passing. Remaining: S1/S6/S6b (P1), S4 (P2).**
 
 ## What's Done
 
@@ -24,12 +24,11 @@ updated: 2026-06-19
 
 ## Active Work
 
-- [/] M6.1: Fix S2 (P0) — Add `WWW-Authenticate: Bearer` header on 401 responses
-- [/] M6.2: Fix S5 (P0) — Add try/catch for `JSON.parse` in `/sendMessage`
+- [x] M6.1: Fix S2 (P0) — `WWW-Authenticate: Bearer` header on 401 responses ✅
+- [x] M6.2: Fix S5 (P0) — try/catch for `JSON.parse` in `/sendMessage` ✅
+- [x] M6.3: Fix S3 (P0) — `/.well-known/agent-card.json` discovery path ✅
 
 ## Next Steps
-
-- [ ] M6.3: Fix S3 (P0) — Add `/.well-known/agent-card.json` discovery path
 - [ ] M6.4: Fix S6 (P1) — Add PascalCase method name mapping in dispatcher
 - [ ] M6.5: Fix S1 (P1) — Return HTTP 200 for JSON-RPC error responses
 - [ ] M6.6: Fix S6b (P1) — Use `id: null` instead of `id: 0` for parse errors
