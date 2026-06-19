@@ -25,6 +25,7 @@ Start here. Documentation lives in the **vault** per FDP TOPOLOGY. Workshop wiki
 | [A2A v1.0 Conformance Report](../A2A-v1-Conformance-Report.md) | Executive report with Mermaid diagrams, evidence, fixes | ✅ Complete |
 | [Conformance Test Suite](../../tests/a2a-v1-conformance.test.ts) | Self-contained Vitest test suite | ✅ Complete |
 | [Spec Compliance Summary](→ vault wiki/reference/a2a-v1-spec-compliance.md) | Audit results table | ✅ Complete |
+| [Agent Card Schema](→ vault wiki/reference/agent-card-schema.md) | A2A Agent Card schema and fleet card | ✅ Verified |
 
 ## Architecture
 
