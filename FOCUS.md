@@ -3,7 +3,7 @@ name: pi-a2a-communication
 summary: "Upstream v1.0.1 deployed to all fleet nodes. Fork archived. A2A servers active on all 7 nodes."
 status: active
 phase: "M5: Upstream Integration — Fork Archived"
-progress: 90
+progress: 95
 tracked: true
 created: 2026-06-18
 updated: 2026-06-19
@@ -27,7 +27,7 @@ updated: 2026-06-19
 
 ## Active Work
 
-- [ ] **Archive fork** — `carlosfrias/pi-a2a-communication` is no longer needed; fleet uses upstream v1.0.1
+- [x] **Archive fork** — `carlosfrias/pi-a2a-communication` archived on GitHub
 - [ ] **Upstream spec fixes** — Submit issues/PRs to `DrOlu/a2a-communication` for:
   - HTTP 400 for JSON-RPC errors (should be 200 per spec)
   - No `WWW-Authenticate` header on 401 responses
