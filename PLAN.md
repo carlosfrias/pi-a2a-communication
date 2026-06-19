@@ -1,34 +1,55 @@
 ---
 name: pi-a2a-communication
-phase: "M5: Upstream Integration — Fork Archived"
-progress: 95
+phase: "M6: Spec Compliance Implementation"
+progress: 5
 status: active
 last_updated: 2026-06-19
 ---
 
 # PLAN — pi-a2a-communication
 
-## Current: v1.0.1 (upstream) deployed to all fleet nodes
+## Current: M6 — Spec Compliance Implementation
+
+Target: Fix all 7 A2A v1.0 spec gaps (S1–S6b). 19/19 conformance tests passing.
 
 ### Release History
 
 | Version | Date | Description |
 |---------|------|-------------|
 | v1.0.1 (upstream) | 2026-06-18 | Deployed to all 7 fleet nodes via `pi install npm:pi-a2a-communication` |
-| v0.1.0-alpha.1 (fork) | 2026-06-18 | Fork with A2A v1.0 spec fixes, 84 tests — **archived** |
+| v0.1.0-alpha.1 (fork) | 2026-06-18 | Fork with A2A v1.0 spec fixes, 84 tests — archived then reactivated |
+| v0.2.0-alpha.1 (fork) | TBD | A2A v1.0 spec compliance fixes (S1–S6b), 19/19 conformance tests |
 
 ---
 
-## M5: Upstream Integration (Current)
+## M6: Spec Compliance Implementation (Current)
 
-- [x] M5.1: Install upstream v1.0.1 on all fleet nodes
-- [x] M5.2: Deploy per-node config with `server.enabled: true`
-- [x] M5.3: Deploy Agent Cards to all fleet nodes
-- [x] M5.4: Verify A2A servers on all 7 nodes (44 integration tests passing)
-- [x] M5.5: Archive fork (`carlosfrias/pi-a2a-communication`)
-- [x] M5.6: Conformance audit completed (7 gaps: S1–S6b)
-- [>] M5.7: Submit spec compliance issues to upstream (`DrOlu/pi-a2a-communication`) — Deferred
-- [ ] M5.8: Remove fork from pi-a2a-gateway dev dependencies
+- [/] M6.1: Fix S2 (P0) — Add `WWW-Authenticate: Bearer` header on all 401 responses
+  - Files: `a2a-server.ts` (auth middleware, line 162)
+  - Test: `a2a-v1-conformance.test.ts` S2 suite
+- [/] M6.2: Fix S5 (P0) — Add try/catch for `JSON.parse` in `/sendMessage` handler
+  - Files: `a2a-server.ts` (handleSendMessage, line ~601)
+  - Test: `a2a-v1-conformance.test.ts` S5 suite
+- [ ] M6.3: Fix S3 (P0) — Add `/.well-known/agent-card.json` discovery path (keep legacy paths)
+  - Files: `a2a-server.ts` (route registration, line 167), `types.ts` (AGENT_CARD_PATH, line 45)
+  - Test: `a2a-v1-conformance.test.ts` S3 suite
+- [ ] M6.4: Fix S6 (P1) — Add PascalCase method name mapping in dispatcher
+  - Files: `a2a-server.ts` (root dispatcher, line ~254), `types.ts` (method constants)
+  - Test: `a2a-v1-conformance.test.ts` S6 suite
+- [ ] M6.5: Fix S1 (P1) — Return HTTP 200 with JSON-RPC error body instead of HTTP 400
+  - Files: `a2a-server.ts` (sendJSONRPCError, line ~1033)
+  - Test: `a2a-v1-conformance.test.ts` S1 suite
+- [ ] M6.6: Fix S6b (P1) — Use `id: null` instead of `id: 0` for unknown request IDs
+  - Files: `a2a-server.ts` (sendJSONRPCError, sendJSONRPCResponse, lines ~1018/1033)
+  - Test: `a2a-v1-conformance.test.ts` S1 parse error test
+- [ ] M6.7: Fix S4 (P2) — Add `/rpc`, `/message:send`, `/message:stream` transport binding routes
+  - Files: `a2a-server.ts` (route registration, lines 165-172)
+  - Test: `a2a-v1-conformance.test.ts` S4 suite
+- [ ] M6.8: All 19 conformance tests passing
+  - Test: `npx vitest run a2a-v1-conformance`
+- [ ] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
+- [ ] M6.10: Push to GitHub, verify repo writable
+- [ ] M6.11: Reinstall on fleet nodes with updated fork
 
 ## Spec Compliance Gaps to Upstream (S1–S6b)
 
@@ -67,6 +88,16 @@ last_updated: 2026-06-19
 - [-] M4.2: Streaming SSE client — **Cancelled**: using upstream v1.0.1
 - [-] M4.3: Package publish — **Cancelled**: using upstream v1.0.1
 
+### M5: Upstream Integration (Done)
+- [x] M5.1: Install upstream v1.0.1 on all fleet nodes
+- [x] M5.2: Deploy per-node config with `server.enabled: true`
+- [x] M5.3: Deploy Agent Cards to all fleet nodes
+- [x] M5.4: Verify A2A servers on all 7 nodes (44 integration tests passing)
+- [x] M5.5: Archive fork (`carlosfrias/pi-a2a-communication`)
+- [x] M5.6: Conformance audit completed (7 gaps: S1–S6b)
+- [>] M5.7: Submit spec compliance issues to upstream (`DrOlu/pi-a2a-communication`) — Deferred
+- [x] M5.8: Remove fork from pi-a2a-gateway dev dependencies
+
 ---
 
 ## Decisions
@@ -74,8 +105,10 @@ last_updated: 2026-06-19
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Use upstream v1.0.1 on fleet | Not our fork | Fork was for gateway testing; fleet uses npm package directly |
-| Archive fork | Yes | No longer needed; spec fixes go upstream |
-| Spec fixes to upstream | Submit as issues/PRs | Better for the community; we don't maintain a fork |
+| Archive fork | Yes → Reactivated | Archived for M5; reactivated for M6 spec fixes |
+| Reactivate fork for M6 | Yes | Upstream not responding; we need spec-compliant A2A |
+| Fix priority | P0 first (S2,S5,S3) | Security/crash bugs before spec paths |
+| TDD mandatory | Conformance suite is source of truth | No gap is "fixed" until its test passes |
 
 ---
 

@@ -6,18 +6,18 @@ tags:
   - agent-protocol
   - PARA
   - area
-version: 0.1.0-alpha.1
+version: 0.2.0-alpha.1-dev
 status: active
-last_updated: 2026-06-18
+last_updated: 2026-06-19
 ---
 
 # pi-a2a-communication — Project AGENTS
 
-**Purpose:** Pi extension providing A2A v1.0 protocol client tools. Slash commands (`/a2a-discover`, `/a2a-send`, etc.) and tools (`a2a_call`, `a2a_parallel`) for pi agents. Forked from DrOlu/pi-a2a-communication with spec compliance fixes.
+**Purpose:** Pi extension providing A2A v1.0 protocol client tools. Slash commands (`/a2a-discover`, `/a2a-send`, etc.) and tools (`a2a_call`, `a2a_parallel`) for pi agents. Forked from DrOlu/pi-a2a-communication with A2A v1.0 spec compliance fixes.
 
 ## [S-TIGHT]
 
-Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. Forked from DrOlu/pi-a2a-communication v1.0.1, enhanced with A2A v1.0 spec compliance. Read this file for project-level routing, then load domain context for specific work.
+Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
 
 ---
 
@@ -25,12 +25,12 @@ Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. For
 
 | | |
 |---|---|
-| **Status** | 🟢 Active |
-| **Version** | 0.1.0-alpha.1 |
+| **Status** | 🟡 Active — M6 Spec Compliance |
+| **Version** | 0.2.0-alpha.1-dev |
 | **Upstream** | `carlosfrias/pi-a2a-communication` (GitHub, main branch) |
 | **Origin** | Forked from `DrOlu/pi-a2a-communication` v1.0.1 |
-| **Parent project** | [pi-cross-node-comms](../pi-cross-node-comms/AGENTS.md) — A2A migration tracked there |
-| **Sibling project** | [pi-a2a-gateway](../pi-a2a-gateway/AGENTS.md) — standalone A2A server (Phase 1 of migration) |
+| **Parent project** | A2A migration complete — coms-net removed |
+| **Sibling project** | [pi-a2a-gateway](../../../04-Archive/Infrastructure/pi-a2a-gateway/AGENTS.md) — archived |
 
 ## Key Files
 
@@ -45,8 +45,9 @@ Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. For
 | `types.ts` | A2A v1.0 protocol type definitions + constants |
 | `config/gateway-config.json` | A2A gateway configuration (will move to pi-a2a-gateway) |
 | `scripts/generate-agent-cards.ts` | Fleet agent card generator |
+| `tests/a2a-v1-conformance.test.ts` | A2A v1.0 spec conformance tests (19 tests, S1–S6b) |
+| `tests/spec-compliance/` | A2A v1.0 spec compliance tests (unit-level) |
 | `tests/characterization/` | Characterization test suites (4 files) |
-| `tests/spec-compliance/` | A2A v1.0 spec compliance tests |
 | `pi-package.json` | Pi package manifest (commands, tools, metadata) |
 
 ## Anti-Drift Rules (CA-1 through CA-6)
@@ -54,8 +55,11 @@ Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. For
 **RULE CA-1: Spec compliance is non-negotiable.**
 All A2A protocol implementations MUST comply with the v1.0 specification. Method names, task states, agent-card paths, and JSON-RPC formats must match the spec exactly. The characterization and spec-compliance tests are the source of truth.
 
-**RULE CA-2: This package is the CLIENT extension, not the server.**
-`pi-a2a-communication` provides A2A client tools (slash commands + tool functions) for pi agents. The standalone A2A server/gateway lives in `pi-a2a-gateway`. Do not add server-only features here.
+**RULE CA-2: This package includes both client and server.**
+`pi-a2a-communication` provides A2A client tools AND the A2A server (`a2a-server.ts`). The server is actively maintained for spec compliance (M6). Production deployment runs via the pi extension system.
+
+**RULE CA-7: All S1–S6b fixes must make the corresponding conformance test pass.**
+No spec gap is "fixed" until `npx vitest run a2a-v1-conformance` shows its test passing. The conformance suite (`tests/a2a-v1-conformance.test.ts`) is the source of truth for A2A v1.0 compliance.
 
 **RULE CA-3: The server `executePiTask()` is a stub — do not treat it as functional.**
 The current A2A server returns a placeholder string. Any real execution bridge to pi sessions, coms-net, or subagents must be built in `pi-a2a-gateway`, not here.
@@ -66,8 +70,8 @@ The type definitions are the contract with the A2A v1.0 spec. Any change must pa
 **RULE CA-5: All new features start with a test.**
 TDD is mandatory. Write a failing test first (characterization for existing behavior, spec-compliance for protocol behavior, unit for edge cases), then implement.
 
-**RULE CA-6: The `a2a-server.ts` stays for local testing only.**
-The server code in this package is for local development and testing. Production A2A server deployment is the responsibility of `pi-a2a-gateway`.
+**RULE CA-6: The `a2a-server.ts` is now the primary target for M6 fixes.**
+The server code is being actively maintained for A2A v1.0 spec compliance. All changes to `a2a-server.ts` must pass the conformance suite.
 
 ## Refined Agents
 
@@ -82,14 +86,14 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 | What are you trying to do? | Load this |
 |----------------------------|-----------|
 | Implement A2A client features | `a2a-client.ts` |
+| Fix a spec gap (S1–S6b) | `a2a-server.ts` → then run `npx vitest run a2a-v1-conformance` |
 | Add slash commands or tools | `index.ts` |
 | Add protocol type definitions | `types.ts` → then run spec-compliance tests |
 | Configure A2A client | `config.ts` |
-| Understand A2A v1.0 spec | `tests/spec-compliance/a2a-v1-protocol.test.ts` |
+| Understand A2A v1.0 spec | `tests/a2a-v1-conformance.test.ts` — conformance suite (source of truth) |
 | Read architecture docs | `wiki/pi-a2a-communication/Home.md` — start here |
-| Read protocol details | `wiki/pi-a2a-communication/protocol/` — spec compliance details |
-| Read implementation guides | `wiki/pi-a2a-communication/guides/` — how-to guides |
-| Work on A2A server/gateway | Go to `pi-a2a-gateway/` — that's a separate project |
+| Read conformance report | `wiki/A2A-v1-Conformance-Report.md` — full audit with Mermaid diagrams |
+| Read audit findings | `A2A-v1-CONFORMANCE-AUDIT.md` — detailed code-level findings |
 
 ## Discovery Path
 
@@ -172,4 +176,4 @@ Per [FDP LIFECYCLE.md](https://github.com/carlosfrias/frias-documentation-protoc
 
 ---
 
-*Last updated: 2026-06-18*
+*Last updated: 2026-06-19*
