@@ -39,6 +39,11 @@ const DEFAULTS: A2AConfig = {
     defaultScheme: "bearer",
     verifySsl: true,
   },
+  bridge: {
+    type: "subprocess",
+    command: "pi",
+    timeout: 120000,
+  },
 };
 
 /**

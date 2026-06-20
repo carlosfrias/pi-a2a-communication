@@ -87,7 +87,21 @@ export default function (pi: ExtensionAPI) {
 
     // Initialize A2A server if enabled
     if (config.server?.enabled) {
-      a2aServer = new A2AServer(config.server, config.security, ctx);
+      // Create PiTaskBridge from config
+      let bridge: PiTaskBridge;
+      if (config.bridge?.type === "subprocess") {
+        const bridgeOptions: SubprocessBridgeOptions = {
+          command: config.bridge.command || "pi",
+          timeout: config.bridge.timeout || 120000,
+        };
+        bridge = new SubprocessPiTaskBridge(bridgeOptions);
+        ctx.ui?.notify?.(`A2A bridge: subprocess (${bridgeOptions.command})`, "info");
+      } else {
+        bridge = new NoOpPiTaskBridge();
+        ctx.ui?.notify?.("A2A bridge: noop (placeholder)", "info");
+      }
+
+      a2aServer = new A2AServer(config.server, config.security, ctx, bridge);
       await a2aServer.start();
       ctx.ui?.notify?.(`A2A server started on ${config.server.host}:${config.server.port}`, "info");
     }
@@ -423,10 +437,22 @@ export default function (pi: ExtensionAPI) {
         const port = parts[1] ? parseInt(parts[1], 10) : 10000;
         const config = configManager!.getConfig();
         
+        // Create PiTaskBridge from config
+        let bridge: PiTaskBridge;
+        if (config.bridge?.type === "subprocess") {
+          bridge = new SubprocessPiTaskBridge({
+            command: config.bridge.command || "pi",
+            timeout: config.bridge.timeout || 120000,
+          });
+        } else {
+          bridge = new NoOpPiTaskBridge();
+        }
+        
         a2aServer = new A2AServer(
           { ...config.server, enabled: true, port },
           config.security,
-          ctx
+          ctx,
+          bridge
         );
 
         try {

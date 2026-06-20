@@ -304,11 +304,24 @@ export interface SecurityConfig {
 /**
  * Complete A2A configuration
  */
+/**
+ * Bridge configuration for task execution
+ */
+export interface BridgeConfig {
+  /** Bridge type: 'noop' for placeholder, 'subprocess' for pi CLI */
+  type: "noop" | "subprocess";
+  /** Command to invoke (subprocess only, default: 'pi') */
+  command?: string;
+  /** Timeout in ms (subprocess only, default: 120000) */
+  timeout?: number;
+}
+
 export interface A2AConfig {
   client: ClientConfig;
   server: ServerConfig;
   discovery: DiscoveryConfig;
   security: SecurityConfig;
+  bridge?: BridgeConfig;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
