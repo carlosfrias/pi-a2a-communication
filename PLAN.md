@@ -90,29 +90,29 @@ last_updated: 2026-06-19
 - [x] M9.1.4: Test — progress callback formats agent name + state
 - [x] M9.1.5: Impl — Wrap discovery in `Promise.allSettled()`, add null guards
 
-### M9.2: `/a2a-chain` refactor to `sendChainedTasks()`
+### M9.2: `/a2a-chain` refactor ✅
 
-- [ ] M9.2.1: Test (char) — chain with no args shows usage
-- [ ] M9.2.2: Test — chain parses pipe-delimited steps into `TaskChainConfig`
-- [ ] M9.2.3: Test — chain delegates to `taskManager.sendChainedTasks()`
-- [ ] M9.2.4: Test — chain reports step progress as `Step X/N: AgentName...`
-- [ ] M9.2.5: Impl — Refactor `/a2a-chain` handler to use `sendChainedTasks()`
+- [x] M9.2.1: Test (char) — chain with no args shows usage
+- [x] M9.2.2: Test — chain parses pipe-delimited steps into `TaskChainConfig`
+- [x] M9.2.3: Test — chain delegates to `taskManager.sendChainedTasks()`
+- [x] M9.2.4: Test — chain reports step progress as `Step X/N: AgentName...`
+- [x] M9.2.5: Impl — Refactor `/a2a-chain` handler to use `sendChainedTasks()`
 
-### M9.3: `/a2a-status` agent URL resolution
+### M9.3: `/a2a-status` agent URL resolution ✅
 
-- [ ] M9.3.1: Test (char) — status with no task ID shows usage
-- [ ] M9.3.2: Test — status resolves agent from taskAgents cache
-- [ ] M9.3.3: Test — status with unknown task suggests providing agent URL
-- [ ] M9.3.4: Test — status formats output with task ID, state, artifacts
-- [ ] M9.3.5: Impl — Update `/a2a-status` with cache lookup, fallback discovery
+- [x] M9.3.1: Test (char) — status with no task ID shows usage
+- [x] M9.3.2: Test — status resolves agent from taskAgents cache
+- [x] M9.3.3: Test — status with unknown task suggests providing agent URL
+- [x] M9.3.4: Test — status formats output with task ID, state, artifacts
+- [x] M9.3.5: Impl — Update `/a2a-status` with cache lookup, fallback discovery
 
-### M9.4: `a2a_chain` tool registration
+### M9.4: `a2a_chain` tool registration ✅
 
-- [ ] M9.4.1: Test — extension registers `a2a_chain` tool (3 tools total)
-- [ ] M9.4.2: Test — `a2a_chain` requires `steps` parameter
-- [ ] M9.4.3: Test — `a2a_chain` calls `sendChainedTasks()` and returns final output
-- [ ] M9.4.4: Test — `a2a_chain` with `continueOnError: true` passes it through
-- [ ] M9.4.5: Impl — Add `a2a_chain` tool in `index.ts`, update `pi-package.json`
+- [x] M9.4.1: Test — extension registers `a2a_chain` tool (3 tools total)
+- [x] M9.4.2: Test — `a2a_chain` requires `steps` parameter
+- [x] M9.4.3: Test — `a2a_chain` calls `sendChainedTasks()` and returns final output
+- [x] M9.4.4: Test — `a2a_chain` with `continueOnError: true` passes it through
+- [x] M9.4.5: Impl — Add `a2a_chain` tool in `index.ts`, update `pi-package.json`
 
 ### M9.5: Streaming improvements
 
