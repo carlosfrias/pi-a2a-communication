@@ -1,9 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var config_1 = require("vitest/config");
-var node_path_1 = require("node:path");
-var SRC = __dirname;
-exports.default = (0, config_1.defineConfig)({
+import { defineConfig } from 'vitest/config';
+import path from 'node:path';
+const SRC = __dirname;
+export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
@@ -21,11 +19,12 @@ exports.default = (0, config_1.defineConfig)({
         conditions: ['node'],
         alias: {
             // pi runtime type stubs
-            '@mariozechner/pi-coding-agent': node_path_1.default.resolve(SRC, 'types/pi-runtime.d.ts'),
-            '@mariozechner/pi-ai': node_path_1.default.resolve(SRC, 'types/pi-runtime.d.ts'),
-            '@mariozechner/pi-tui': node_path_1.default.resolve(SRC, 'types/pi-runtime.d.ts'),
-            '@mariozechner/pi-agent-core': node_path_1.default.resolve(SRC, 'types/pi-runtime.d.ts'),
-            '@sinclair/typebox': node_path_1.default.resolve(SRC, 'node_modules/@sinclair/typebox/index.js'),
+            '@mariozechner/pi-coding-agent': path.resolve(SRC, 'types/pi-runtime.d.ts'),
+            '@mariozechner/pi-ai': path.resolve(SRC, 'types/pi-runtime.d.ts'),
+            '@mariozechner/pi-tui': path.resolve(SRC, 'types/pi-runtime.d.ts'),
+            '@mariozechner/pi-agent-core': path.resolve(SRC, 'types/pi-runtime.d.ts'),
+            '@sinclair/typebox': path.resolve(SRC, 'node_modules/@sinclair/typebox/index.js'),
         }
     }
 });
+//# sourceMappingURL=vitest.config.js.map

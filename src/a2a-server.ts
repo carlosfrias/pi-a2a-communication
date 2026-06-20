@@ -9,6 +9,8 @@ import * as http from "node:http";
 import * as https from "node:https";
 import * as fs from "node:fs";
 import { URL } from "node:url";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { 
   ServerConfig, 
@@ -37,6 +39,7 @@ export class A2AServer {
   private ctx: ExtensionContext;
   private server: http.Server | https.Server | null = null;
   private agentCard: AgentCard;
+  private agentCardPath: string | null = null;
   private tasks: Map<string, A2ATask> = new Map();
   private taskHandlers: Map<string, TaskHandler> = new Map();
   private subscribers: Map<string, Set<http.ServerResponse>> = new Map();
@@ -47,8 +50,8 @@ export class A2AServer {
     this.security = security;
     this.ctx = ctx;
     
-    // Create default agent card for this pi instance
-    this.agentCard = this.createAgentCard();
+    // Try to load agent card from filesystem, fall back to hardcoded default
+    this.agentCard = this.loadAgentCard();
   }
 
   /**
@@ -1122,7 +1125,43 @@ export class A2AServer {
   }
 
   /**
-   * Create default agent card for this pi instance
+   * Load agent card from filesystem (config/agents/ directory).
+   * Tries {hostname}-agent.json first, then agent.json, then falls back to hardcoded default.
+   */
+  private loadAgentCard(): AgentCard {
+    const hostname = os.hostname();
+    
+    // Search paths for agent card, in priority order:
+    // 1. ~/.pi/agent/a2a/agents/{hostname}-agent.json  (fleet-specific)
+    // 2. ~/.pi/agent/a2a/agents/agent.json              (generic fallback)
+    const homeDir = os.homedir();
+    const searchPaths = [
+      path.join(homeDir, '.pi', 'agent', 'a2a', 'agents', `${hostname}-agent.json`),
+      path.join(homeDir, '.pi', 'agent', 'a2a', 'agents', 'agent.json'),
+    ];
+
+    for (const cardPath of searchPaths) {
+      try {
+        if (fs.existsSync(cardPath)) {
+          const cardData = JSON.parse(fs.readFileSync(cardPath, 'utf-8'));
+          // Override URL with actual server config
+          cardData.url = `http://${this.config.host}:${this.config.port}`;
+          console.log(`[A2A] Loaded agent card from ${cardPath}`);
+          this.agentCardPath = cardPath;
+          return cardData as AgentCard;
+        }
+      } catch (err) {
+        console.warn(`[A2A] Failed to load agent card from ${cardPath}:`, err);
+      }
+    }
+
+    // Fall back to hardcoded default
+    console.log('[A2A] No agent card file found, using default card');
+    return this.createAgentCard();
+  }
+
+  /**
+   * Create default agent card for this pi instance (fallback only)
    */
   private createAgentCard(): AgentCard {
     return {
