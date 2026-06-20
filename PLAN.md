@@ -122,22 +122,22 @@ last_updated: 2026-06-19
 
 ## M10: Server Integration 🟡
 
-### M10.0: `PiTaskBridge` interface (prerequisite)
+### M10.0: `PiTaskBridge` interface ✅
 
-- [ ] M10.0.1: Test — `PiTaskBridge` interface defines `executeTask(message): Promise<string>`
-- [ ] M10.0.2: Test — `PiTaskBridge` interface defines `executeTaskWithProgress(message, onProgress)`
-- [ ] M10.0.3: Impl — Create `src/pi-task-bridge.ts` with interface + `NoOpPiTaskBridge`
+- [x] M10.0.1: Test — `PiTaskBridge` interface defines `executeTask(message): Promise<string>`
+- [x] M10.0.2: Test — `PiTaskBridge` interface defines `executeTaskWithProgress(message, onProgress)`
+- [x] M10.0.3: Impl — Create `src/pi-task-bridge.ts` with interface + `NoOpPiTaskBridge`
 
-### M10.1: Replace `executePiTask()` stub
+### M10.1: Replace `executePiTask()` stub ✅
 
-- [ ] M10.1.1: Test (char) — Current stub returns `[A2A Task Result]` placeholder
-- [ ] M10.1.2: Test (char) — Current `executePiTaskWithProgress` calls progress callbacks
-- [ ] M10.1.3: Test — A2AServer accepts optional `PiTaskBridge` in constructor
-- [ ] M10.1.4: Test — `processTask()` delegates to bridge
-- [ ] M10.1.5: Test — `processTaskStreaming()` delegates to bridge with progress
-- [ ] M10.1.6: Test — No bridge provided → uses `NoOpPiTaskBridge` (backward compat)
-- [ ] M10.1.7: Test — Bridge error → task state `failed` with `isError: true`
-- [ ] M10.1.8: Impl — Replace stub, add constructor param, update exports
+- [x] M10.1.1: Test (char) — Current stub returns `[A2A Task Result]` placeholder
+- [x] M10.1.2: Test (char) — Current `executePiTaskWithProgress` calls progress callbacks
+- [x] M10.1.3: Test — A2AServer accepts optional `PiTaskBridge` in constructor
+- [x] M10.1.4: Test — `processTask()` delegates to bridge
+- [x] M10.1.5: Test — `processTaskStreaming()` delegates to bridge with progress
+- [x] M10.1.6: Test — No bridge provided → uses `NoOpPiTaskBridge` (backward compat)
+- [x] M10.1.7: Test — Bridge error → task state `failed` with `isError: true`
+- [x] M10.1.8: Impl — Replace stub, add constructor param, update exports
 
 ### M10.2: Register task handler from extension context
 
