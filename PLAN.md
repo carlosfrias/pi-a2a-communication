@@ -1,16 +1,16 @@
 ---
 name: pi-a2a-communication
-phase: "M6: Spec Compliance Implementation"
-progress: 10
+phase: "M8: Stable Release"
+progress: 100
 status: active
 last_updated: 2026-06-19
 ---
 
 # PLAN — pi-a2a-communication
 
-## Current: M6 — Spec Compliance Implementation ✅
+## Current: M8 — Stable Release ✅
 
-**All 7 spec gaps fixed. 19/19 conformance tests passing.**
+**v0.2.0 released.** All 7 spec gaps fixed, 19/19 conformance tests passing, alpha suffix dropped.
 
 ### Release History
 
@@ -18,7 +18,8 @@ last_updated: 2026-06-19
 |---------|------|-------------|
 | v1.0.1 (upstream) | 2026-06-18 | Deployed to all 7 fleet nodes |
 | v0.1.0-alpha.1 (fork) | 2026-06-18 | Initial fork, 84 tests |
-| v0.2.0-alpha.1 (fork) | TBD | A2A v1.0 spec compliance fixes (S1–S6b), 19/19 conformance tests |
+| v0.2.0-alpha.1 (fork) | 2026-06-19 | A2A v1.0 spec compliance fixes (S1–S6b), 19/19 conformance tests |
+| **v0.2.0 (fork)** | **2026-06-19** | **Stable release — alpha dropped, CHANGELOG.md created** |
 
 ---
 
@@ -59,9 +60,33 @@ last_updated: 2026-06-19
 | S6 | High | Slash-separated method names | Added PascalCase method mapping | ✅ |
 | S6b | Low | `id: 0` in parse errors | Changed `id ?? 0` → `id ?? null` | ✅ |
 
----
+### M8: Stable Release ✅
 
-## Completed Milestones
+- [x] M8.1: Version bump to `0.2.0` (drop alpha suffix)
+- [x] M8.2: Create CHANGELOG.md
+- [x] M8.3: FPB/FDP/Universal Rules compliance audit
+- [x] M8.4: Clean wiki structure (Rule 25/27), remove stray files
+- [x] M8.5: Sync vault documentation
+
+## M7: Upstream Issues (Deferred)
+
+- [ ] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
+- [ ] M7.2: Offer PR with fixes if maintainer responds
+
+## M9: Client Features (Planned)
+
+- [ ] M9.1: Implement `/a2a-broadcast` command
+- [ ] M9.2: Implement `/a2a-chain` command
+- [ ] M9.3: Implement `/a2a-status` command
+- [ ] M9.4: Streaming improvements (SSE chunk handling)
+
+## M10: Server Integration (Planned)
+
+- [ ] M10.1: Replace `executePiTask()` stub with real pi subagent bridge
+- [ ] M10.2: Integration tests for server lifecycle
+- [ ] M10.3: Deploy updated A2A server to fleet
+
+---
 
 ### M1: Fork & Audit (Done)
 - [x] M1.1–M1.5: Fork, audit, test framework, characterization tests, package rename

@@ -24,7 +24,7 @@ Conformance audit of `pi-a2a-communication@1.0.1` against the [A2A Protocol v1.0
 
 ## Full Report
 
-→ [[wiki/A2A-v1-Conformance-Report]] — Executive report with Mermaid diagrams, evidence, root cause, and fix recommendations.
+→ [[pi-a2a-communication/A2A-v1-Conformance-Report]] — Executive report with Mermaid diagrams, evidence, root cause, and fix recommendations.
 
 ## Reproduction
 

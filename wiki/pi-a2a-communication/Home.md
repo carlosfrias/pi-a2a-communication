@@ -9,15 +9,16 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 
 ## ⚡ Current Status
 
-**v1.0.1 (upstream)** deployed to all 7 fleet nodes. Fork reactivated for M6 spec compliance. P0 complete (S2/S3/S5 fixed).
+**M6 COMPLETE.** All 7 spec gaps fixed. 19/19 conformance tests passing. Fleet deployed — all 7 nodes on v0.2.0-alpha.1.
 
 | Milestone | Status |
 |-----------|--------|
 | Fleet deployment | ✅ All 7 nodes, A2A on port 10000 |
 | Coms-net removal | ✅ A4 complete — fully removed from fleet |
 | Spec compliance audit | ✅ Audited — 7 gaps found (S1–S6b) |
-| M6 P0 fixes (S2/S3/S5) | ✅ Conformance suite: 11/19 passing |
-| M6 P1 fixes (S1/S6/S6b) | ⏳ Next |
+| M6 P0 fixes (S2/S3/S5) | ✅ Fixed |
+| M6 P1 fixes (S1/S6/S6b) | ✅ Fixed |
+| M6 P2 fixes (S4) | ✅ Fixed |
 
 ## Architecture
 
@@ -34,15 +35,16 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 | [Gallery Submission](./guides/gallery-submission.md) | pi.dev/packages gallery submission details | ✅ Complete |
 | [Gallery Visibility Status](./guides/gallery-visibility-status.md) | Gallery listing visibility check | ✅ Complete |
 | [Listing Complete](./guides/listing-complete.md) | Package listing confirmation | ✅ Complete |
+| [Decommissioned Skills Migration](./guides/decommissioned-skills-migration.md) | D-E-V + fleet-dispatcher + coms-net → A2A migration guide | ✅ Complete |
 
 ## Reference
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| [Spec Compliance Summary](./a2a-v1-spec-compliance.md) | Spec compliance audit results | ✅ Audited |
-| [Conformance Report](./A2A-v1-Conformance-Report.md) | Full executive report with Mermaid diagrams and reproduction steps | ✅ Complete |
-| [Conformance Audit](./A2A-v1-Conformance-Audit.md) | Raw audit findings with deepseek/kimi validation | ✅ Complete |
-| [Agent Card Schema](./agent-card-schema.md) | A2A Agent Card schema reference and fleet card | ✅ Verified |
+| [Spec Compliance Summary](./reference/a2a-v1-spec-compliance.md) | Spec compliance audit results | ✅ Audited |
+| [Conformance Report](./reference/A2A-v1-Conformance-Report.md) | Full executive report with Mermaid diagrams and reproduction steps | ✅ Complete |
+| [Conformance Audit](./reference/A2A-v1-Conformance-Audit.md) | Raw audit findings with deepseek/kimi validation | ✅ Complete |
+| [Agent Card Schema](./reference/agent-card-schema.md) | A2A Agent Card schema reference and fleet card | ✅ Verified |
 | `tests/a2a-v1-conformance.test.ts` | Self-contained Vitest conformance test suite (in code repo) | ✅ Complete |
 
 ## Related Projects

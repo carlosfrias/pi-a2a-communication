@@ -104,14 +104,14 @@ describe('[SPEC] Agent Card Discovery', () => {
    * Both the server must SERVE and the client must REQUEST at the spec path.
    */
 
-  it('[SPEC] should serve Agent Card at /.well-known/agent.json (not agent-card)', () => {
-    const specPath = '/.well-known/agent.json';
+  it('[SPEC] should serve Agent Card at /.well-known/agent-card.json (spec path)', () => {
+    const specPath = '/.well-known/agent-card.json';
     const currentPath = AGENT_CARD_PATH;
     expect(currentPath).toBe(specPath);
   });
 
-  it('[SPEC] client should discover agents at /.well-known/agent.json', () => {
-    const specDiscoveryPath = '/.well-known/agent.json';
+  it('[SPEC] client should discover agents at /.well-known/agent-card.json', () => {
+    const specDiscoveryPath = '/.well-known/agent-card.json';
     const currentDiscoveryPath = AGENT_CARD_PATH;
     expect(currentDiscoveryPath).toBe(specDiscoveryPath);
   });

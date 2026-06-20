@@ -12,18 +12,15 @@ project: pi-a2a-communication
 
 ## ✅ Recently done
 
+- 📅 2026-06-19: **v0.2.0 stable released** — dropped alpha, created CHANGELOG.md
+- 📅 2026-06-19: **FPB/FDP/Rules audit** — 27 universal rules checked, all violations fixed
 - 📅 2026-06-19: **M6 COMPLETE** — All 7 spec gaps fixed, 19/19 conformance tests passing
-- 📅 2026-06-19: P1 fixed — S6 (PascalCase methods), S1 (HTTP 200 for JSON-RPC errors), S6b (id: null)
-- 📅 2026-19: P2 fixed — S4 (transport binding routes /rpc, /message:send, /message:stream)
-- 📅 2026-06-19: P0 fixed — S2 (WWW-Authenticate), S3 (agent-card.json), S5 (parse error try/catch)
-- 📅 2026-06-19: Wiki cleaned per Rule 27
-- 📅 2026-06-19: Conformance report validated — all audit findings ingested
 
 ## 📋 Next up
 
-- [x] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
-- [x] M6.10: Push to GitHub
-- [x] M6.11: Reinstall on fleet nodes with updated fork
+- [ ] M7: Submit spec issues to upstream (DrOlu/pi-a2a-communication)
+- [ ] M9: Client features (broadcast, chain, status)
+- [ ] M10: Server integration — replace `executePiTask()` stub
 
 ---
 

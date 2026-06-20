@@ -311,7 +311,7 @@ Key files in the code repo:
 | `tests/a2a-v1-conformance.test.ts` | A2A v1.0 spec conformance tests (source of truth) |
 | `tests/spec-compliance/` | Unit-level spec compliance tests |
 | `tests/characterization/` | Characterization test suites |
-| `wiki/A2A-v1-Conformance-Audit.md` | Detailed code-level audit findings |
+| `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md` | Detailed code-level audit findings |
 | `README.md` | Full usage documentation with examples |
 | `pi-package.json` | Pi extension manifest (commands, tools) |
 

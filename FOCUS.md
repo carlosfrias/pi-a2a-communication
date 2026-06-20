@@ -1,9 +1,9 @@
 ---
 name: pi-a2a-communication
-summary: "M6 COMPLETE. All 7 spec gaps fixed. 19/19 conformance tests passing. Fleet deployed — all 7 nodes on v0.2.0-alpha.1."
+summary: "v0.2.0 released. All 7 A2A v1.0 spec gaps fixed. 19/19 conformance tests passing."
 status: active
-phase: "M6: Spec Compliance Implementation"
-progress: 10
+phase: "M8: Stable Release"
+progress: 100
 tracked: true
 created: 2026-06-18
 updated: 2026-06-19
@@ -17,20 +17,16 @@ updated: 2026-06-19
 
 ## What's Done
 
-- ✅ M6.1: S2 fixed — `WWW-Authenticate: Bearer` on 401 responses
-- ✅ M6.2: S5 fixed — try/catch around `JSON.parse` in `handleSendMessage`
-- ✅ M6.3: S3 fixed — `/.well-known/agent-card.json` spec path + legacy compat
-- ✅ M6.4: S6 fixed — PascalCase method name mapping in dispatcher
-- ✅ M6.5: S1 fixed — JSON-RPC errors return HTTP 200
-- ✅ M6.6: S6b fixed — `id: null` instead of `id: 0` in error responses
-- ✅ M6.7: S4 fixed — `/rpc`, `/message:send`, `/message:stream` transport routes
-- ✅ **19/19 conformance tests passing**
+- ✅ M6: All 7 spec gaps fixed (S1–S6b), 19/19 conformance tests passing
+- ✅ M6.9: Version bump, M6.10: GitHub push, M6.11: Fleet reinstall
+- ✅ M8: v0.2.0 stable release — CHANGELOG.md created, alpha suffix dropped
+- ✅ FPB/FDP/Universal Rules compliance audit — 27 rules checked, all violations fixed
 
 ## Next Steps
 
-- [x] M6.9: Version bump to `0.2.0-alpha.1`
-- [x] M6.10: Push to GitHub
-- [x] M6.11: Reinstall on fleet nodes with updated fork
+- [ ] M7: Submit spec issues to upstream (DrOlu/pi-a2a-communication)
+- [ ] M9: Client features (broadcast, chain, status commands)
+- [ ] M10: Server integration — replace `executePiTask()` stub
 
 ## Key Decisions
 
@@ -52,8 +48,8 @@ updated: 2026-06-19
 | S6 | 🔴 High | Method names slash-separated, not PascalCase | ✅ Fixed |
 | S6b | 🟢 Low | `id: 0` instead of `id: null` in parse errors | ✅ Fixed |
 
-→ Full report: [A2A-v1-Conformance-Report](./wiki/A2A-v1-Conformance-Report.md)
-→ Audit report: [A2A-v1-Conformance-Audit](./wiki/A2A-v1-Conformance-Audit.md)
+→ Full report: [A2A-v1-Conformance-Report](./wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md)
+→ Audit report: [A2A-v1-Conformance-Audit](./wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md)
 
 ## Cross-References
 

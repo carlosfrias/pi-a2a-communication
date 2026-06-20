@@ -31,6 +31,13 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+vitest.config.js
+vitest.config.js.map
+vitest.config.d.ts
+vitest.config.d.ts.map
+
+# Vitest build artifacts (keep source)
+vitest.config.ts
 
 # Temporary files
 tmp/
@@ -42,3 +49,9 @@ a2a-config.local.json
 
 # OS
 Thumbs.db
+
+# FDP operational (roots use .frias/ instead)
+journal/
+costs/
+config/
+threads/

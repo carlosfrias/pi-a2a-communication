@@ -1,6 +1,6 @@
 {
   "name": "pi-a2a-communication",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0",
   "description": "A2A client extension for pi — provides slash commands and tools for A2A v1.0 protocol communication",
   "author": "Carlos Frias <carlos@frias.io>",
   "contributors": ["DrOlu/pi-a2a-communication (original)"],

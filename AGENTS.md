@@ -6,7 +6,7 @@ tags:
   - agent-protocol
   - PARA
   - area
-version: 0.2.0-alpha.1-dev
+version: 0.2.0
 status: active
 last_updated: 2026-06-19
 ---
@@ -25,8 +25,8 @@ Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. For
 
 | | |
 |---|---|
-| **Status** | 🟡 Active — M6 Spec Compliance |
-| **Version** | 0.2.0-alpha.1-dev |
+| **Status** | ✅ Active — M6 Complete |
+| **Version** | 0.2.0-alpha.3 |
 | **Upstream** | `carlosfrias/pi-a2a-communication` (GitHub, main branch) |
 | **Origin** | Forked from `DrOlu/pi-a2a-communication` v1.0.1 |
 | **Parent project** | A2A migration complete — coms-net removed |
@@ -79,7 +79,7 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 
 | Version | Date | Session | Key Rules |
 |---------|------|---------|-----------|
-| (none yet) | — | — | — |
+| v1 | 2026-06-19 | 2026-06-19-1300 | Verify spec paths against actual spec (not assumptions); Use two independent models for audit validation; Conformance tests must test spec path not implementation path; Cite spec section for severity; Only native pi flags in systemd |
 
 ## Routing
 
@@ -92,8 +92,8 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 | Configure A2A client | `config.ts` |
 | Understand A2A v1.0 spec | `tests/a2a-v1-conformance.test.ts` — conformance suite (source of truth) |
 | Read architecture docs | `wiki/pi-a2a-communication/Home.md` — start here |
-| Read conformance report | `wiki/A2A-v1-Conformance-Report.md` — full audit with Mermaid diagrams |
-| Read audit findings | `wiki/A2A-v1-Conformance-Audit.md` — detailed code-level findings |
+| Read conformance report | `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md` — full audit with Mermaid diagrams |
+| Read audit findings | `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md` — detailed code-level findings |
 
 ## Discovery Path
 
@@ -109,7 +109,7 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 9. pi-a2a-communication/.frias/journal/              ← Session journals
 10. pi-a2a-communication/wiki/pi-a2a-communication/   ← Architecture, protocol, guides
 11. pi-a2a-communication/tests/                       ← TDD test suites
-12. pi-a2a-communication/config/                     ← Gateway configuration
+12. pi-a2a-communication/config/                     ← Gateway configuration (archived sibling project)
 ```
 
 ---
@@ -117,6 +117,13 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 ## FDP Compliance
 
 This project follows the [Frias Documentation Protocol (FDP)](https://github.com/carlosfrias/frias-documentation-protocol) for documentation standards.
+
+### Two Locations (FDP)
+
+| Location | Path | Purpose |
+|----------|------|--------|
+| **Workspace Root** | `./src/`, `./tests/`, `./package.json` | Code, config, build artifacts |
+| **Documentation Home** | `./wiki/`, `./.frias/` | All documentation, session state |
 
 ### Required Directories
 
@@ -173,6 +180,26 @@ Per [FDP LIFECYCLE.md](https://github.com/carlosfrias/frias-documentation-protoc
 | Never Do | 7-9 (BLOCK), 13-14 (behavioral) | Tool calls (auto-enforced) |
 
 **Full rules:** `~/.pi/agent/git/github.com/carlosfrias/universal-rules/skills/universal-rules/CORE.md`
+
+### Compliance Audit (2026-06-19)
+
+| Rule | Status | Notes |
+|------|--------|-------|
+| RULE 1 | ✅ | Project in `workshop/02-Areas/Infrastructure/` |
+| RULE 2 | ✅ | TDD enforced by CA-5 |
+| RULE 3 | ✅ | Project AGENTS.md exists |
+| RULE 7 | ✅ | No `pi-coding-agent` npm dependency |
+| RULE 8 | ✅ | No `.pi/settings.json` |
+| RULE 19 | ✅ | Properly classified in `02-Areas` |
+| RULE 21 | ✅ | Hyphenated name |
+| RULE 22 | ✅ FIXED | Removed 3 duplicate `Activity Log.md` (space) files, kept kebab-case |
+| RULE 25 | ✅ FIXED | Moved wiki files under `wiki/pi-a2a-communication/` with `reference/` and `guides/` subdirs |
+| RULE 26 | ✅ FIXED | Aligned workshop wiki with vault structure; removed `_meta/` redirects; created `reference/` |
+| RULE 27 | ✅ FIXED | Slimmed README.md to ≤30 line pointer; removed empty root dirs; added vitest artifacts to `.gitignore` |
+| Version sync | ✅ FIXED | `pi-package.json` version updated from `0.1.0-alpha.1` → `0.2.0-alpha.3` |
+| FDP Two Locations | ✅ FIXED | Added explicit Workspace Root + Documentation Home declaration |
+| FDP Refined Agents | ✅ FIXED | Updated table with v1 refined agents |
+| FPB Status | ✅ FIXED | Updated `.frias/status/project.md` to reflect M6 complete |
 
 ---
 

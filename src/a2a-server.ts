@@ -1144,8 +1144,11 @@ export class A2AServer {
       try {
         if (fs.existsSync(cardPath)) {
           const cardData = JSON.parse(fs.readFileSync(cardPath, 'utf-8'));
-          // Override URL with actual server config
-          cardData.url = `http://${this.config.host}:${this.config.port}`;
+          // Keep the URL from the file (which has the correct node IP)
+          // Only override if the file has no URL or an invalid one
+          if (!cardData.url || cardData.url.includes('0.0.0.0')) {
+            cardData.url = `http://${os.hostname()}:${this.config.port}`;
+          }
           console.log(`[A2A] Loaded agent card from ${cardPath}`);
           this.agentCardPath = cardPath;
           return cardData as AgentCard;
