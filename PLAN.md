@@ -43,7 +43,7 @@ last_updated: 2026-06-19
 
 ### Remaining
 
-- [ ] M6.8: All 19 conformance tests passing ✅ **DONE**
+- [x] M6.8: All 19 conformance tests passing ✅ **DONE**
 - [x] M6.9: Version bump `package.json` to `0.2.0-alpha.1`
 - [x] M6.10: Push to GitHub, verify repo writable
 - [x] M6.11: Reinstall on fleet nodes with updated fork
@@ -70,8 +70,8 @@ last_updated: 2026-06-19
 
 ## M7: Upstream Issues (Deferred)
 
-- [ ] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
-- [ ] M7.2: Offer PR with fixes if maintainer responds
+- [x] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
+- [x] M7.2: Offer PR with fixes if maintainer responds
 
 ## M9: Client Features 🟡
 
@@ -163,10 +163,10 @@ last_updated: 2026-06-19
 
 ### M10.5: Deploy and update documentation ✅
 
-- [ ] M10.5.1: Update agent card skill descriptions
-- [ ] M10.5.2: Update AGENTS.md (remove CA-3, add PiTaskBridge rule)
-- [ ] M10.5.3: Version bump to `0.3.0`
-- [ ] M10.5.4: Update CHANGELOG.md
+- [x] M10.5.1: Update agent card skill descriptions
+- [x] M10.5.2: Update AGENTS.md (remove CA-3, add PiTaskBridge rule)
+- [x] M10.5.3: Version bump to `0.3.0`
+- [x] M10.5.4: Update CHANGELOG.md
 - [x] M10.5.5: Deploy to fleet nodes, verify with conformance tests
 
 ---
