@@ -76,7 +76,8 @@ export interface SubprocessBridgeOptions {
  * SubprocessPiTaskBridge — Invokes pi CLI via child_process
  * 
  * Production implementation that spawns a pi subprocess to execute tasks.
- * Uses the --non-interactive flag to prevent interactive prompts.
+ * Uses the --print flag for non-interactive execution and --no-session
+ * to prevent session persistence.
  * 
  * Error handling:
  * - ENOENT: Returns "Pi CLI not found" error with helpful message
@@ -94,7 +95,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
   async executeTask(message: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const proc = spawn(this.command, ["--non-interactive", "--message", message], {
+      const proc = spawn(this.command, ["--print", "--no-session", message], {
         timeout: this.timeout,
         stdio: ["pipe", "pipe", "pipe"],
       });

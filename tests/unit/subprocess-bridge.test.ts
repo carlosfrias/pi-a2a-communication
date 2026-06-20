@@ -14,9 +14,10 @@ describe("SubprocessPiTaskBridge", () => {
     it("should construct the correct command for pi CLI invocation", () => {
       // Expected command: pi --non-interactive --message "task message"
       const message = "Analyze this code for bugs";
-      const expectedArgs = ["--non-interactive", "--message", message];
+      const expectedArgs = ["--print", "--no-session", message];
       
-      expect(expectedArgs[0]).toBe("--non-interactive");
+      expect(expectedArgs[0]).toBe("--print");
+      expect(expectedArgs[1]).toBe("--no-session");
       expect(expectedArgs[2]).toBe(message);
     });
   });
