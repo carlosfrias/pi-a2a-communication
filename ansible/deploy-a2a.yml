@@ -1,0 +1,207 @@
+---
+# Deploy pi-a2a-communication to fleet nodes
+#
+# Usage:
+#   ansible-playbook -i inventory.ini deploy-a2a.yml              # Full deploy
+#   ansible-playbook -i inventory.ini deploy-a2a.yml --tags config  # Config only
+#   ansible-playbook -i inventory.ini deploy-a2a.yml --tags restart # Restart only
+#
+# What this does:
+#   1. Pulls latest pi-a2a-communication from GitHub
+#   2. Builds dist (npm install + npm run build)
+#   3. Removes conflicting npm package (if present)
+#   4. Updates A2A config (bridge type, auth token, version)
+#   5. Updates agent card versions
+#   6. Restarts pi-agent service
+#   7. Verifies A2A server is responding
+#
+# Prerequisites:
+#   - SSH key access to fleet nodes
+#   - Node.js installed via nvm on each node
+#   - pi installed globally via nvm
+#   - pi-agent@<node>.service configured in systemd
+
+- name: Deploy A2A Communication Extension to Fleet
+  hosts: lab_nodes
+  gather_facts: yes
+  strategy: linear
+
+  vars:
+    # Source paths
+    a2a_repo: "{{ ansible_env.HOME }}/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication"
+    a2a_config_dir: "{{ ansible_env.HOME }}/.pi/agent/a2a"
+
+    # Bridge configuration
+    # Fleet nodes use 'noop' because pi is already running in tmux.
+    # The orchestrator (mac) uses 'subprocess' to spawn pi --print.
+    bridge_type: "noop"
+    bridge_command: "pi"
+    bridge_timeout: 120000
+
+    # A2A auth token
+    bearer_token: "lab-fleet-2026"
+
+    # Service name pattern
+    service_name: "pi-agent@{{ inventory_hostname }}"
+
+    # A2A version to set in agent cards
+    a2a_version: "0.3.0"
+
+  # ── Phase 1: Update Code ─────────────────────────────────────────────
+  tasks:
+    - name: Stash any local changes in A2A repo
+      ansible.builtin.shell: git stash 2>/dev/null || true
+      args:
+        chdir: "{{ a2a_repo }}"
+      tags: [deploy, code]
+
+    - name: Pull latest pi-a2a-communication
+      ansible.builtin.git:
+        repo: "https://github.com/carlosfrias/pi-a2a-communication.git"
+        dest: "{{ a2a_repo }}"
+        version: main
+        force: yes
+      tags: [deploy, code]
+
+    - name: Install npm dependencies
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        npm install --prefer-offline
+      args:
+        chdir: "{{ a2a_repo }}"
+      tags: [deploy, code]
+
+    - name: Build dist
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        npm run build
+      args:
+        chdir: "{{ a2a_repo }}"
+      tags: [deploy, code]
+
+    - name: Verify built version
+      ansible.builtin.shell: grep '"version"' package.json | head -1
+      args:
+        chdir: "{{ a2a_repo }}"
+      register: built_version
+      changed_when: false
+      tags: [deploy, code]
+
+    - name: Show built version
+      ansible.builtin.debug:
+        msg: "A2A version on {{ inventory_hostname }}: {{ built_version.stdout }}"
+      tags: [deploy, code]
+
+  # ── Phase 2: Remove conflicting npm package ──────────────────────────
+    - name: Remove conflicting npm pi-a2a-communication
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pi remove npm:pi-a2a-communication 2>/dev/null || true
+      tags: [deploy]
+
+  # ── Phase 3: Update Configuration ────────────────────────────────────
+    - name: Create A2A config directory
+      ansible.builtin.file:
+        path: "{{ a2a_config_dir }}"
+        state: directory
+        mode: '0755'
+      tags: [deploy, config]
+
+    - name: Write A2A config.json
+      ansible.builtin.copy:
+        dest: "{{ a2a_config_dir }}/config.json"
+        mode: '0644'
+        content: |
+          {
+            "server": {
+              "enabled": true,
+              "port": 10000,
+              "host": "0.0.0.0",
+              "basePath": "/"
+            },
+            "security": {
+              "defaultScheme": "bearer",
+              "bearerToken": "{{ bearer_token }}",
+              "verifySsl": false
+            },
+            "client": {
+              "timeout": 30000,
+              "retryAttempts": 3,
+              "retryDelay": 1000,
+              "maxConcurrentTasks": 10,
+              "streamingEnabled": true
+            },
+            "discovery": {
+              "cacheEnabled": true,
+              "cacheTtl": 300000,
+              "agentCardPath": "/.well-known/agent-card.json",
+              "timeout": 10000
+            },
+            "bridge": {
+              "type": "{{ bridge_type }}",
+              "command": "{{ bridge_command }}",
+              "timeout": {{ bridge_timeout }}
+            }
+          }
+      tags: [deploy, config]
+
+    - name: Update agent card versions
+      ansible.builtin.shell: |
+        for f in {{ a2a_config_dir }}/agents/*.json; do
+          sed -i 's/"version": "0\.2\.0-alpha\.[0-9]*"/"version": "{{ a2a_version }}"/g' "$f"
+          sed -i 's/"version": "0\.2\.0"/"version": "{{ a2a_version }}"/g' "$f"
+        done
+      tags: [deploy, config]
+
+  # ── Phase 4: Restart Service ─────────────────────────────────────────
+    - name: Restart pi-agent service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        state: restarted
+      become: yes
+      tags: [deploy, restart]
+
+    - name: Wait for A2A server to respond
+      ansible.builtin.wait_for:
+        port: 10000
+        host: "0.0.0.0"
+        delay: 10
+        timeout: 60
+      tags: [deploy, restart]
+
+  # ── Phase 5: Verify ──────────────────────────────────────────────────
+    - name: Verify A2A server responds
+      ansible.builtin.uri:
+        url: "http://localhost:10000/.well-known/agent-card.json"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ bearer_token }}"
+        return_content: yes
+      register: agent_card
+      retries: 5
+      delay: 5
+      tags: [deploy, verify]
+
+    - name: Show agent card info
+      ansible.builtin.debug:
+        msg: "✅ {{ inventory_hostname }}: A2A v{{ agent_card.json.version }} — {{ agent_card.json.name }}"
+      tags: [deploy, verify]
+
+  # ── Summary ──────────────────────────────────────────────────────────
+  post_tasks:
+    - name: Fleet deploy summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════════════════"
+          - "  A2A COMMUNICATION v{{ a2a_version }} DEPLOYED"
+          - "═══════════════════════════════════════════════════"
+          - "  All fnet1-7 A2A servers running with bridge={{ bridge_type }}"
+          - "  Auth: Bearer token configured"
+          - "  Port: 10000"
+          - ""
+          - "  Test: curl -H 'Authorization: Bearer {{ bearer_token }}' \\"
+          - "          http://<node>:10000/.well-known/agent-card.json"
+          - "═══════════════════════════════════════════════════"
