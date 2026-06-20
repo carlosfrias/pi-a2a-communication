@@ -57,17 +57,29 @@ export class TaskManager {
     try {
       if (options.streaming !== false && onUpdate) {
         // Streaming with updates
-        return await this.client.sendStreamingMessage(agent, msg, onUpdate, options);
+        const result = await this.client.sendStreamingMessage(agent, msg, onUpdate, options);
+        // Track agent URL for status lookups
+        if (result.id) {
+          this.taskAgents.set(result.id, agent.url);
+        }
+        return result;
       } else {
         // Non-streaming
         const result = await this.client.sendMessage(agent, msg, options);
         
         if ("id" in result && "status" in result) {
-          return result as A2ATask;
+          const task = result as A2ATask;
+          // Track agent URL for status lookups
+          if (task.id) {
+            this.taskAgents.set(task.id, agent.url);
+          }
+          return task;
         } else {
           // Message response, wrap in task-like structure
+          const taskId = this.generateId();
+          this.taskAgents.set(taskId, agent.url);
           return {
-            id: this.generateId(),
+            id: taskId,
             status: {
               state: "completed",
               message: result as Message,
@@ -78,8 +90,11 @@ export class TaskManager {
         }
       }
     } catch (error) {
+      const taskId = this.generateId();
+      // Track agent URL even on failure
+      this.taskAgents.set(taskId, agent.url);
       return {
-        id: this.generateId(),
+        id: taskId,
         status: {
           state: "failed",
           message: {

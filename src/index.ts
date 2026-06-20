@@ -187,7 +187,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("a2a-send", {
     description: "Send a task to a remote A2A agent",
     handler: async (args, ctx) => {
-      if (!taskManager || !a2aClient) {
+      if (!taskManager || !a2aClient || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
         return;
       }
@@ -257,6 +257,10 @@ export default function (pi: ExtensionAPI) {
         ctx.ui?.notify?.("A2A not initialized", "error");
         return;
       }
+      if (!agentDiscovery) {
+        ctx.ui?.notify?.("A2A not initialized", "error");
+        return;
+      }
 
       // Parse arguments
       const agentsMatch = args.match(/--agents\s+([^\s]+)/);
@@ -272,20 +276,42 @@ export default function (pi: ExtensionAPI) {
       try {
         ctx.ui?.notify?.(`Broadcasting to ${agentUrls.length} agents...`, "info");
 
-        // Discover all agents first
-        const agents = await Promise.all(
-          agentUrls.map(url => agentDiscovery!.discoverAgent(url))
+        // Discover all agents — use allSettled to handle partial failures
+        const discoveryResults = await Promise.allSettled(
+          agentUrls.map(url => agentDiscovery.discoverAgent(url))
         );
+
+        const agents: RemoteAgent[] = [];
+        const failures: Array<{ url: string; error: string }> = [];
+
+        for (let i = 0; i < discoveryResults.length; i++) {
+          const result = discoveryResults[i];
+          if (result.status === "fulfilled") {
+            agents.push(result.value);
+          } else {
+            failures.push({ url: agentUrls[i], error: String(result.reason) });
+          }
+        }
+
+        // Report discovery failures
+        for (const fail of failures) {
+          ctx.ui?.notify?.(`Discovery failed for ${fail.url}: ${fail.error}`, "warning");
+        }
+
+        if (agents.length === 0) {
+          ctx.ui?.notify?.("No agents discovered. Broadcast aborted.", "error");
+          return;
+        }
 
         // Send parallel tasks
         const results = await taskManager.sendParallelTasks(
-          agents.map((agent, i) => ({
+          agents.map((agent) => ({
             agent,
             message,
             options: { timeout: 60000 },
           })),
           (update, index) => {
-            ctx.ui?.notify?.(`[${agents[index].name}] ${update.status?.state || "update"}`, "info");
+            ctx.ui?.notify?.(`${agents[index].name}: ${update.status?.state || "update"}`, "info");
           }
         );
 
@@ -309,7 +335,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("a2a-chain", {
     description: "Chain tasks across multiple A2A agents sequentially",
     handler: async (args, ctx) => {
-      if (!taskManager) {
+      if (!taskManager || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
         return;
       }
@@ -431,7 +457,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("a2a-status", {
     description: "Get status of an A2A task",
     handler: async (args, ctx) => {
-      if (!a2aClient) {
+      if (!a2aClient || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
         return;
       }
@@ -450,15 +476,16 @@ export default function (pi: ExtensionAPI) {
         
         if (agentUrl) {
           agent = configManager!.getRemoteAgent(agentUrl) || 
-                  await agentDiscovery!.discoverAgent(agentUrl);
+                  await agentDiscovery.discoverAgent(agentUrl);
         } else {
           // Try to find agent from task manager cache
-          agent = taskManager!.getTaskAgent(taskId);
-        }
-
-        if (!agent) {
-          ctx.ui?.notify?.("Agent not found. Provide agent URL.", "error");
-          return;
+          const cachedAgent = taskManager?.getTaskAgent(taskId);
+          if (cachedAgent) {
+            agent = cachedAgent;
+          } else {
+            ctx.ui?.notify?.("Task not found in cache. Provide agent URL: /a2a-status <task-id> <agent-url>", "error");
+            return;
+          }
         }
 
         const task = await a2aClient.getTask(agent, taskId);
@@ -485,7 +512,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("a2a-cancel", {
     description: "Cancel an A2A task",
     handler: async (args, ctx) => {
-      if (!a2aClient) {
+      if (!a2aClient || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
         return;
       }
@@ -504,14 +531,15 @@ export default function (pi: ExtensionAPI) {
         
         if (agentUrl) {
           agent = configManager!.getRemoteAgent(agentUrl) || 
-                  await agentDiscovery!.discoverAgent(agentUrl);
+                  await agentDiscovery.discoverAgent(agentUrl);
         } else {
-          agent = taskManager!.getTaskAgent(taskId);
-        }
-
-        if (!agent) {
-          ctx.ui?.notify?.("Agent not found. Provide agent URL.", "error");
-          return;
+          const cachedAgent = taskManager?.getTaskAgent(taskId);
+          if (cachedAgent) {
+            agent = cachedAgent;
+          } else {
+            ctx.ui?.notify?.("Task not found in cache. Provide agent URL: /a2a-cancel <task-id> <agent-url>", "error");
+            return;
+          }
         }
 
         await a2aClient.cancelTask(agent, taskId);

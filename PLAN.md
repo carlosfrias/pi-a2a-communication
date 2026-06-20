@@ -1,7 +1,7 @@
 ---
 name: pi-a2a-communication
-phase: "M8: Stable Release"
-progress: 100
+phase: "M9: Client Features"
+progress: 0
 status: active
 last_updated: 2026-06-19
 ---
@@ -73,18 +73,101 @@ last_updated: 2026-06-19
 - [ ] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
 - [ ] M7.2: Offer PR with fixes if maintainer responds
 
-## M9: Client Features (Planned)
+## M9: Client Features 🟡
 
-- [ ] M9.1: Implement `/a2a-broadcast` command
-- [ ] M9.2: Implement `/a2a-chain` command
-- [ ] M9.3: Implement `/a2a-status` command
-- [ ] M9.4: Streaming improvements (SSE chunk handling)
+### M9.0: taskAgents tracking (prerequisite for M9.3, M9.4)
 
-## M10: Server Integration (Planned)
+- [ ] M9.0.1: Test — `sendTask()` records agent URL in `taskAgents` Map
+- [ ] M9.0.2: Test — `sendParallelTasks()` records each task's agent URL
+- [ ] M9.0.3: Test — `sendChainedTasks()` records each step's agent URL
+- [ ] M9.0.4: Impl — Add `this.taskAgents.set()` calls in task-manager.ts
 
-- [ ] M10.1: Replace `executePiTask()` stub with real pi subagent bridge
-- [ ] M10.2: Integration tests for server lifecycle
-- [ ] M10.3: Deploy updated A2A server to fleet
+### M9.1: `/a2a-broadcast` improvements
+
+- [ ] M9.1.1: Test (char) — broadcast with no args shows usage
+- [ ] M9.1.2: Test (spec) — null taskManager/agentDiscovery shows error
+- [ ] M9.1.3: Test — partial discovery failure returns partial results
+- [ ] M9.1.4: Test — progress callback formats agent name + state
+- [ ] M9.1.5: Impl — Wrap discovery in `Promise.allSettled()`, add null guards
+
+### M9.2: `/a2a-chain` refactor to `sendChainedTasks()`
+
+- [ ] M9.2.1: Test (char) — chain with no args shows usage
+- [ ] M9.2.2: Test — chain parses pipe-delimited steps into `TaskChainConfig`
+- [ ] M9.2.3: Test — chain delegates to `taskManager.sendChainedTasks()`
+- [ ] M9.2.4: Test — chain reports step progress as `Step X/N: AgentName...`
+- [ ] M9.2.5: Impl — Refactor `/a2a-chain` handler to use `sendChainedTasks()`
+
+### M9.3: `/a2a-status` agent URL resolution
+
+- [ ] M9.3.1: Test (char) — status with no task ID shows usage
+- [ ] M9.3.2: Test — status resolves agent from taskAgents cache
+- [ ] M9.3.3: Test — status with unknown task suggests providing agent URL
+- [ ] M9.3.4: Test — status formats output with task ID, state, artifacts
+- [ ] M9.3.5: Impl — Update `/a2a-status` with cache lookup, fallback discovery
+
+### M9.4: `a2a_chain` tool registration
+
+- [ ] M9.4.1: Test — extension registers `a2a_chain` tool (3 tools total)
+- [ ] M9.4.2: Test — `a2a_chain` requires `steps` parameter
+- [ ] M9.4.3: Test — `a2a_chain` calls `sendChainedTasks()` and returns final output
+- [ ] M9.4.4: Test — `a2a_chain` with `continueOnError: true` passes it through
+- [ ] M9.4.5: Impl — Add `a2a_chain` tool in `index.ts`, update `pi-package.json`
+
+### M9.5: Streaming improvements
+
+- [ ] M9.5.1: Test — `a2a_call` with `streaming: true` sends progress via `onUpdate`
+- [ ] M9.5.2: Test — `/a2a-send` with streaming shows state transitions
+- [ ] M9.5.3: Impl — Review and improve streaming progress formatting
+
+## M10: Server Integration 🟡
+
+### M10.0: `PiTaskBridge` interface (prerequisite)
+
+- [ ] M10.0.1: Test — `PiTaskBridge` interface defines `executeTask(message): Promise<string>`
+- [ ] M10.0.2: Test — `PiTaskBridge` interface defines `executeTaskWithProgress(message, onProgress)`
+- [ ] M10.0.3: Impl — Create `src/pi-task-bridge.ts` with interface + `NoOpPiTaskBridge`
+
+### M10.1: Replace `executePiTask()` stub
+
+- [ ] M10.1.1: Test (char) — Current stub returns `[A2A Task Result]` placeholder
+- [ ] M10.1.2: Test (char) — Current `executePiTaskWithProgress` calls progress callbacks
+- [ ] M10.1.3: Test — A2AServer accepts optional `PiTaskBridge` in constructor
+- [ ] M10.1.4: Test — `processTask()` delegates to bridge
+- [ ] M10.1.5: Test — `processTaskStreaming()` delegates to bridge with progress
+- [ ] M10.1.6: Test — No bridge provided → uses `NoOpPiTaskBridge` (backward compat)
+- [ ] M10.1.7: Test — Bridge error → task state `failed` with `isError: true`
+- [ ] M10.1.8: Impl — Replace stub, add constructor param, update exports
+
+### M10.2: Register task handler from extension context
+
+- [ ] M10.2.1: Test — `registerTaskHandler('skill', handler)` stores and calls handler
+- [ ] M10.2.2: Test — `processTask()` checks handlers before bridge fallback
+- [ ] M10.2.3: Test — No handler match → falls back to `piTaskBridge`
+- [ ] M10.2.4: Impl — Hook `session_start` to register skill handlers via `registerTaskHandler()`
+
+### M10.3: `SubprocessPiTaskBridge` implementation
+
+- [ ] M10.3.1: Test — Spawns `pi` CLI with task message as input
+- [ ] M10.3.2: Test — Returns stdout as task result
+- [ ] M10.3.3: Test — Handles ENOENT (pi not found) gracefully
+- [ ] M10.3.4: Test — Handles timeout with meaningful error
+- [ ] M10.3.5: Impl — Create `SubprocessPiTaskBridge` in `pi-task-bridge.ts`
+
+### M10.4: Integration tests for server lifecycle
+
+- [ ] M10.4.1: Test — Full lifecycle: start server, send message, get status, cancel, stop
+- [ ] M10.4.2: Test — Streaming lifecycle: start, send streaming message, receive SSE events
+- [ ] M10.4.3: Test — Task handler routing: registered handler takes priority over bridge
+- [ ] M10.4.4: Test — Error lifecycle: bridge throws → task state `failed`
+
+### M10.5: Deploy and update documentation
+
+- [ ] M10.5.1: Update agent card skill descriptions
+- [ ] M10.5.2: Update AGENTS.md (remove CA-3, add PiTaskBridge rule)
+- [ ] M10.5.3: Version bump to `0.3.0`
+- [ ] M10.5.4: Update CHANGELOG.md
+- [ ] M10.5.5: Deploy to fleet nodes, verify with conformance tests
 
 ---
 
