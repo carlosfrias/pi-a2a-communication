@@ -11,7 +11,7 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 
 ## ⚡ Current Status
 
-**v0.3.0 released.** PiTaskBridge + a2a_chain tool + broadcast/chain/status improvements + PiSessionTaskHandler + fleet deployment. 206/206 tests passing. Fleet: all 7 nodes on v0.3.0.
+**v0.3.0 released.** 206/206 tests passing. 5 known gaps identified. Fleet auto-starts on reboot. See [Architecture & Executive Report](./reference/architecture-and-executive-report.md) for full analysis.
 
 | Milestone | Status |
 |-----------|--------|
@@ -20,6 +20,16 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 | M10: Server integration | ✅ PiTaskBridge, SubprocessPiTaskBridge, session handler |
 | M7: Upstream issues | ✅ 6 issues filed (#3–#8) |
 | Fleet deployment | ✅ All 7 nodes, A2A on port 10000 |
+
+### Known Gaps
+
+| ID | Severity | Gap |
+|----|----------|-----|
+| GAP-1 | 🔴 High | node-router targets coms-net (deprecated), not A2A |
+| GAP-2 | 🟡 Medium | PiSessionTaskHandler blocked on pi API (v0.79.4) |
+| GAP-3 | 🟡 Medium | local-model-pilot profiles empty on fleet nodes |
+| GAP-4 | 🟡 Medium | capacity_score=0 for all CPU-only nodes |
+| GAP-5 | 🟢 Low | Stale playbook-executor references |
 
 ## Guides
 
@@ -35,6 +45,7 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 
 | Document | Description |
 |----------|-------------|
+| [Architecture & Executive Report](./reference/architecture-and-executive-report.md) | System architecture, mermaid diagrams, gap analysis, fleet availability, PiSessionTaskHandler deep dive |
 | [Spec Compliance Summary](./reference/a2a-v1-spec-compliance.md) | A2A v1.0 spec compliance audit results |
 | [Conformance Report](./reference/A2A-v1-Conformance-Report.md) | Full executive report with Mermaid diagrams and reproduction steps |
 | [Conformance Audit](./reference/A2A-v1-Conformance-Audit.md) | Raw audit findings with deepseek/kimi validation |
