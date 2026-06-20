@@ -22,7 +22,9 @@ import { A2AServer } from "./a2a-server.js";
 import { AgentDiscovery } from "./agent-discovery.js";
 import { TaskManager } from "./task-manager.js";
 import { ConfigManager } from "./config.js";
+import { NoOpPiTaskBridge, SubprocessPiTaskBridge } from "./pi-task-bridge.js";
 import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
+import type { PiTaskBridge, SubprocessBridgeOptions } from "./pi-task-bridge.js";
 
 export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge };
 export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge, SubprocessBridgeOptions };

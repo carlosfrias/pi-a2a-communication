@@ -18,6 +18,7 @@
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": false,
     "baseUrl": ".",
+    "types": ["node"],
     "paths": {
       "@mariozechner/pi-coding-agent": ["./types/pi-runtime.d.ts"],
       "@mariozechner/pi-ai": ["./types/pi-runtime.d.ts"],
