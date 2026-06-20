@@ -12,6 +12,8 @@ import { URL } from "node:url";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { NoOpPiTaskBridge } from "./pi-task-bridge.js";
+import type { PiTaskBridge } from "./pi-task-bridge.js";
 import type { 
   ServerConfig, 
   SecurityConfig, 
@@ -37,6 +39,7 @@ export class A2AServer {
   private config: ServerConfig;
   private security: SecurityConfig;
   private ctx: ExtensionContext;
+  private piTaskBridge: PiTaskBridge;
   private server: http.Server | https.Server | null = null;
   private agentCard: AgentCard;
   private agentCardPath: string | null = null;
@@ -45,10 +48,11 @@ export class A2AServer {
   private subscribers: Map<string, Set<http.ServerResponse>> = new Map();
   private running = false;
 
-  constructor(config: ServerConfig, security: SecurityConfig, ctx: ExtensionContext) {
+  constructor(config: ServerConfig, security: SecurityConfig, ctx: ExtensionContext, piTaskBridge?: PiTaskBridge) {
     this.config = config;
     this.security = security;
     this.ctx = ctx;
+    this.piTaskBridge = piTaskBridge || new NoOpPiTaskBridge();
     
     // Try to load agent card from filesystem, fall back to hardcoded default
     this.agentCard = this.loadAgentCard();
@@ -969,9 +973,7 @@ export class A2AServer {
    * Execute a task using pi's capabilities
    */
   private async executePiTask(message: string): Promise<string> {
-    // This would integrate with pi's actual task execution
-    // For now, return a placeholder
-    return `[A2A Task Result]\n\nMessage received: ${message}\n\nThis is a placeholder response from the A2A server. In a full implementation, this would execute the task using pi's capabilities.`;
+    return this.piTaskBridge.executeTask(message);
   }
 
   /**
@@ -981,17 +983,7 @@ export class A2AServer {
     message: string,
     onProgress: (progress: string) => void
   ): Promise<string> {
-    // Simulate progress updates
-    onProgress("Analyzing request...");
-    await this.delay(500);
-    
-    onProgress("Processing task...");
-    await this.delay(1000);
-    
-    onProgress("Generating response...");
-    await this.delay(500);
-
-    return this.executePiTask(message);
+    return this.piTaskBridge.executeTaskWithProgress(message, onProgress);
   }
 
   /**
