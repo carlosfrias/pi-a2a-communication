@@ -75,20 +75,20 @@ last_updated: 2026-06-19
 
 ## M9: Client Features 🟡
 
-### M9.0: taskAgents tracking (prerequisite for M9.3, M9.4)
+### M9.0: taskAgents tracking ✅
 
-- [ ] M9.0.1: Test — `sendTask()` records agent URL in `taskAgents` Map
-- [ ] M9.0.2: Test — `sendParallelTasks()` records each task's agent URL
-- [ ] M9.0.3: Test — `sendChainedTasks()` records each step's agent URL
-- [ ] M9.0.4: Impl — Add `this.taskAgents.set()` calls in task-manager.ts
+- [x] M9.0.1: Test — `sendTask()` records agent URL in `taskAgents` Map
+- [x] M9.0.2: Test — `sendParallelTasks()` records each task's agent URL
+- [x] M9.0.3: Test — `sendChainedTasks()` records each step's agent URL
+- [x] M9.0.4: Impl — Add `this.taskAgents.set()` calls in task-manager.ts
 
-### M9.1: `/a2a-broadcast` improvements
+### M9.1: `/a2a-broadcast` improvements ✅
 
-- [ ] M9.1.1: Test (char) — broadcast with no args shows usage
-- [ ] M9.1.2: Test (spec) — null taskManager/agentDiscovery shows error
-- [ ] M9.1.3: Test — partial discovery failure returns partial results
-- [ ] M9.1.4: Test — progress callback formats agent name + state
-- [ ] M9.1.5: Impl — Wrap discovery in `Promise.allSettled()`, add null guards
+- [x] M9.1.1: Test (char) — broadcast with no args shows usage
+- [x] M9.1.2: Test (spec) — null taskManager/agentDiscovery shows error
+- [x] M9.1.3: Test — partial discovery failure returns partial results
+- [x] M9.1.4: Test — progress callback formats agent name + state
+- [x] M9.1.5: Impl — Wrap discovery in `Promise.allSettled()`, add null guards
 
 ### M9.2: `/a2a-chain` refactor to `sendChainedTasks()`
 
