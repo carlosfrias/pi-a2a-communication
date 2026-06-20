@@ -24,8 +24,9 @@ import { TaskManager } from "./task-manager.js";
 import { ConfigManager } from "./config.js";
 import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
 
-export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager };
-export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask };
+export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge };
+export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge };
+export { PiTaskBridge } from "./pi-task-bridge.js";
 
 // Global extension state
 let a2aClient: A2AClient | null = null;
