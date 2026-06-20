@@ -348,10 +348,10 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const chainSteps: Array<{ agent: RemoteAgent; task: string }> = [];
-
       try {
-        // Parse each step
+        // Parse each step into agent ref + message
+        const chainSteps: Array<{ agent: RemoteAgent; message: string }> = [];
+
         for (const step of steps) {
           const parts = step.split(/\s+/);
           if (parts.length < 2) {
@@ -360,44 +360,41 @@ export default function (pi: ExtensionAPI) {
           }
           
           const agentRef = parts[0];
-          const task = parts.slice(1).join(" ");
+          const message = parts.slice(1).join(" ");
           
           let agent = configManager!.getRemoteAgent(agentRef);
           if (!agent) {
-            agent = await agentDiscovery!.discoverAgent(agentRef);
+            agent = await agentDiscovery.discoverAgent(agentRef);
           }
           
-          chainSteps.push({ agent, task });
+          chainSteps.push({ agent, message });
         }
 
         ctx.ui?.notify?.(`Executing chain of ${chainSteps.length} steps...`, "info");
 
-        // Execute chain
-        let previousOutput = "";
-        for (let i = 0; i < chainSteps.length; i++) {
-          const { agent, task } = chainSteps[i];
-          const taskWithContext = task.replace(/\{previous\}/g, previousOutput);
-          
-          ctx.ui?.notify?.(`Step ${i + 1}/${chainSteps.length}: ${agent.name}...`, "info");
-
-          const result = await taskManager.sendTask(agent, taskWithContext, {
-            streaming: false,
-            timeout: 60000,
-          });
-
-          if (result.isError) {
-            ctx.ui?.notify?.(`Chain failed at step ${i + 1}: ${result.error}`, "error");
-            return;
+        // Delegate to TaskManager.sendChainedTasks
+        const { results, finalOutput } = await taskManager.sendChainedTasks(
+          {
+            steps: chainSteps,
+            continueOnError: false,
+          },
+          (update, stepIndex) => {
+            const stepNum = stepIndex + 1;
+            const totalSteps = chainSteps.length;
+            const agentName = chainSteps[stepIndex].agent.name;
+            if (update.status?.state) {
+              ctx.ui?.notify?.(`Step ${stepNum}/${totalSteps}: ${agentName} — ${update.status.state}`, "info");
+            }
           }
+        );
 
-          // Extract output for next step
-          previousOutput = result.artifacts?.[0]?.parts
-            ?.filter(p => p.type === "text")
-            ?.map(p => p.text)
-            ?.join("\n") || "";
+        // Check for errors
+        const failedSteps = results.filter(r => r.isError);
+        if (failedSteps.length > 0) {
+          ctx.ui?.notify?.(`Chain completed with ${failedSteps.length} failed step(s).`, "warning");
         }
 
-        ctx.ui?.notify?.(`Chain completed. Final output:\n${previousOutput}`, "success");
+        ctx.ui?.notify?.(`Chain completed. Final output:\n${finalOutput}`, "success");
       } catch (error) {
         ctx.ui?.notify?.(`Chain failed: ${error}`, "error");
       }
