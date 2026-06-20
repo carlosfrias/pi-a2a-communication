@@ -9,7 +9,7 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 
 ## ⚡ Current Status
 
-**M6 COMPLETE.** All 7 spec gaps fixed. 19/19 conformance tests passing. Fleet deployed — all 7 nodes on v0.2.0-alpha.1.
+**v0.3.0 released.** PiTaskBridge + a2a_chain tool + broadcast/chain/status improvements + PiSessionTaskHandler + fleet deployment. 206/206 tests passing. Fleet: all 7 nodes on v0.3.0.
 
 | Milestone | Status |
 |-----------|--------|
@@ -30,6 +30,7 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| [Sending Work to the Fleet](./guides/sending-work-to-the-fleet.md) | Slash commands, tools, keyword triggers, and examples for distributing work across fnet1–fnet7 | ✅ Complete |
 | [Learning & Resources](./guides/learning-and-resources.md) | A2A protocol fundamentals, tutorials, best practices, deployment patterns | ✅ Complete |
 | [Installation](./guides/installation.md) | How to install and configure the extension | 🟡 Planned |
 | [Gallery Submission](./guides/gallery-submission.md) | pi.dev/packages gallery submission details | ✅ Complete |

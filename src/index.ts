@@ -142,7 +142,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-discover <url>
    */
   pi.registerCommand("a2a-discover", {
-    description: "Discover A2A agents at a URL",
+    description: "Discover A2A agents at a URL. Use to find remote agents, scan fleet nodes, or check what agents are available. Triggers: discover agents, find agents, scan fleet, agent discovery, A2A discover, what agents",
     handler: async (args, ctx) => {
       if (!agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
@@ -186,7 +186,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-agents
    */
   pi.registerCommand("a2a-agents", {
-    description: "List all discovered A2A agents",
+    description: "List all discovered A2A agents with names, URLs, and capabilities. Triggers: list agents, show agents, who's available, known agents, fleet status, A2A agents",
     handler: async (_args, ctx) => {
       const agents = configManager!.getRemoteAgents();
       
@@ -208,7 +208,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-send <agent-url-or-name> <task-message>
    */
   pi.registerCommand("a2a-send", {
-    description: "Send a task to a remote A2A agent",
+    description: "Send a task to a remote A2A agent. Dispatch work to a specific fleet node. Triggers: send task, ask agent, dispatch to, tell agent, run on agent, send to fleet node, assign task to node, A2A send",
     handler: async (args, ctx) => {
       if (!taskManager || !a2aClient || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
@@ -274,7 +274,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-broadcast <message> --agents <url1,url2,...>
    */
   pi.registerCommand("a2a-broadcast", {
-    description: "Broadcast a task to multiple A2A agents in parallel",
+    description: "Broadcast a task to multiple A2A agents in parallel. Distribute the same work across several fleet nodes simultaneously. Triggers: broadcast, distribute work, send to multiple, fan out, parallel dispatch, broadcast to fleet, send to all nodes, scatter, A2A broadcast, parallel execution",
     handler: async (args, ctx) => {
       if (!taskManager) {
         ctx.ui?.notify?.("A2A not initialized", "error");
@@ -356,7 +356,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-chain <agent1> <task1> | <agent2> <task2> | ...
    */
   pi.registerCommand("a2a-chain", {
-    description: "Chain tasks across multiple A2A agents sequentially",
+    description: "Chain tasks across multiple A2A agents sequentially, piping output from one into the next. Use {previous} for prior step output. Triggers: chain tasks, pipeline, sequential agents, pipe output, relay, multi-step, A2A chain, agent chain, step-by-step, handoff, cascade",
     handler: async (args, ctx) => {
       if (!taskManager || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
@@ -430,7 +430,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-server stop
    */
   pi.registerCommand("a2a-server", {
-    description: "Start or stop the A2A server mode",
+    description: "Start or stop the local A2A server. Exposes this pi instance as an A2A agent for remote invocation. Triggers: start server, stop server, A2A server, enable agent mode, run as agent, serve A2A, listen for tasks",
     handler: async (args, ctx) => {
       const parts = args.trim().split(/\s+/);
       const command = parts[0];
@@ -491,7 +491,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-status <task-id> [agent-url]
    */
   pi.registerCommand("a2a-status", {
-    description: "Get status of an A2A task",
+    description: "Get the status of an A2A task by ID. Shows state (submitted/working/completed/failed) and artifacts. Triggers: check task, task status, progress, is it done, check result, A2A status, where is my task",
     handler: async (args, ctx) => {
       if (!a2aClient || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
@@ -546,7 +546,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-cancel <task-id> [agent-url]
    */
   pi.registerCommand("a2a-cancel", {
-    description: "Cancel an A2A task",
+    description: "Cancel a running A2A task by ID. Terminates execution on the remote agent. Triggers: cancel task, stop task, abort, kill task, terminate, cancel remote job",
     handler: async (args, ctx) => {
       if (!a2aClient || !agentDiscovery) {
         ctx.ui?.notify?.("A2A not initialized", "error");
@@ -591,7 +591,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-config <key> <value>
    */
   pi.registerCommand("a2a-config", {
-    description: "Configure A2A settings",
+    description: "Configure A2A settings: server port, auth token, client timeout, bridge type. Triggers: A2A config, configure A2A, change settings, set token, update config, bridge config",
     handler: async (args, ctx) => {
       const parts = args.trim().split(/\s+/);
       if (parts.length < 2) {
@@ -616,7 +616,7 @@ export default function (pi: ExtensionAPI) {
    * Usage: /a2a-help
    */
   pi.registerCommand("a2a-help", {
-    description: "Show A2A extension help",
+    description: "Show help for A2A slash commands and tools. Lists all available commands with usage. Triggers: A2A help, how to use A2A, fleet commands, what commands available",
     handler: async (_args, ctx) => {
       const help = `
 A2A Communication Extension Commands:
@@ -661,7 +661,7 @@ Examples:
   pi.registerTool({
     name: "a2a_call",
     label: "A2A Agent Call",
-    description: "Call a remote A2A agent to perform a task",
+    description: "Call a remote A2A agent to perform a task. Send a single task to one fleet node and get the result. Triggers: call agent, send task, ask agent, dispatch to, run on agent, single task, A2A call",
     parameters: {
       type: "object",
       properties: {
@@ -739,7 +739,7 @@ Examples:
   pi.registerTool({
     name: "a2a_parallel",
     label: "A2A Parallel Agents",
-    description: "Send tasks to multiple A2A agents in parallel",
+    description: "Send tasks to multiple A2A agents in parallel. Distribute the same work across several fleet nodes simultaneously and collect all results. Triggers: broadcast, distribute work, send to multiple, fan out, parallel dispatch, broadcast to fleet, send to all, scatter, parallel execution, run on multiple agents",
     parameters: {
       type: "object",
       properties: {
@@ -812,7 +812,7 @@ Examples:
   pi.registerTool({
     name: "a2a_chain",
     label: "A2A Agent Chain",
-    description: "Execute a chain of tasks across multiple A2A agents sequentially, with {previous} substitution",
+    description: "Execute a chain of tasks across multiple A2A agents sequentially, with {previous} substitution. Each step receives the prior step's output. Triggers: chain tasks, pipeline, sequential agents, pipe output, relay through agents, multi-step pipeline, A2A chain, agent chain, step-by-step, handoff, cascade",
     parameters: {
       type: "object",
       properties: {
