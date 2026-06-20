@@ -114,11 +114,11 @@ last_updated: 2026-06-19
 - [x] M9.4.4: Test — `a2a_chain` with `continueOnError: true` passes it through
 - [x] M9.4.5: Impl — Add `a2a_chain` tool in `index.ts`, update `pi-package.json`
 
-### M9.5: Streaming improvements
+### M9.5: Streaming improvements ✅
 
-- [ ] M9.5.1: Test — `a2a_call` with `streaming: true` sends progress via `onUpdate`
-- [ ] M9.5.2: Test — `/a2a-send` with streaming shows state transitions
-- [ ] M9.5.3: Impl — Review and improve streaming progress formatting
+- [x] M9.5.1: Test — `a2a_call` with `streaming: true` sends progress via `onUpdate`
+- [x] M9.5.2: Test — `/a2a-send` with streaming shows state transitions
+- [x] M9.5.3: Impl — Review and improve streaming progress formatting
 
 ## M10: Server Integration 🟡
 
