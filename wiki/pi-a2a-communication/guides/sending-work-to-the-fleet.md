@@ -17,15 +17,25 @@ How to distribute tasks across the 7-node A2A fleet (fnet1–fnet7) from your or
 
 ## Fleet Node Reference
 
-| Node | GPU | RAM | Best For | URL |
-|------|-----|-----|----------|-----|
-| fnet1 | RTX 4090 | 64GB | Large models (70B), heavy inference | `http://fnet1:10000` |
-| fnet2 | RTX 3090 | 64GB | Large models (70B), mixtral | `http://fnet2:10000` |
-| fnet3 | RTX 4080 | 32GB | Medium models (8B), balanced | `http://fnet3:10000` |
-| fnet4 | RTX 4070 | 32GB | Small-medium models (8B/4B) | `http://fnet4:10000` |
-| fnet5 | RTX 4060 | 16GB | Lightweight tasks (4B models) | `http://fnet5:10000` |
-| fnet6 | RTX A4000 | 32GB | Medium models (8B/9B) | `http://fnet6:10000` |
-| fnet7 | 2× RTX 3090 | 128GB | Heaviest work, largest context | `http://fnet7:10000` |
+Actual hardware as of 2026-06-20. All nodes run Ollama with CPU-only inference.
+
+| Node | CPU | RAM | Disk | GPU | Ollama Models |
+|------|-----|-----|------|-----|---------------|
+| fnet1 | i5-6400 (4c) | 16GB | 227GB | Intel HD 530 | minicpm-o2.6:8b, qwen3.5:4b |
+| fnet2 | i7-8700 (12c) | 16GB | 226GB | GTX 660 (driver broken) | minicpm-o2.6:8b, qwen3.5:4b |
+| fnet3 | i7-10710U (12c) | 32GB | 226GB | Intel UHD | minicpm-o2.6:8b, qwen3.5:4b |
+| fnet4 | i7-10710U (12c) | 32GB | 226GB | Intel UHD | minicpm-o2.6:8b, qwen3.5:4b |
+| fnet5 | i7-10710U (12c) | 32GB | 226GB | Intel UHD | minicpm-o2.6:8b, qwen3.5:4b |
+| fnet6 | i7-10710U (12c) | 32GB | 227GB | Intel UHD | minicpm-o2.6:8b, qwen3.5:4b |
+| fnet7 | i7-10710U (12c) | 16GB | 227GB | Intel UHD | minicpm-o2.6:8b, qwen3.5:4b |
+
+**Notes:**
+- fnet2 has a GTX 660 but the NVIDIA driver is broken — it runs CPU-only
+- fnet1 has only 4 cores and 16GB — lightest node
+- fnet7 has 16GB RAM (not 128GB) — was misconfigured in node-pool.json
+- All nodes run the same two models: `openbmb/minicpm-o2.6:8b` (5.5GB) and `qwen3.5:4b` (3.4GB)
+- Best nodes for heavier tasks: fnet3/fnet4/fnet5/fnet6 (32GB RAM, 12 cores)
+- Best for lightweight tasks: fnet1/fnet2/fnet7 (16GB RAM)
 
 ---
 
@@ -288,21 +298,22 @@ curl -s -H "Authorization: Bearer lab-fleet-2026" \
 ## Task Execution Architecture
 
 ```
-┌──────────────────┐
-│  Orchestrator     │
-│  (your Mac)      │
-│  pi + A2A client │
-│  bridge: subprocess
-└────────┬─────────┘
-         │ A2A JSON-RPC / SSE
-    ┌────┼────┬────────┬────────┬────────┬────────┐
-    ▼    ▼    ▼        ▼        ▼        ▼        ▼
- fnet1 fnet2 fnet3   fnet4   fnet5   fnet6   fnet7
- 4090  3090  4080     4070    4060   A4000  2×3090
- 64GB  64GB  32GB     32GB    16GB    32GB   128GB
- 70B   70B   8B       8B      4B     8B     70B+
- bridge: noop → PiSessionHandler → NoOp fallback
+⭐ Orchestrator (Mac)
+   pi + A2A client
+   bridge: subprocess (pi --print)
+       |
+       | A2A JSON-RPC / SSE
+       |
+    fnet1  fnet2  fnet3  fnet4  fnet5  fnet6  fnet7
+    4c     12c    12c    12c    12c    12c    12c
+    16GB   16GB   32GB   32GB   32GB   32GB   16GB
+    CPU    CPU+GPU CPU    CPU    CPU    CPU    CPU
+           GTX660*
+    ⬇⬇⬇⬇⬇⬇⬇ All run: minicpm-o2.6:8b + qwen3.5:4b
+    ⬇⬇⬇⬇⬇⬇⬇ bridge: noop → PiSessionHandler → NoOp fallback
 ```
+
+*GTX 660 present but driver broken; fnet2 runs CPU-only.*
 
 **How task execution works on fleet nodes:**
 
