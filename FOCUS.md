@@ -1,8 +1,8 @@
 ---
 name: pi-a2a-communication
-summary: "v0.2.0 released. All 7 A2A v1.0 spec gaps fixed. 19/19 conformance tests passing."
+summary: "v0.3.0 released. PiTaskBridge + a2a_chain tool + broadcast improvements. 196/196 tests passing."
 status: active
-phase: "M8: Stable Release"
+phase: "M9+M10: Client Features + Server Integration"
 progress: 100
 tracked: true
 created: 2026-06-18
@@ -18,15 +18,15 @@ updated: 2026-06-19
 ## What's Done
 
 - ✅ M6: All 7 spec gaps fixed (S1–S6b), 19/19 conformance tests passing
-- ✅ M6.9: Version bump, M6.10: GitHub push, M6.11: Fleet reinstall
-- ✅ M8: v0.2.0 stable release — CHANGELOG.md created, alpha suffix dropped
-- ✅ FPB/FDP/Universal Rules compliance audit — 27 rules checked, all violations fixed
+- ✅ M8: v0.2.0 stable release
+- ✅ M9: Client features — taskAgents tracking, broadcast improvements, chain refactor, status cache lookup, a2a_chain tool
+- ✅ M10.0–M10.4: PiTaskBridge interface, executePiTask stub replaced, SubprocessPiTaskBridge, integration tests
+- ✅ 196/196 tests passing
 
 ## Next Steps
 
-- [ ] M7: Submit spec issues to upstream (DrOlu/pi-a2a-communication)
-- [ ] M9: Client features (broadcast, chain, status commands)
-- [ ] M10: Server integration — replace `executePiTask()` stub
+- [ ] M10.5: Deploy and update documentation (CA-3 updated, version bump, CHANGELOG)
+- [ ] M7: Submit spec issues to upstream
 
 ## Key Decisions
 

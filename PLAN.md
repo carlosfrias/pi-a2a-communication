@@ -1,6 +1,6 @@
 ---
 name: pi-a2a-communication
-phase: "M9: Client Features"
+phase: "M9+M10: Client Features + Server Integration"
 progress: 0
 status: active
 last_updated: 2026-06-19
@@ -128,7 +128,7 @@ last_updated: 2026-06-19
 - [x] M10.0.2: Test — `PiTaskBridge` interface defines `executeTaskWithProgress(message, onProgress)`
 - [x] M10.0.3: Impl — Create `src/pi-task-bridge.ts` with interface + `NoOpPiTaskBridge`
 
-### M10.1: Replace `executePiTask()` stub ✅
+### M10.1: Replace `executePiTask()` stub ✅ ✅
 
 - [x] M10.1.1: Test (char) — Current stub returns `[A2A Task Result]` placeholder
 - [x] M10.1.2: Test (char) — Current `executePiTaskWithProgress` calls progress callbacks
@@ -139,27 +139,27 @@ last_updated: 2026-06-19
 - [x] M10.1.7: Test — Bridge error → task state `failed` with `isError: true`
 - [x] M10.1.8: Impl — Replace stub, add constructor param, update exports
 
-### M10.2: Register task handler from extension context
+### M10.2: Register task handler ✅
 
-- [ ] M10.2.1: Test — `registerTaskHandler('skill', handler)` stores and calls handler
-- [ ] M10.2.2: Test — `processTask()` checks handlers before bridge fallback
-- [ ] M10.2.3: Test — No handler match → falls back to `piTaskBridge`
-- [ ] M10.2.4: Impl — Hook `session_start` to register skill handlers via `registerTaskHandler()`
+- [x] M10.2.1: Test — `registerTaskHandler('skill', handler)` stores and calls handler
+- [x] M10.2.2: Test — `processTask()` checks handlers before bridge fallback
+- [x] M10.2.3: Test — No handler match → falls back to `piTaskBridge`
+- [x] M10.2.4: Impl — Hook `session_start` to register skill handlers via `registerTaskHandler()`
 
-### M10.3: `SubprocessPiTaskBridge` implementation
+### M10.3: `SubprocessPiTaskBridge` ✅
 
-- [ ] M10.3.1: Test — Spawns `pi` CLI with task message as input
-- [ ] M10.3.2: Test — Returns stdout as task result
-- [ ] M10.3.3: Test — Handles ENOENT (pi not found) gracefully
-- [ ] M10.3.4: Test — Handles timeout with meaningful error
-- [ ] M10.3.5: Impl — Create `SubprocessPiTaskBridge` in `pi-task-bridge.ts`
+- [x] M10.3.1: Test — Spawns `pi` CLI with task message as input
+- [x] M10.3.2: Test — Returns stdout as task result
+- [x] M10.3.3: Test — Handles ENOENT (pi not found) gracefully
+- [x] M10.3.4: Test — Handles timeout with meaningful error
+- [x] M10.3.5: Impl — Create `SubprocessPiTaskBridge` in `pi-task-bridge.ts`
 
-### M10.4: Integration tests for server lifecycle
+### M10.4: Integration tests ✅
 
-- [ ] M10.4.1: Test — Full lifecycle: start server, send message, get status, cancel, stop
-- [ ] M10.4.2: Test — Streaming lifecycle: start, send streaming message, receive SSE events
-- [ ] M10.4.3: Test — Task handler routing: registered handler takes priority over bridge
-- [ ] M10.4.4: Test — Error lifecycle: bridge throws → task state `failed`
+- [x] M10.4.1: Test — Full lifecycle: start server, send message, get status, cancel, stop
+- [x] M10.4.2: Test — Streaming lifecycle: start, send streaming message, receive SSE events
+- [x] M10.4.3: Test — Task handler routing: registered handler takes priority over bridge
+- [x] M10.4.4: Test — Error lifecycle: bridge throws → task state `failed`
 
 ### M10.5: Deploy and update documentation
 

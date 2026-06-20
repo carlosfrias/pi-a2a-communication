@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-19
+
+### Added
+
+- **PiTaskBridge interface** (`src/pi-task-bridge.ts`): Injectable task execution backend for A2A server
+- **NoOpPiTaskBridge**: Default placeholder bridge (backward compatible with original stub)
+- **SubprocessPiTaskBridge**: Production bridge that invokes pi CLI via `child_process.spawn`
+- **A2AServer constructor** now accepts optional 4th parameter `PiTaskBridge` for dependency injection
+- **`a2a_chain` tool**: Programmatic chain execution across multiple A2A agents (registered alongside `a2a_call` and `a2a_parallel`)
+- **taskAgents tracking**: `sendTask()`, `sendParallelTasks()`, and `sendChainedTasks()` now record agent URLs for `/a2a-status` lookups
+
+### Changed
+
+- **`/a2a-broadcast`**: Replaced `Promise.all` with `Promise.allSettled` for partial discovery failure tolerance; added null guards for `taskManager` and `agentDiscovery`; improved progress formatting with agent names
+- **`/a2a-chain`**: Refactored to delegate to `taskManager.sendChainedTasks()` instead of manual for-loop; added null guard for `agentDiscovery`; progress now reports `Step X/N: AgentName — state`
+- **`/a2a-status`**: Added cache lookup via `taskManager.getTaskAgent()` with fallback discovery; helpful error message when task not in cache
+- **`/a2a-cancel`**: Added null guards and cache lookup for agent resolution
+- **`/a2a-send`**: Added null guard for `agentDiscovery`
+- **CA-3 rule updated**: `executePiTask()` is no longer a stub — it delegates to `PiTaskBridge`
+
+### Tests
+
+- 196 tests passing (52 new)
+- New test files: `tests/unit/task-manager-tracking.test.ts`, `tests/unit/a2a-broadcast-command.test.ts`, `tests/unit/a2a-chain-command.test.ts`, `tests/unit/a2a-status-command.test.ts`, `tests/unit/a2a-chain-tool.test.ts`, `tests/unit/a2a-streaming.test.ts`, `tests/unit/pi-task-bridge.test.ts`, `tests/unit/a2a-server-bridge.test.ts`, `tests/unit/a2a-server-task-handler.test.ts`, `tests/unit/subprocess-bridge.test.ts`, `tests/integration/a2a-server-lifecycle.test.ts`
+- Spec-compliance test updated: agent-card path test now checks `/.well-known/agent-card.json`
+- Tools conformance test updated: expects 3 tools (added `a2a_chain`)
+
 ## [0.2.0] - 2026-06-19
 
 ### Fixed

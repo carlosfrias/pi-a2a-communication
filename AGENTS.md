@@ -6,7 +6,7 @@ tags:
   - agent-protocol
   - PARA
   - area
-version: 0.2.0
+version: 0.3.0
 status: active
 last_updated: 2026-06-19
 ---
@@ -39,6 +39,7 @@ Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. For
 | `index.ts` | Main extension entry point (registers commands + tools) |
 | `a2a-client.ts` | A2A client: sendMessage, sendStreamingMessage, getTask, cancelTask, discoverAgent |
 | `a2a-server.ts` | A2A server: exposes pi as A2A agent (JSON-RPC, SSE, task lifecycle) |
+| `pi-task-bridge.ts` | PiTaskBridge interface + NoOpPiTaskBridge + SubprocessPiTaskBridge |
 | `agent-discovery.ts` | Agent discovery via Agent Cards + caching |
 | `task-manager.ts` | Task orchestration: single, parallel, chain, async |
 | `config.ts` | ConfigManager (disk persistence, agent registry) |
@@ -61,8 +62,8 @@ All A2A protocol implementations MUST comply with the v1.0 specification. Method
 **RULE CA-7: All S1–S6b fixes must make the corresponding conformance test pass.**
 No spec gap is "fixed" until `npx vitest run a2a-v1-conformance` shows its test passing. The conformance suite (`tests/a2a-v1-conformance.test.ts`) is the source of truth for A2A v1.0 compliance.
 
-**RULE CA-3: The server `executePiTask()` is a stub — do not treat it as functional.**
-The current A2A server returns a placeholder string. Any real execution bridge to pi sessions, coms-net, or subagents must be built in `pi-a2a-gateway`, not here.
+**RULE CA-3: The server `executePiTask()` is delegated to PiTaskBridge.**
+The A2A server delegates task execution to a `PiTaskBridge` implementation. The default `NoOpPiTaskBridge` returns a placeholder response. Production use should configure `SubprocessPiTaskBridge` (invokes pi CLI) or a custom bridge via `registerTaskHandler()`. The bridge is injectable via the `A2AServer` constructor.
 
 **RULE CA-4: Never modify `types.ts` without running spec-compliance tests.**
 The type definitions are the contract with the A2A v1.0 spec. Any change must pass `tests/spec-compliance/a2a-v1-protocol.test.ts` before merge.
