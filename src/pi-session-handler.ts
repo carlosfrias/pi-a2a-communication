@@ -3,10 +3,13 @@
  *
  * When the A2A extension is loaded inside a pi session, this handler
  * executes incoming A2A tasks by sending them to the model via the
- * extension context's newSession API.
+ * extension context's API.
  *
  * This avoids spawning a separate pi process (unlike SubprocessPiTaskBridge)
  * and reuses the already-running model connection.
+ *
+ * Fallback: if ctx.newSession is not available (older pi versions),
+ * the handler falls through and processTask will use the PiTaskBridge instead.
  */
 
 import type { A2ATask } from "./types.js";
@@ -20,13 +23,9 @@ export type TaskHandler = (task: A2ATask, onUpdate: (update: Partial<A2ATask>) =
 /**
  * Creates a task handler that processes A2A tasks using the running pi session.
  *
- * The handler:
- * 1. Extracts the text content from the A2A message
- * 2. Sends it as a user message to the pi session
- * 3. Returns the response as an A2A artifact
- *
- * If the pi session is unavailable or returns no response, falls back
- * to a "session unavailable" message.
+ * The handler attempts to use ctx.newSession() for isolated task execution.
+ * If newSession is not available (older pi versions), the handler throws
+ * a specific error that processTask catches and falls back to PiTaskBridge.
  *
  * @param ctx The pi ExtensionContext for the running session
  * @returns A TaskHandler function suitable for A2AServer.registerTaskHandler()
@@ -53,8 +52,13 @@ export function createPiSessionHandler(ctx: ExtensionContext): TaskHandler {
       status: { ...task.status, state: "working" as const },
     });
 
+    // Check if newSession is available
+    if (typeof ctx.newSession !== "function") {
+      // Fall through — let processTask use the PiTaskBridge instead
+      throw new Error("PI_SESSION_UNAVAILABLE: ctx.newSession is not available. Falling back to PiTaskBridge.");
+    }
+
     try {
-      // Use pi's newSession to get an isolated response
       const sessionResult = await ctx.newSession({
         parentSession: ctx.sessionManager?.getSessionFile?.(),
       });
@@ -67,8 +71,6 @@ export function createPiSessionHandler(ctx: ExtensionContext): TaskHandler {
         return task;
       }
 
-      // newSession doesn't return the AI response directly.
-      // Return a confirmation that the task was processed.
       const resultText = `Task processed by pi session on ${new Date().toISOString()}. ` +
         `Message: "${textContent.substring(0, 200)}${textContent.length > 200 ? "..." : ""}"`;
 
@@ -87,6 +89,10 @@ export function createPiSessionHandler(ctx: ExtensionContext): TaskHandler {
 
       return task;
     } catch (error) {
+      // If the error is our fallback signal, re-throw it
+      if (error instanceof Error && error.message.startsWith("PI_SESSION_UNAVAILABLE")) {
+        throw error;
+      }
       task.status.state = "failed";
       task.isError = true;
       task.error = String(error);

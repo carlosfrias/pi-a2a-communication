@@ -833,11 +833,20 @@ export class A2AServer {
       for (const skillId of skillIds) {
         const handler = this.taskHandlers.get(skillId);
         if (handler) {
-          const result = await handler(task, (update: Partial<A2ATask>) => {
-            Object.assign(task, update);
-            this.notifySubscribers(task);
-          });
-          return result;
+          try {
+            const result = await handler(task, (update: Partial<A2ATask>) => {
+              Object.assign(task, update);
+              this.notifySubscribers(task);
+            });
+            return result;
+          } catch (handlerError) {
+            // If the handler signals that the session is unavailable,
+            // fall through to the PiTaskBridge
+            if (handlerError instanceof Error && handlerError.message.startsWith("PI_SESSION_UNAVAILABLE")) {
+              break; // Fall through to bridge
+            }
+            throw handlerError;
+          }
         }
       }
 
