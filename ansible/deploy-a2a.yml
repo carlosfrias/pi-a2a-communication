@@ -47,6 +47,13 @@
     # A2A version to set in agent cards
     a2a_version: "0.3.0"
 
+    # Bridge type for fleet nodes:
+    # 'noop' — returns placeholder (pi already running in tmux, can't spawn subprocess)
+    # 'subprocess' — spawns pi --print (works on orchestrator where pi is not running)
+    # Note: PiSessionTaskHandler is registered automatically but falls back to bridge
+    # when ctx.newSession is not available (pi < 1.0)
+    bridge_type: "noop"
+
   # ── Phase 1: Update Code ─────────────────────────────────────────────
   tasks:
     - name: Stash any local changes in A2A repo
