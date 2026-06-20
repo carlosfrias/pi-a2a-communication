@@ -826,6 +826,22 @@ export class A2AServer {
     task.status.timestamp = new Date().toISOString();
 
     try {
+      // Check for a registered task handler first
+      // Handlers are keyed by skill ID; we check "a2a-task-execution" (default skill)
+      // and any skill IDs from the task's metadata
+      const skillIds = ["a2a-task-execution", ...(task.metadata?.skills as string[] || [])];
+      for (const skillId of skillIds) {
+        const handler = this.taskHandlers.get(skillId);
+        if (handler) {
+          const result = await handler(task, (update: Partial<A2ATask>) => {
+            Object.assign(task, update);
+            this.notifySubscribers(task);
+          });
+          return result;
+        }
+      }
+
+      // No handler matched — fall back to PiTaskBridge
       // Get the message content
       const message = task.status.message;
       if (!message) {

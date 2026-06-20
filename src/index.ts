@@ -23,8 +23,9 @@ import { AgentDiscovery } from "./agent-discovery.js";
 import { TaskManager } from "./task-manager.js";
 import { ConfigManager } from "./config.js";
 import { NoOpPiTaskBridge, SubprocessPiTaskBridge } from "./pi-task-bridge.js";
-import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
 import type { PiTaskBridge, SubprocessBridgeOptions } from "./pi-task-bridge.js";
+import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
+import { createPiSessionHandler } from "./pi-session-handler.js";
 
 export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge };
 export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge, SubprocessBridgeOptions };
@@ -102,6 +103,12 @@ export default function (pi: ExtensionAPI) {
       }
 
       a2aServer = new A2AServer(config.server, config.security, ctx, bridge);
+
+      // Register pi session task handler (uses the running pi session for task execution)
+      const sessionHandler = createPiSessionHandler(ctx);
+      a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
+      ctx.ui?.notify?.("A2A: registered session task handler", "info");
+
       await a2aServer.start();
       ctx.ui?.notify?.(`A2A server started on ${config.server.host}:${config.server.port}`, "info");
     }
@@ -454,6 +461,10 @@ export default function (pi: ExtensionAPI) {
           ctx,
           bridge
         );
+
+        // Register pi session task handler
+        const sessionHandler = createPiSessionHandler(ctx);
+        a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
 
         try {
           await a2aServer.start();
