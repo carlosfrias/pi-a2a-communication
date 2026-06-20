@@ -10,12 +10,14 @@
  * injectable interface that supports real pi subagent integration.
  */
 
+import { spawn } from "node:child_process";
+
 /**
  * Interface for task execution backends.
  * 
  * Implementations:
  * - NoOpPiTaskBridge: Returns placeholder (default, backward compatible)
- * - SubprocessPiTaskBridge: Invokes pi CLI (M10.3)
+ * - SubprocessPiTaskBridge: Invokes pi CLI via child_process (M10.3)
  * - Custom: Register via A2AServer.registerTaskHandler()
  */
 export interface PiTaskBridge {
@@ -57,5 +59,88 @@ export class NoOpPiTaskBridge implements PiTaskBridge {
     onProgress("Analyzing request...");
     onProgress("Processing task...");
     return this.executeTask(message);
+  }
+}
+
+/**
+ * Options for SubprocessPiTaskBridge
+ */
+export interface SubprocessBridgeOptions {
+  /** Maximum execution time in milliseconds (default: 120000 = 2 minutes) */
+  timeout?: number;
+  /** Override pi command (default: "pi") */
+  command?: string;
+}
+
+/**
+ * SubprocessPiTaskBridge — Invokes pi CLI via child_process
+ * 
+ * Production implementation that spawns a pi subprocess to execute tasks.
+ * Uses the --non-interactive flag to prevent interactive prompts.
+ * 
+ * Error handling:
+ * - ENOENT: Returns "Pi CLI not found" error with helpful message
+ * - Timeout: Kills process and returns timeout error
+ * - Non-zero exit: Returns stderr content
+ */
+export class SubprocessPiTaskBridge implements PiTaskBridge {
+  private timeout: number;
+  private command: string;
+
+  constructor(options: SubprocessBridgeOptions = {}) {
+    this.timeout = options.timeout ?? 120000;
+    this.command = options.command ?? "pi";
+  }
+
+  async executeTask(message: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(this.command, ["--non-interactive", "--message", message], {
+        timeout: this.timeout,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      proc.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code: number | null) => {
+        if (code === 0) {
+          resolve(stdout.trim());
+        } else {
+          reject(new Error(`Pi process exited with code ${code}: ${stderr.trim()}`));
+        }
+      });
+
+      proc.on("error", (err: Error) => {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          reject(new Error(`Pi CLI not found: ${err.message}. Ensure pi is installed and in PATH.`));
+        } else {
+          reject(err);
+        }
+      });
+
+      // Set timeout
+      setTimeout(() => {
+        proc.kill("SIGTERM");
+        reject(new Error(`Pi process timed out after ${this.timeout}ms`));
+      }, this.timeout);
+    });
+  }
+
+  async executeTaskWithProgress(
+    message: string,
+    onProgress: (progress: string) => void
+  ): Promise<string> {
+    onProgress("Analyzing request...");
+    const result = await this.executeTask(message);
+    onProgress("Generating response...");
+    return result;
   }
 }
