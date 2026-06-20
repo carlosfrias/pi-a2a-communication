@@ -128,7 +128,7 @@ describe("A2A Tools Registration", () => {
     expect(content).toContain("a2a_parallel");
   });
 
-  it("should have a2a_call and a2a_parallel as the only registered tools", () => {
+  it("should have a2a_call, a2a_parallel, and a2a_chain as registered tools", () => {
     const srcPath = path.resolve(__dirname, "..", "src", "index.ts");
     const content = fs.readFileSync(srcPath, "utf-8");
 
@@ -147,6 +147,7 @@ describe("A2A Tools Registration", () => {
 
     expect(toolNames).toContain("a2a_call");
     expect(toolNames).toContain("a2a_parallel");
+    expect(toolNames).toContain("a2a_chain");
   });
 
   it("a2a_call tool should require agent_url and message parameters", () => {

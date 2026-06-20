@@ -766,4 +766,94 @@ Examples:
       }
     },
   });
+
+  /**
+   * Register a2a_chain tool for sequential agent execution
+   */
+  pi.registerTool({
+    name: "a2a_chain",
+    label: "A2A Agent Chain",
+    description: "Execute a chain of tasks across multiple A2A agents sequentially, with {previous} substitution",
+    parameters: {
+      type: "object",
+      properties: {
+        steps: {
+          type: "array",
+          description: "Ordered chain of tasks to execute sequentially",
+          items: {
+            type: "object",
+            properties: {
+              agent_url: { type: "string", description: "URL of the A2A agent" },
+              message: { type: "string", description: "Task message to send (use {previous} for prior output)" },
+            },
+            required: ["agent_url", "message"],
+          },
+        },
+        continueOnError: {
+          type: "boolean",
+          description: "Continue chain if a step fails",
+          default: false,
+        },
+        timeout: {
+          type: "number",
+          description: "Timeout per step in milliseconds",
+          default: 60000,
+        },
+      },
+      required: ["steps"],
+    },
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      if (!taskManager || !agentDiscovery) {
+        return {
+          content: [{ type: "text", text: "A2A not initialized" }],
+          isError: true,
+        };
+      }
+
+      try {
+        const steps = params.steps as Array<{ agent_url: string; message: string }>;
+        const continueOnError = (params.continueOnError as boolean) ?? false;
+
+        // Discover all agents
+        const agents = await Promise.all(
+          steps.map((s: { agent_url: string }) => agentDiscovery!.discoverAgent(s.agent_url))
+        );
+
+        // Build chain config
+        const chainConfig = {
+          steps: steps.map((s: { agent_url: string; message: string }, i: number) => ({
+            agent: agents[i],
+            message: s.message,
+            options: { timeout: (params.timeout as number) ?? 60000, streaming: false, signal },
+          })),
+          continueOnError,
+        };
+
+        const { results, finalOutput } = await taskManager.sendChainedTasks(chainConfig);
+
+        // Format result
+        const stepOutputs = results.map((r, i) => {
+          const status = r.isError ? "✗" : "✓";
+          const output = r.artifacts?.[0]?.parts
+            ?.filter(p => p.type === "text")
+            ?.map(p => p.text)
+            ?.join("\n") || r.status?.message?.parts
+            ?.filter(p => p.type === "text")
+            ?.map(p => p.text)
+            ?.join("\n") || r.error || "(no output)";
+          return `${status} Step ${i + 1} [${agents[i].name}]: ${output}`;
+        });
+
+        return {
+          content: [{ type: "text", text: stepOutputs.join("\n") + "\n\nFinal output:\n" + finalOutput }],
+          details: results,
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  });
 }
