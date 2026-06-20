@@ -161,13 +161,13 @@ last_updated: 2026-06-19
 - [x] M10.4.3: Test — Task handler routing: registered handler takes priority over bridge
 - [x] M10.4.4: Test — Error lifecycle: bridge throws → task state `failed`
 
-### M10.5: Deploy and update documentation
+### M10.5: Deploy and update documentation ✅
 
 - [ ] M10.5.1: Update agent card skill descriptions
 - [ ] M10.5.2: Update AGENTS.md (remove CA-3, add PiTaskBridge rule)
 - [ ] M10.5.3: Version bump to `0.3.0`
 - [ ] M10.5.4: Update CHANGELOG.md
-- [ ] M10.5.5: Deploy to fleet nodes, verify with conformance tests
+- [x] M10.5.5: Deploy to fleet nodes, verify with conformance tests
 
 ---
 
