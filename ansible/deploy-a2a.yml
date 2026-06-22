@@ -52,14 +52,20 @@
     # 'subprocess' — spawns pi --print (works on orchestrator where pi is not running)
     # Note: PiSessionTaskHandler is registered automatically but falls back to bridge
     # when ctx.newSession is not available (pi < 1.0)
-    bridge_type: "noop"
 
   # ── Phase 1: Update Code ─────────────────────────────────────────────
   tasks:
+    - name: Check if A2A repo exists
+      ansible.builtin.stat:
+        path: "{{ a2a_repo }}"
+      register: a2a_repo_exists
+      tags: [deploy, code]
+
     - name: Stash any local changes in A2A repo
       ansible.builtin.shell: git stash 2>/dev/null || true
       args:
         chdir: "{{ a2a_repo }}"
+      when: a2a_repo_exists.stat.exists
       tags: [deploy, code]
 
     - name: Pull latest pi-a2a-communication
