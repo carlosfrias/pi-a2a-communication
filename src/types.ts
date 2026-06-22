@@ -60,6 +60,16 @@ export const LEGACY_AGENT_CARD_PATH_LOCAL = '/.well-known/agent.json';
  */
 export const LEGACY_AGENT_CARD_PATH_NPM = '/.well-known/agent-card';
 
+/**
+ * Discovery fallback paths — tried in order when the primary path fails.
+ * Includes the spec path and both legacy paths for maximum compatibility.
+ */
+export const AGENT_CARD_DISCOVERY_PATHS = [
+  AGENT_CARD_PATH,
+  LEGACY_AGENT_CARD_PATH_LOCAL,
+  LEGACY_AGENT_CARD_PATH_NPM,
+] as const;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // A2A PROTOCOL TYPES
 // ═══════════════════════════════════════════════════════════════════════════

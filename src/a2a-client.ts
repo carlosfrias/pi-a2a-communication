@@ -22,7 +22,7 @@ import type {
   AgentCard,
   PushNotificationConfig,
 } from "./types.js";
-import { A2A_METHODS, AGENT_CARD_PATH } from "./types.js";
+import { A2A_METHODS, AGENT_CARD_PATH, AGENT_CARD_DISCOVERY_PATHS } from "./types.js";
 
 /**
  * A2A Client class
@@ -347,24 +347,38 @@ export class A2AClient {
 
   /**
    * Discover agent at URL (fetch Agent Card)
+   * Tries discovery paths in order: agent-card.json, agent.json, agent-card
    */
   async discoverAgent(url: string): Promise<AgentCard & { url: string }> {
     const agentUrl = new URL(url);
-    const cardPath = AGENT_CARD_PATH;
-    const fullUrl = `${agentUrl.origin}${cardPath}`;
-    
-    const response = await this.httpGet(fullUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to discover agent: ${response.status} ${response.statusText}`);
+    const discoveryPaths = [...AGENT_CARD_DISCOVERY_PATHS];
+    let lastError: Error | null = null;
+
+    for (const cardPath of discoveryPaths) {
+      const fullUrl = `${agentUrl.origin}${cardPath}`;
+      try {
+        const response = await this.httpGet(fullUrl);
+        if (response.ok) {
+          const card = await response.json();
+          return { ...card, url };
+        }
+        // 404 — try next path
+        if (response.status === 404) {
+          lastError = new Error(`Agent Card not found at ${cardPath} (404)`);
+          continue;
+        }
+        // Non-404 error (auth, server error) — don't try fallbacks
+        throw new Error(`Failed to discover agent: ${response.status} ${response.statusText}`);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Failed to discover agent')) {
+          throw error; // Re-throw non-404 errors
+        }
+        lastError = error instanceof Error ? error : new Error(String(error));
+        continue;
+      }
     }
 
-    const card = await response.json();
-    
-    return {
-      ...card,
-      url,
-    };
+    throw lastError || new Error(`Agent Card not found at any discovery path for ${url}`);
   }
 
   /**

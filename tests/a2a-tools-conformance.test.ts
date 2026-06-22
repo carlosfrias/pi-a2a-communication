@@ -862,9 +862,11 @@ describe("AgentDiscovery uses correct Agent Card path", () => {
     const result = await discovery.discoverAgent("https://discovered.example.com");
 
     // Verify the discovery URL includes the well-known path
+    // fetchAgentCard is called with (url, attempt) by fetchAgentCardWithFallback
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy).toHaveBeenCalledWith(
-      "https://discovered.example.com/.well-known/agent-card.json"
+      "https://discovered.example.com/.well-known/agent-card.json",
+      0
     );
     expect(result.name).toBe("discovered-agent");
 

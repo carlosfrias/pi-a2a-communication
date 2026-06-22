@@ -12,7 +12,7 @@ import type {
   CachedAgent,
   AgentHealth,
 } from "./types.js";
-import { AGENT_CARD_PATH } from "./types.js";
+import { AGENT_CARD_PATH, AGENT_CARD_DISCOVERY_PATHS } from "./types.js";
 
 /**
  * Agent Discovery class
@@ -39,12 +39,11 @@ export class AgentDiscovery {
       }
     }
 
-    // Fetch agent card
+    // Fetch agent card with fallback discovery paths
     const agentUrl = this.normalizeUrl(url);
-    const cardUrl = this.getAgentCardUrl(agentUrl);
     
     try {
-      const response = await this.fetchAgentCard(cardUrl);
+      const response = await this.fetchAgentCardWithFallback(agentUrl);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch agent card: ${response.status} ${response.statusText}`);
@@ -325,10 +324,50 @@ export class AgentDiscovery {
   }
 
   /**
-   * Get Agent Card URL
+   * Get Agent Card URL (primary path)
    */
   private getAgentCardUrl(baseUrl: string): string {
     return `${baseUrl}${AGENT_CARD_PATH}`;
+  }
+
+  /**
+   * Get all Agent Card discovery URLs (primary + fallbacks)
+   */
+  private getAgentCardUrls(baseUrl: string): string[] {
+    return AGENT_CARD_DISCOVERY_PATHS.map(p => `${baseUrl}${p}`);
+  }
+
+  /**
+   * Fetch agent card with fallback discovery paths
+   * Tries /.well-known/agent-card.json first (spec path),
+   * then /.well-known/agent.json (local fork),
+   * then /.well-known/agent-card (npm legacy).
+   */
+  private async fetchAgentCardWithFallback(baseUrl: string, attempt = 0): Promise<Response> {
+    const urls = this.getAgentCardUrls(baseUrl);
+    let lastError: Error | null = null;
+
+    for (const url of urls) {
+      try {
+        const response = await this.fetchAgentCard(url, attempt);
+        if (response.ok) {
+          return response;
+        }
+        // 404 means this path isn't served — try next fallback
+        if (response.status === 404) {
+          lastError = new Error(`Agent Card not found at ${url} (404)`);
+          continue;
+        }
+        // Auth errors or other issues — don't try fallbacks
+        return response;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        // Network error on this path — try next fallback
+        continue;
+      }
+    }
+
+    throw lastError || new Error(`Agent Card not found at any discovery path for ${baseUrl}`);
   }
 
   /**
