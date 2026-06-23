@@ -1,19 +1,19 @@
 ---
 name: pi-a2a-communication
-summary: "v0.3.0 released. 206/206 tests. 5 known gaps. node-router inert (targets coms-net). PiSessionTaskHandler blocked on pi API. Fleet auto-starts on reboot."
+summary: "v0.4.0. All 5 gaps resolved. PiSessionTaskHandler implemented. Node-router archived. Fleet profiles created. 215 tests."
 status: active
-phase: "Post-M10: Gap Remediation + Integration"
+phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-06-20
+updated: 2026-06-23
 ---
 
 # FOCUS — pi-a2a-communication
 
 ## [S-TIGHT]
 
-**v0.3.0 deployed. M6–M10 complete. 206/206 tests. 5 known gaps identified. Fleet auto-starts on reboot — no stand-up-fleet command needed. See [Architecture & Executive Report](./wiki/pi-a2a-communication/reference/architecture-and-executive-report.md).**
+**v0.4.0-dev. All 5 gaps resolved. M6–M10 complete. 215 tests passing. PiSessionTaskHandler implemented. Node-router archived (migrated to fleet-resource-manager + A2A). See [Architecture & Executive Report](./wiki/pi-a2a-communication/reference/architecture-and-executive-report.md).**
 
 ## What's Done
 
@@ -26,25 +26,26 @@ updated: 2026-06-20
 - ✅ M10.6: PiSessionTaskHandler with fallback
 - ✅ Wiki remediation — Rule 25/27 compliant, stale files removed, vault synced
 - ✅ Fleet hardware audit — node-pool.json v2.0.0 with actual specs
-- ✅ 206/206 tests passing
+- ✅ 215/215 tests passing (9 new from GAP-2 PiSessionTaskHandler)
+- ✅ Fleet hardware audit — node-pool.json v2.0.0 with actual specs
 
-## Known Gaps
+## Known Gaps (Reassessed 2026-06-23)
 
-| ID | Severity | Gap | Status |
-|----|----------|-----|--------|
-| GAP-1 | 🔴 High | node-router targets coms-net (deprecated), not A2A | Not started |
-| GAP-2 | 🟡 Medium | PiSessionTaskHandler blocked — `ctx.newSession()` unavailable (pi v0.79.4) | Blocked on upstream |
-| GAP-3 | 🟡 Medium | local-model-pilot profiles empty on all fleet nodes | Not started |
-| GAP-4 | 🟡 Medium | capacity_score=0 for all CPU-only nodes (VRAM=0 bottleneck) | Not started |
-| GAP-5 | 🟢 Low | Stale playbook-executor references to archived coms-net | Not started |
+| ID | Severity | Gap | Status | Change |
+|----|----------|-----|--------|--------|
+| GAP-1 | 🔴 High | node-router coms-net components archived — superseded by fleet-resource-manager + A2A | ✅ Archived | **orchestrator_client.py and fleet_agent.py archived, scoring/routing migrated to fleet-resource-manager** |
+| GAP-2 | 🟡 Medium | PiSessionTaskHandler using ctx.newSession() | ✅ Implemented | **Polling-based response reader, streaming handler support** |
+| GAP-3 | 🟡 Medium | local-model-pilot profiles for fleet nodes | ✅ Created | **linux-31gi + linux-15gi profiles + Ansible deploy playbook** |
+| GAP-4 | 🟡 Medium | capacity_score formula for CPU-only nodes | ✅ Closed | **Fixed in fleet-resource-manager v0.1.0** |
+| GAP-5 | 🟢 Low | Stale playbook-executor references to coms-net | ✅ Cleaned | **New A2A playbooks, old files removed, index updated** |
 
 ## Active Work
 
-- [ ] GAP-1.1: Replace coms-net dispatch with A2A tools
-- [ ] GAP-2.3: Configure SubprocessPiTaskBridge as interim solution
-- [ ] GAP-3.1: Configure local-model-pilot on 32GB nodes
-- [ ] GAP-4.1: Fix capacity_score formula for CPU-only nodes
-- [ ] GAP-5.1: Update playbook-executor index
+All 5 gaps resolved. Remaining operational items:
+
+- [ ] GAP-3.3: Deploy model profiles to fleet nodes (requires Ansible run)
+- [ ] GAP-2.2: Verify PiSessionTaskHandler auto-activates on fleet nodes
+- [ ] Version bump to v0.4.0 (package.json, pi-package.json, CHANGELOG.md)
 - [ ] M7.2: Offer PR to upstream if maintainer responds
 
 ## Fleet Availability Bottom Line
@@ -81,9 +82,9 @@ Fleet nodes **auto-start via systemd** on reboot. No "stand up fleet" command ne
 |---------|--------|----------|
 | pi-a2a-gateway | ❌ Archived | [FOCUS](../../../04-Archive/Infrastructure/pi-a2a-gateway/FOCUS.md) |
 | pi-cross-node-comms | ❌ Archived | [FOCUS](../../../04-Archive/Infrastructure/pi-cross-node-comms/FOCUS.md) |
-| node-router | ⚠️ Not integrated | [node-router](../../node-router/) — targets coms-net, not A2A |
+| node-router | ✅ Archived | Archived to `04-Archive/Infrastructure/node-router/` — scoring/routing/benchmarking migrated to fleet-resource-manager |
 | health-monitor | ⚠️ Deployed but stale | [health-monitor](../../health-monitor/) — health data 3+ weeks old |
 
 ---
 
-*Last updated: 2026-06-20*
+*Last updated: 2026-06-23*

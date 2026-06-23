@@ -6,7 +6,7 @@ tags:
   - agent-protocol
   - PARA
   - area
-version: 0.3.0
+version: 0.4.0
 status: active
 last_updated: 2026-06-19
 ---

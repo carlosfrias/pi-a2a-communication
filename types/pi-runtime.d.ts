@@ -36,6 +36,35 @@ export interface ToolConfig {
   renderResult?: (result: unknown, options: { expanded: boolean }, theme: Theme) => unknown;
 }
 
+/**
+ * Replaced session context provided inside ctx.newSession({ withSession }).
+ * This context lives inside the new session and has methods for
+ * sending messages into it.
+ */
+export interface ReplacedSessionContext extends ExtensionCommandContext {
+  /**
+   * Send a custom-typed message into the session (tool results, status, etc.).
+   */
+  sendMessage<T = unknown>(message: {
+    customType: string;
+    content: T;
+    display?: string;
+    details?: T;
+  }, options?: {
+    triggerTurn?: boolean;
+    deliverAs?: "steer" | "followUp" | "nextTurn";
+  }): Promise<void>;
+
+  /**
+   * Send a user message into the session.
+   * With deliverAs: "nextTurn", the message is queued as the next
+   * user turn and the model processes it.
+   */
+  sendUserMessage(content: string | unknown[], options?: {
+    deliverAs?: "steer" | "followUp" | "nextTurn";
+  }): Promise<void>;
+}
+
 export interface ExtensionContext {
   cwd: string;
   hasUI: boolean;
@@ -57,7 +86,51 @@ export interface ExtensionContext {
     getBranch: () => unknown[];
     getSessionFile: () => string;
   };
-  newSession: (options: { parentSession?: string }) => Promise<{ cancelled: boolean }>;
+  /**
+   * Open a new pi session. When withSession is provided, the callback
+   * receives a ReplacedSessionContext with sendUserMessage / sendMessage.
+   * The promise resolves when the session ends or is cancelled.
+   */
+  newSession(options?: {
+    parentSession?: string;
+    setup?: (sessionManager: SessionManager) => Promise<void>;
+    withSession?: (ctx: ReplacedSessionContext) => Promise<void>;
+  }): Promise<{ cancelled: boolean }>;
+  isIdle: () => boolean;
+}
+
+/**
+ * Session manager provided to newSession setup callback.
+ */
+export interface SessionManager {
+  getSessionFile: () => string;
+  getBranch: () => unknown[];
+}
+
+/**
+ * Base context shared by ExtensionContext and ReplacedSessionContext.
+ */
+export interface ExtensionCommandContext {
+  cwd: string;
+  hasUI: boolean;
+  ui: {
+    notify?: (message: string, type: "info" | "warning" | "error" | "success") => void;
+    confirm?: (title: string, message: string) => Promise<boolean>;
+    input?: (title: string, placeholder: string) => Promise<string | null>;
+    editor?: (title: string, content: string) => Promise<string | undefined>;
+    setEditorText?: (text: string) => void;
+    setTitle?: (title: string) => void;
+    setWidget?: (id: string, lines: string[]) => void;
+    setStatus?: (id: string, status: string) => void;
+  };
+  model: unknown;
+  modelRegistry: {
+    getApiKey: (model: unknown) => Promise<string>;
+  };
+  sessionManager: {
+    getBranch: () => unknown[];
+    getSessionFile: () => string;
+  };
   isIdle: () => boolean;
 }
 

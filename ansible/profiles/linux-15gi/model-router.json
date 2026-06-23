@@ -1,0 +1,173 @@
+{
+  "_comment": "Model router — 16GB CPU-only Linux fleet nodes (fnet1, fnet2, fnet7). GAP-3. FORCED CLOUD — most routes go through A2A bridge to orchestrator. Only qwen3.5:4b available locally.",
+  "_hardware": "16GB RAM, CPU-only (no GPU). fnet2 has broken GTX 660 — treat as CPU-only.",
+  "_cloud_routing": "ALL non-local routes use 'cloud-via-a2a' placeholder. The A2A bridge dispatches these to the orchestrator for actual cloud model execution. Fleet nodes have NO cloud API keys.",
+  "_ram_constraint": "FORCED CLOUD — 16GB RAM barely fits qwen3.5:4b alongside system services. Only 'local' and 'fast' profiles use local inference. Everything else routes to cloud via A2A.",
+  "defaultProfile": "auto",
+  "debug": false,
+  "phaseBias": 0.5,
+  "largeContextThreshold": 999999,
+  "rules": [
+    {
+      "matches": ["deploy", "production", "release", "security"],
+      "tier": "high",
+      "reason": "Safety check for production tasks — route to cloud via A2A"
+    },
+    {
+      "matches": ["refactor", "architect", "design", "plan"],
+      "tier": "high",
+      "reason": "Complex planning tasks need cloud reasoning via A2A"
+    },
+    {
+      "matches": ["changelog", "comment", "format", "lint", "typos"],
+      "tier": "low",
+      "profile": "fast",
+      "reason": "Lightweight tasks — local qwen3.5:4b is sufficient"
+    },
+    {
+      "matches": ["image", "screenshot", "diagram", "chart", "photo", "visual"],
+      "tier": "medium",
+      "profile": "vision",
+      "reason": "Image tasks need cloud vision models — 16GB cannot run vision models locally"
+    }
+  ],
+  "profiles": {
+    "auto": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "FORCED CLOUD — 16GB RAM. Auto-escalate to cloud for complex tasks."
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "FORCED CLOUD — 16GB RAM. Medium tasks also need cloud."
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "FORCED CLOUD — even low-tier auto tasks route to cloud for consistency on 16GB nodes."
+      }
+    },
+    "reasoning": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Reasoning requires cloud models via A2A"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Reasoning requires cloud models via A2A"
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "Reasoning requires cloud models via A2A"
+      }
+    },
+    "coding": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Coding requires cloud models via A2A"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Coding requires cloud models via A2A"
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "Coding requires cloud models via A2A — even lint/format benefits from cloud on 16GB"
+      }
+    },
+    "general": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "FORCED CLOUD — 16GB RAM. General tasks need cloud."
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "FORCED CLOUD — 16GB RAM. General tasks need cloud."
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "FORCED CLOUD — 16GB RAM. General tasks need cloud."
+      }
+    },
+    "local": {
+      "high": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "high",
+        "_note": "Best local model on 16GB — qwen3.5:4b with full thinking"
+      },
+      "medium": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "medium",
+        "_note": "Local default — only viable local model on 16GB"
+      },
+      "low": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fast local — no thinking tokens, quickest response"
+      }
+    },
+    "cloud": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Cloud via A2A — orchestrator selects best cloud model"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Cloud via A2A — orchestrator selects best cloud model"
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "Cloud via A2A — orchestrator selects best cloud model"
+      }
+    },
+    "fast": {
+      "high": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "low",
+        "_note": "Fast local — qwen3.5:4b with minimal thinking"
+      },
+      "medium": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fast local — no thinking tokens"
+      },
+      "low": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fastest local — no thinking, fastest response"
+      }
+    },
+    "vision": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Vision requires cloud models via A2A — 16GB cannot run vision models locally"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Vision requires cloud models via A2A"
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "Vision requires cloud models via A2A"
+      }
+    }
+  },
+  "_forceLinearReason": "Fleet nodes use CPU-only inference. Linear routing for all local models. Cloud via A2A for non-local routing. FORCED CLOUD for all profiles except local and fast."
+}

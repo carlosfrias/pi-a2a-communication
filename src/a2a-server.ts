@@ -910,6 +910,49 @@ export class A2AServer {
     });
 
     try {
+      // Check for a registered task handler first (same as processTask)
+      const skillIds = ["a2a-task-execution", ...(task.metadata?.skills as string[] || [])];
+      for (const skillId of skillIds) {
+        const handler = this.taskHandlers.get(skillId);
+        if (handler) {
+          try {
+            const result = await handler(task, (update: Partial<A2ATask>) => {
+              Object.assign(task, update);
+              // Send SSE progress update for each handler progress callback
+              this.sendSSE(res, {
+                type: "status_update",
+                taskId: task.id,
+                contextId: task.contextId || "",
+                status: task.status,
+              });
+            });
+            // Handler completed — send final result via SSE
+            task.status.state = "completed";
+            task.status.timestamp = new Date().toISOString();
+            if (!task.artifacts) {
+              task.artifacts = [];
+            }
+            if (result.artifacts) {
+              task.artifacts = result.artifacts;
+            }
+            this.sendSSE(res, {
+              type: "status_update",
+              taskId: task.id,
+              contextId: task.contextId || "",
+              status: task.status,
+            });
+            return;
+          } catch (handlerError) {
+            // If the handler signals session unavailable, fall through to PiTaskBridge
+            if (handlerError instanceof Error && handlerError.message.startsWith("PI_SESSION_UNAVAILABLE")) {
+              break; // Fall through to bridge
+            }
+            throw handlerError;
+          }
+        }
+      }
+
+      // No handler matched or PI_SESSION_UNAVAILABLE — fall back to PiTaskBridge
       const message = task.status.message;
       if (!message) {
         throw new Error("No message in task");

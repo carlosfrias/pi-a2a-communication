@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-23
+
+### Added
+
+- **PiSessionTaskHandler** (`src/pi-session-handler.ts`): Task handler using `ctx.newSession({withSession})` for isolated session-based task execution (GAP-2)
+  - Adaptive polling response reader (500ms interval, 120s max) replaces fixed 2-second sleep
+  - `PI_SESSION_UNAVAILABLE` signal for fallthrough to SubprocessPiTaskBridge when `ctx.newSession` is unavailable
+  - `SessionHandlerOptions` for configurable `pollIntervalMs` and `maxPollMs` (test-friendly)
+- **Streaming handler support**: `processTaskStreaming()` now checks registered task handlers before falling through to PiTaskBridge (was bypassing handlers entirely)
+- **`ReplacedSessionContext`** type with `sendMessage()` and `sendUserMessage()` methods, including `deliverAs: "nextTurn"`
+- **Fleet model profiles**: `linux-31gi` (6 local models, local-first routing) and `linux-15gi` (1 model, cloud-first routing) with `deploy-model-profiles.yml` Ansible playbook (GAP-3)
+- **A2A-aware fleet playbooks**: `start-agents-a2a.yml` and `shutdown-fleet-a2a.yml` replacing coms-net playbooks (GAP-5)
+- **Benchmark CLI**: `fleet-resource-manager benchmark` subcommand migrated from node-router, with `--model`, `--json`, `--all`, `--output`, `--prompt`, `--num-predict` options (22 new tests)
+
+### Changed
+
+- **`processTaskStreaming()`** now checks registered task handlers before falling through to `PiTaskBridge`, matching `processTask()` behavior
+- **`deliverAs`** type union in `ReplacedSessionContext.sendUserMessage` expanded from `"steer" | "followUp"` to `"steer" | "followUp" | "nextTurn"`
+- **playbook-executor** index updated: coms-net trigger keywords now route to A2A playbooks with backward-compatible aliases
+
+### Removed
+
+- **node-router archived**: `orchestrator_client.py` and `fleet_agent.py` (coms-net dispatch) archived to `04-Archive/Infrastructure/node-router/`. Scoring, routing, and benchmarking migrated to fleet-resource-manager.
+- **Obsolete playbooks deleted**: `deploy-hub-to-fnet2.yml`, `deploy-fleet.yml`, `inventory/coms-net.yml`. Old `start-agents.yml` and `shutdown-fleet.yml` backed up and replaced.
+
+### Fixed
+
+- **GAP-1**: node-router coms-net components archived — superseded by fleet-resource-manager + A2A
+- **GAP-2**: PiSessionTaskHandler implemented with adaptive polling (was blocked on `ctx.newSession` API, now available in pi v0.79.10)
+- **GAP-3**: Fleet model profiles created for 32GB and 16GB nodes
+- **GAP-4**: capacity_score formula for CPU-only nodes confirmed fixed in fleet-resource-manager v0.1.0
+- **GAP-5**: Stale coms-net playbook references cleaned up and replaced with A2A-aware playbooks
+- **Audit fix**: Polling race condition in PiSessionTaskHandler (replaced fixed 2s sleep with adaptive 500ms polling loop)
+- **Audit fix**: Streaming bypass in `processTaskStreaming` (added handler check before bridge fallthrough)
+- **Audit fix**: `deliverAs` type missing `"nextTurn"` in `ReplacedSessionContext`
+- **Audit fix**: `405b` model suffix inconsistency in benchmark `is_large_model()` (changed from `"405b"` to `":405b"`)
+
+### Tests
+
+- 215 tests passing (was 206)
+- 9 new PiSessionTaskHandler tests
+- 22 new benchmark tests (in fleet-resource-manager)
+- fleet-resource-manager: 59 tests passing (was 37)
+
 ## [0.3.0] - 2026-06-19
 
 ### Added

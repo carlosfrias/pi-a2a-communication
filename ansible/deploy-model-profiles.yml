@@ -1,0 +1,218 @@
+---
+# Deploy local-model-pilot configuration profiles to fleet nodes for GAP-3.
+#
+# Fleet nodes need model routing profiles so that A2A task dispatch can score
+# model_match_score correctly. This playbook detects node RAM and deploys the
+# appropriate profile:
+#   - 32GB+ nodes (fnet3-fnet6): linux-31gi profile (3 local models + utilities)
+#   - <32GB nodes (fnet1, fnet2, fnet7): linux-15gi profile (cloud-first, 1 local model)
+#
+# Usage:
+#   ansible-playbook -i inventory.ini deploy-model-profiles.yml              # Full deploy
+#   ansible-playbook -i inventory.ini deploy-model-profiles.yml --tags config  # Config only
+#   ansible-playbook -i inventory.ini deploy-model-profiles.yml --tags validate # Validate only
+#   ansible-playbook -i inventory.ini deploy-model-profiles.yml --tags restart # Restart only
+#   ansible-playbook -i inventory.ini deploy-model-profiles.yml --limit fnet3  # Single node
+#
+# Prerequisites:
+#   - SSH key access to fleet nodes
+#   - Ollama installed and running on each node
+#   - pi installed globally via nvm
+#   - pi-agent@<node>.service configured in systemd (optional — restart skipped if absent)
+
+- name: Deploy local-model-pilot profiles to fleet nodes
+  hosts: lab_nodes
+  gather_facts: yes
+  strategy: linear
+
+  vars:
+    # Profile directory on control node (relative to playbook)
+    profiles_dir: "{{ playbook_dir }}/profiles"
+
+    # Target directory on fleet nodes
+    agent_dir: "{{ ansible_env.HOME }}/.pi/agent"
+
+    # RAM threshold in MB — 30000 separates 16GB from 32GB nodes
+    # (32GB physical ≈ 32000-33000 MB memtotal_mb, 16GB ≈ 15800-16300 MB)
+    ram_threshold_mb: 30000
+
+    # Service name pattern (may not exist on all nodes)
+    service_name: "pi-agent@{{ inventory_hostname }}"
+
+  # ── Phase 1: Detect Hardware ──────────────────────────────────────────
+  tasks:
+    - name: Show detected RAM
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ ansible_memtotal_mb }} MB RAM (threshold: {{ ram_threshold_mb }} MB)"
+      tags: [deploy, config, validate]
+
+    - name: Select profile based on RAM
+      ansible.builtin.set_fact:
+        profile_name: "{{ 'linux-31gi' if ansible_memtotal_mb >= ram_threshold_mb else 'linux-15gi' }}"
+      tags: [deploy, config, validate]
+
+    - name: Show selected profile
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ ansible_memtotal_mb }} MB RAM → profile '{{ profile_name }}'"
+      tags: [deploy, config, validate]
+
+  # ── Phase 2: Deploy Configuration ────────────────────────────────────
+    - name: Ensure agent directory exists
+      ansible.builtin.file:
+        path: "{{ agent_dir }}"
+        state: directory
+        mode: '0755'
+      tags: [deploy, config]
+
+    - name: Backup existing models.json
+      ansible.builtin.copy:
+        src: "{{ agent_dir }}/models.json"
+        dest: "{{ agent_dir }}/models.json.bak"
+        remote_src: yes
+        mode: '0644'
+      ignore_errors: yes
+      tags: [deploy, config]
+
+    - name: Backup existing model-router.json
+      ansible.builtin.copy:
+        src: "{{ agent_dir }}/model-router.json"
+        dest: "{{ agent_dir }}/model-router.json.bak"
+        remote_src: yes
+        mode: '0644'
+      ignore_errors: yes
+      tags: [deploy, config]
+
+    - name: Deploy models.json
+      ansible.builtin.copy:
+        src: "{{ profiles_dir }}/{{ profile_name }}/models.json"
+        dest: "{{ agent_dir }}/models.json"
+        mode: '0644'
+        backup: yes
+      tags: [deploy, config]
+
+    - name: Deploy model-router.json
+      ansible.builtin.copy:
+        src: "{{ profiles_dir }}/{{ profile_name }}/model-router.json"
+        dest: "{{ agent_dir }}/model-router.json"
+        mode: '0644'
+        backup: yes
+      tags: [deploy, config]
+
+  # ── Phase 3: Validate ────────────────────────────────────────────────
+    - name: Validate models.json syntax
+      ansible.builtin.shell: python3 -c "import json; json.load(open('{{ agent_dir }}/models.json'))"
+      register: models_validation
+      changed_when: false
+      tags: [deploy, validate]
+
+    - name: Validate model-router.json syntax
+      ansible.builtin.shell: python3 -c "import json; json.load(open('{{ agent_dir }}/model-router.json'))"
+      register: router_validation
+      changed_when: false
+      tags: [deploy, validate]
+
+    - name: Show validation results
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }}: models.json — {{ 'VALID' if models_validation.rc == 0 else 'INVALID' }}"
+          - "{{ inventory_hostname }}: model-router.json — {{ 'VALID' if router_validation.rc == 0 else 'INVALID' }}"
+      tags: [deploy, validate]
+
+    - name: Verify models.json contains only local models
+      ansible.builtin.shell: |
+        python3 -c "
+        import json
+        data = json.load(open('{{ agent_dir }}/models.json'))
+        providers = data.get('providers', {})
+        for name, provider in providers.items():
+            if name != 'ollama':
+                print(f'ERROR: Non-ollama provider found: {name}')
+                exit(1)
+            for model in provider.get('models', []):
+                if ':cloud' in model['id']:
+                    print(f'ERROR: Cloud model found in fleet config: {model[\"id\"]}')
+                    exit(1)
+                if 'apiKey' in provider and provider.get('apiKey') not in ['local', '']:
+                    print(f'ERROR: API key found in fleet config: {name}')
+                    exit(1)
+        print(f'OK: {len(providers)} provider(s), all local')
+        "
+      register: models_security_check
+      changed_when: false
+      tags: [deploy, validate]
+
+    - name: Verify model-router.json uses cloud-via-a2a placeholder
+      ansible.builtin.shell: |
+        python3 -c "
+        import json
+        data = json.load(open('{{ agent_dir }}/model-router.json'))
+        profiles = data.get('profiles', {})
+        cloud_count = 0
+        local_count = 0
+        for profile_name, profile in profiles.items():
+            for tier_name, tier in profile.items():
+                if isinstance(tier, dict) and 'model' in tier:
+                    if tier['model'] == 'cloud-via-a2a':
+                        cloud_count += 1
+                    elif tier['model'].startswith('ollama/'):
+                        local_count += 1
+                    else:
+                        print(f'WARNING: Unknown model reference in {profile_name}.{tier_name}: {tier[\"model\"]}')
+        print(f'OK: {cloud_count} cloud-via-a2a routes, {local_count} local routes')
+        "
+      register: router_security_check
+      changed_when: false
+      tags: [deploy, validate]
+
+  # ── Phase 4: Restart Service ──────────────────────────────────────────
+    - name: Check if pi-agent service exists
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+      register: service_status
+      failed_when: false
+      tags: [deploy, restart]
+
+    - name: Restart pi-agent service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        state: restarted
+      become: yes
+      when: service_status.status is defined and service_status.status.ActiveState == "active"
+      tags: [deploy, restart]
+
+    - name: Skip restart — service not active
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: pi-agent service not active, skipping restart"
+      when: service_status.status is not defined or service_status.status.ActiveState != "active"
+      tags: [deploy, restart]
+
+  # ── Phase 5: Summary ─────────────────────────────────────────────────
+    - name: Deploy summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════════════════"
+          - "  MODEL PROFILE DEPLOYED — {{ inventory_hostname }}"
+          - "═══════════════════════════════════════════════════"
+          - "  RAM: {{ ansible_memtotal_mb }} MB"
+          - "  Profile: {{ profile_name }}"
+          - "  Models: {{ models_security_check.stdout }}"
+          - "  Routes: {{ router_security_check.stdout }}"
+          - "  Service: {{ 'restarted' if (service_status.status is defined and service_status.status.ActiveState == 'active') else 'not active (skipped)' }}"
+          - "═══════════════════════════════════════════════════"
+      tags: [deploy]
+
+  # ── Dry Run Output ────────────────────────────────────────────────────
+  post_tasks:
+    - name: Fleet profile assignment summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════════════════"
+          - "  FLEET MODEL PROFILE ASSIGNMENTS"
+          - "═══════════════════════════════════════════════════"
+          - "  Threshold: {{ ram_threshold_mb }} MB RAM"
+          - "  32GB+ → linux-31gi (3 local models + utilities)"
+          - "  16GB  → linux-15gi (cloud-first, 1 local model)"
+          - ""
+          - "  Re-run with --check for dry-run mode."
+          - "  Re-run with --limit <node> for single node."
+          - "═══════════════════════════════════════════════════"

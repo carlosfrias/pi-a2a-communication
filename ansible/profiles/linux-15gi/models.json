@@ -1,0 +1,33 @@
+{
+  "_comment": "Fleet node models (16GB RAM, CPU-only Linux). Minimal set — only qwen3.5:4b fits reliably. All cloud requests route through A2A bridge to orchestrator. GAP-3.",
+  "_hardware": "16GB RAM, CPU-only (no GPU). i5-6400 4c (fnet1) / i7-8700 12c (fnet2) / i7-10710U 12c (fnet7). fnet2 has broken GTX 660 — treat as CPU-only.",
+  "_cloud_routing": "Fleet nodes have NO direct cloud API access. Cloud requests go through A2A bridge to orchestrator. model-router.json uses 'cloud-via-a2a' placeholder for cloud routes.",
+  "_ram_constraint": "16GB RAM — only qwen3.5:4b (2.4GB disk) can run reliably alongside system services. All other work routes to cloud via A2A.",
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "reasoningEffortMap": {
+          "minimal": "low",
+          "low": "low",
+          "medium": "medium",
+          "high": "high"
+        }
+      },
+      "models": [
+        {
+          "id": "qwen3.5:4b",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 262144,
+          "maxTokens": 4096,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Local 4B vision — only viable local model on 16GB RAM. maxTokens 4096 per MAX-TOKENS-GUIDE. 262K ctx technically supported but practically capped by 16GB RAM."
+        }
+      ]
+    }
+  }
+}

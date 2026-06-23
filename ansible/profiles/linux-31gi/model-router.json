@@ -1,0 +1,246 @@
+{
+  "_comment": "Model router — 32GB CPU-only Linux fleet nodes (fnet3-fnet6). GAP-3. Cloud requests route through A2A bridge to orchestrator via 'cloud-via-a2a' placeholder. No direct cloud API access.",
+  "_hardware": "32GB RAM, CPU-only (no GPU). i7-10710U 12c.",
+  "_cloud_routing": "ALL cloud routes use 'cloud-via-a2a' placeholder. The A2A bridge dispatches these to the orchestrator for actual cloud model execution. Fleet nodes have NO cloud API keys.",
+  "defaultProfile": "auto",
+  "debug": false,
+  "phaseBias": 0.5,
+  "largeContextThreshold": 999999,
+  "rules": [
+    {
+      "matches": ["deploy", "production", "release", "security"],
+      "tier": "high",
+      "reason": "Safety check for production tasks — route to cloud via A2A"
+    },
+    {
+      "matches": ["refactor", "architect", "design", "plan"],
+      "tier": "high",
+      "reason": "Complex planning tasks need cloud reasoning via A2A"
+    },
+    {
+      "matches": ["changelog", "comment", "format", "lint", "typos"],
+      "tier": "low",
+      "reason": "Lightweight tasks — local qwen3.5:4b is sufficient"
+    },
+    {
+      "matches": ["transcribe", "audio", "podcast", "interview", "meeting notes", "voice memo"],
+      "tier": "high",
+      "profile": "stt",
+      "reason": "Audio tasks — local Whisper STT for transcription"
+    },
+    {
+      "matches": ["speech to text", "speech-to-text", "whisper", "transcription"],
+      "tier": "high",
+      "profile": "stt",
+      "reason": "Speech-to-text — local Whisper STT pipeline"
+    },
+    {
+      "matches": ["text to speech", "text-to-speech", "tts", "speak", "read aloud"],
+      "tier": "medium",
+      "profile": "tts",
+      "reason": "Text-to-speech — local Orpheus TTS pipeline"
+    },
+    {
+      "matches": ["embed", "embedding", "vectorize", "semantic search"],
+      "tier": "low",
+      "profile": "embedding",
+      "reason": "Embedding — local Nomic embed for ChromaDB pipeline"
+    },
+    {
+      "matches": ["image", "screenshot", "diagram", "chart", "photo", "visual"],
+      "tier": "medium",
+      "profile": "vision",
+      "reason": "Image tasks — local MiniCPM-o 2.6 for vision"
+    }
+  ],
+  "profiles": {
+    "auto": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Complex auto tasks escalate to cloud via A2A"
+      },
+      "medium": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "medium",
+        "_note": "Local default — fast, capable, vision-enabled"
+      },
+      "low": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fast local response for simple tasks"
+      }
+    },
+    "reasoning": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Complex reasoning via orchestrator cloud access"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Medium reasoning via orchestrator cloud access"
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "Even low-tier reasoning benefits from cloud models"
+      }
+    },
+    "coding": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Complex coding via orchestrator cloud access"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Medium coding via orchestrator cloud access"
+      },
+      "low": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Simple code tasks can run locally — lint, format, typos"
+      }
+    },
+    "general": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Complex general tasks via orchestrator"
+      },
+      "medium": {
+        "model": "ollama/gemma3:4b",
+        "thinking": "off",
+        "_note": "Local general — Gemma 3 4B, non-reasoning, fast"
+      },
+      "low": {
+        "model": "ollama/gemma3:4b",
+        "thinking": "off",
+        "_note": "Local general — lightweight and capable"
+      }
+    },
+    "local": {
+      "high": {
+        "model": "ollama/openbmb/minicpm-o2.6:8b",
+        "thinking": "high",
+        "_note": "Best local model — vision-capable, reasoning, 8B params"
+      },
+      "medium": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "medium",
+        "_note": "Local default — good balance of speed and quality"
+      },
+      "low": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fast local — quickest local response"
+      }
+    },
+    "cloud": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Cloud via A2A — orchestrator selects best cloud model"
+      },
+      "medium": {
+        "model": "cloud-via-a2a",
+        "thinking": "medium",
+        "_note": "Cloud via A2A — orchestrator selects best cloud model"
+      },
+      "low": {
+        "model": "cloud-via-a2a",
+        "thinking": "low",
+        "_note": "Cloud via A2A — orchestrator selects best cloud model"
+      }
+    },
+    "fast": {
+      "high": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "low",
+        "_note": "Fast local — even high-tier fast tasks use qwen3.5:4b"
+      },
+      "medium": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fast local — quick response"
+      },
+      "low": {
+        "model": "ollama/qwen3.5:4b",
+        "thinking": "off",
+        "_note": "Fastest local — no thinking tokens"
+      }
+    },
+    "vision": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "high",
+        "_note": "Complex vision via orchestrator cloud access"
+      },
+      "medium": {
+        "model": "ollama/openbmb/minicpm-o2.6:8b",
+        "thinking": "medium",
+        "_note": "Local vision — MiniCPM-o 2.6 8B, best local vision model"
+      },
+      "low": {
+        "model": "ollama/openbmb/minicpm-o2.6:8b",
+        "thinking": "off",
+        "_note": "Local vision — MiniCPM-o 2.6 8B, no thinking for speed"
+      }
+    },
+    "embedding": {
+      "high": {
+        "model": "ollama/nomic-embed-text",
+        "thinking": "off",
+        "_note": "Local Nomic embed — 768 dims, zero cost, always local"
+      },
+      "medium": {
+        "model": "ollama/nomic-embed-text",
+        "thinking": "off",
+        "_note": "Local Nomic embed — ChromaDB embedding pipeline"
+      },
+      "low": {
+        "model": "ollama/nomic-embed-text",
+        "thinking": "off",
+        "_note": "Local Nomic embed — CPU-friendly, 274MB"
+      }
+    },
+    "stt": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "off",
+        "_note": "Complex STT via orchestrator cloud access"
+      },
+      "medium": {
+        "model": "ollama/karanchopda333/whisper",
+        "thinking": "off",
+        "_note": "Local Whisper STT — 2GB, zero cost"
+      },
+      "low": {
+        "model": "ollama/karanchopda333/whisper",
+        "thinking": "off",
+        "_note": "Local Whisper STT — community model, CPU-friendly"
+      }
+    },
+    "tts": {
+      "high": {
+        "model": "cloud-via-a2a",
+        "thinking": "off",
+        "_note": "Complex TTS via orchestrator cloud access"
+      },
+      "medium": {
+        "model": "ollama/sematre/orpheus:ft-en-3b-q4_k_m",
+        "thinking": "off",
+        "_note": "Local Orpheus TTS — 8 voices, emotional tags, 2.4GB"
+      },
+      "low": {
+        "model": "ollama/sematre/orpheus:ft-en-3b-q4_k_m",
+        "thinking": "off",
+        "_note": "Local Orpheus TTS — zero cost, CPU-friendly"
+      }
+    }
+  },
+  "_forceLinearReason": "Fleet nodes use CPU-only inference. Linear routing for all local models. Cloud via A2A for non-local routing."
+}

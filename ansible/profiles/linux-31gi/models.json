@@ -1,0 +1,78 @@
+{
+  "_comment": "Fleet node models (32GB RAM, CPU-only Linux). No cloud providers — all cloud requests route through A2A bridge to orchestrator. No MLX models — Apple Silicon only. No models >8B params. GAP-3.",
+  "_hardware": "32GB RAM, CPU-only (no GPU). i7-10710U 12c. For: fnet3, fnet4, fnet5, fnet6.",
+  "_cloud_routing": "Fleet nodes have NO direct cloud API access. Cloud requests go through A2A bridge to orchestrator. model-router.json uses 'cloud-via-a2a' placeholder for cloud routes.",
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "reasoningEffortMap": {
+          "minimal": "low",
+          "low": "low",
+          "medium": "medium",
+          "high": "high"
+        }
+      },
+      "models": [
+        {
+          "id": "qwen3.5:4b",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 262144,
+          "maxTokens": 4096,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Local 4B vision — fast/lightweight tier. maxTokens 4096 per MAX-TOKENS-GUIDE. 262K ctx technically supported but practically capped by 32GB RAM on CPU."
+        },
+        {
+          "id": "openbmb/minicpm-o2.6:8b",
+          "name": "MiniCPM-o 2.6 8B",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 131072,
+          "maxTokens": 8192,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Vision-capable 5.5GB model — mid-tier local cost. CPU inference on 32GB nodes. Largest model that fits with headroom."
+        },
+        {
+          "id": "gemma3:4b",
+          "reasoning": false,
+          "input": ["text", "image"],
+          "contextWindow": 131072,
+          "maxTokens": 4096,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Gemma 3 4B — general purpose local model. 128K ctx, vision capable, CPU-friendly, non-reasoning."
+        },
+        {
+          "id": "nomic-embed-text",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 8192,
+          "maxTokens": 8192,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Nomic embed text v1.5 — 768 dims (Matryoshka to 256), 8K context. 274MB, runs on CPU. For ChromaDB embedding pipeline."
+        },
+        {
+          "id": "karanchopda333/whisper",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 4096,
+          "maxTokens": 4096,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Whisper STT — local speech-to-text based on OpenAI Whisper. 2GB. Community model. For STT pipeline."
+        },
+        {
+          "id": "sematre/orpheus:ft-en-3b-q4_k_m",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 4096,
+          "maxTokens": 32768,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Orpheus TTS English Q4 — local text-to-speech, 8 voices, emotional tags. 2.4GB Q4_K_M. For TTS pipeline."
+        }
+      ]
+    }
+  }
+}

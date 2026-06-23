@@ -17,9 +17,9 @@ pi-a2a-communication is a pi extension providing **A2A v1.0 protocol** client an
 
 **Three critical gaps remain:**
 
-1. **node-router is inert** — still targets deprecated coms-net, not A2A. Health data is 3+ weeks stale. Capacity scoring is zero for all CPU-only nodes.
+1. **fleet-resource-manager is inert** — still targets deprecated coms-net, not A2A. Health data is 3+ weeks stale. Capacity scoring is zero for all CPU-only nodes.
 2. **PiSessionTaskHandler is blocked** — depends on `ctx.newSession()` which is not available in pi v0.79.4. A2A server falls back to NoOp bridge, returning placeholder responses.
-3. **local-model-pilot profiles are empty** — fleet nodes have no model routing configuration, so the node-router cannot optimize task assignment by model availability.
+3. **local-model-pilot profiles are empty** — fleet nodes have no model routing configuration, so the fleet-resource-manager cannot optimize task assignment by model availability.
 
 **Bottom line:** The fleet auto-starts on reboot via systemd. A single "stand up fleet" command no longer exists. Fleet availability requires running **multiple independent playbooks** for initial setup, but routine reboots are self-healing. The A2A communication layer is spec-compliant but produces placeholder responses until pi adds the `newSession()` API.
 
@@ -35,7 +35,7 @@ graph TB
         PI["pi session"]
         A2A_EXT["A2A Extension<br/>(pi-a2a-communication)"]
         POOL["pool_monitor.py"]
-        ROUTER["node-router<br/>(score_nodes, build_routing_plan)"]
+        ROUTER["fleet-resource-manager<br/>(score_nodes, build_routing_plan)"]
         BRIDGE["orchestrator_bridge.py<br/>(intercom ↔ Gist)"]
     end
 
@@ -181,12 +181,12 @@ graph LR
 
 ## Known Gaps (Current)
 
-### GAP-1: node-router Targets Deprecated coms-net
+### GAP-1: fleet-resource-manager Targets Deprecated coms-net
 
 | Aspect | Detail |
 |--------|--------|
 | **Severity** | 🔴 High — routing decisions are stale |
-| **Impact** | node-router cannot dispatch tasks to fleet nodes via A2A. Health data is 3+ weeks stale. `capacity_score=0` on all nodes (CPU-only, no VRAM). |
+| **Impact** | fleet-resource-manager cannot dispatch tasks to fleet nodes via A2A. Health data is 3+ weeks stale. `capacity_score=0` on all nodes (CPU-only, no VRAM). |
 | **Root Cause** | `fleet_agent.py` and `orchestrator_client.py` speak coms-net HTTP/SSE protocol, which has been removed from all fleet nodes. |
 | **Fix** | Replace coms-net dispatch with A2A tools (`a2a_call`, `a2a_parallel`, `a2a_chain`). Update `task_dispatcher.py` to use A2A protocol instead of Gist `task.dispatch` events. |
 | **Status** | Not started |
@@ -244,7 +244,7 @@ Fleet nodes **auto-start** via systemd on reboot. No manual intervention needed.
 graph LR
     BOOT["Node boots"] --> SYSTEMD["systemd starts"]
     SYSTEMD --> PI_AGENT["pi-agent@fnetN.service"]
-    SYSTEMD --> HEALTH["node-router-health@fnetN.service"]
+    SYSTEMD --> HEALTH["fleet-resource-manager-health@fnetN.service"]
     PI_AGENT --> A2A["A2A server<br/>port 10000"]
     HEALTH --> GIST["Gist Event Bus<br/>(node.health.report)"]
     
@@ -259,9 +259,9 @@ graph LR
 |----------|----------|---------|
 | **First-time node setup** | pi-carlos-env-bootstrap | `scripts/bootstrap-pi.sh --profile linux-31gi` |
 | **A2A extension update** | deploy-a2a.yml | `cd pi-a2a-communication && ansible-playbook -i ansible/inventory.ini ansible/deploy-a2a.yml` |
-| **Health monitor update** | deploy-fleet.yml | `cd node-router && ansible-playbook -i ansible/inventory.ini ansible/deploy-fleet.yml` |
+| **Health monitor update** | deploy-fleet.yml | `cd fleet-resource-manager && ansible-playbook -i ansible/inventory.ini ansible/deploy-fleet.yml` |
 | **Model config changes** | bootstrap-pi.sh (re-run) | `scripts/bootstrap-pi.sh --profile linux-31gi` |
-| **Full fleet refresh** | Both playbooks | Deploy A2A, then deploy node-router |
+| **Full fleet refresh** | Both playbooks | Deploy A2A, then deploy fleet-resource-manager |
 
 ### What No Longer Exists
 
@@ -346,7 +346,7 @@ flowchart LR
 
 ### What It Is
 
-The **node-router-health** system is a distributed monitoring and routing infrastructure that determines *where* to physically execute a task across the fleet based on real-time health metrics, hardware capacity, model availability, and current load.
+The **fleet-resource-manager-health** system is a distributed monitoring and routing infrastructure that determines *where* to physically execute a task across the fleet based on real-time health metrics, hardware capacity, model availability, and current load.
 
 ### Components
 
@@ -367,7 +367,7 @@ The **node-router-health** system is a distributed monitoring and routing infras
 ```mermaid
 flowchart TB
     subgraph FLEET_NODE["Fleet Node (each of fnet1–7)"]
-        SYSTEMD["node-router-health@fnetN.service<br/>(systemd, 60s interval)"]
+        SYSTEMD["fleet-resource-manager-health@fnetN.service<br/>(systemd, 60s interval)"]
         REPORTER["node_health_reporter.py"]
         SAT["saturation_detector.py"]
         SYSTEMD --> REPORTER
@@ -476,12 +476,12 @@ ansible-playbook -i ansible/inventory.ini ansible/deploy-a2a.yml
 
 **Tags:** `--tags config` (config only), `--tags restart` (restart only)
 
-### deploy-fleet.yml (node-router)
+### deploy-fleet.yml (fleet-resource-manager)
 
-Deploys health monitor + node-router scripts to all fleet nodes.
+Deploys health monitor + fleet-resource-manager scripts to all fleet nodes.
 
 ```bash
-cd workshop/02-Areas/Infrastructure/node-router
+cd workshop/02-Areas/Infrastructure/fleet-resource-manager
 ansible-playbook -i ansible/inventory.ini ansible/deploy-fleet.yml
 ```
 
@@ -489,8 +489,8 @@ ansible-playbook -i ansible/inventory.ini ansible/deploy-fleet.yml
 |------|--------|
 | 1 | Install Python dependencies (psutil, requests) |
 | 2 | Deploy health monitor scripts |
-| 3 | Deploy node-router scripts + config |
-| 4 | Install `node-router-health@.service` systemd unit |
+| 3 | Deploy fleet-resource-manager scripts + config |
+| 4 | Install `fleet-resource-manager-health@.service` systemd unit |
 | 5 | Enable and start service |
 | 6 | Validate service is running |
 
