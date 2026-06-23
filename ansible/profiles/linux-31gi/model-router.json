@@ -1,7 +1,8 @@
 {
-  "_comment": "Model router — 32GB CPU-only Linux fleet nodes (fnet3-fnet6). GAP-3. Cloud requests route through A2A bridge to orchestrator via 'cloud-via-a2a' placeholder. No direct cloud API access.",
+  "_comment": "Model router — 32GB CPU-only Linux fleet nodes (fnet3-fnet6). Updated 2026-06-23: qwen3.5:35b-a3b MoE replaces minicpm-o2.6:8b as flagship. Cloud requests route through A2A bridge. Fleet nodes have NO cloud API keys.",
   "_hardware": "32GB RAM, CPU-only (no GPU). i7-10710U 12c.",
-  "_cloud_routing": "ALL cloud routes use 'cloud-via-a2a' placeholder. The A2A bridge dispatches these to the orchestrator for actual cloud model execution. Fleet nodes have NO cloud API keys.",
+  "_cloud_routing": "ALL cloud routes use 'cloud-via-a2a' placeholder. The A2A bridge dispatches these to the orchestrator for actual cloud model execution.",
+  "_moe_note": "qwen3.5:35b-a3b is MoE (36B total, 3B active). 10.4 tok/s on CPU — faster than 4B dense models for reasoning tasks. 23GB disk, ~9GB RAM at inference.",
   "defaultProfile": "auto",
   "debug": false,
   "phaseBias": 0.5,
@@ -50,7 +51,7 @@
       "matches": ["image", "screenshot", "diagram", "chart", "photo", "visual"],
       "tier": "medium",
       "profile": "vision",
-      "reason": "Image tasks — local MiniCPM-o 2.6 for vision"
+      "reason": "Image tasks — local qwen3.5:35b-a3b for vision"
     }
   ],
   "profiles": {
@@ -61,14 +62,14 @@
         "_note": "Complex auto tasks escalate to cloud via A2A"
       },
       "medium": {
-        "model": "ollama/qwen3.5:4b",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "medium",
-        "_note": "Local default — fast, capable, vision-enabled"
+        "_note": "Local flagship — MoE 35B, tools+thinking+vision, 10.4 tok/s"
       },
       "low": {
         "model": "ollama/qwen3.5:4b",
         "thinking": "off",
-        "_note": "Fast local response for simple tasks"
+        "_note": "Fast local — quick response for simple tasks"
       }
     },
     "reasoning": {
@@ -78,14 +79,14 @@
         "_note": "Complex reasoning via orchestrator cloud access"
       },
       "medium": {
-        "model": "cloud-via-a2a",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "medium",
-        "_note": "Medium reasoning via orchestrator cloud access"
+        "_note": "Local reasoning — MoE 35B, 10.4 tok/s, tools+thinking"
       },
       "low": {
-        "model": "cloud-via-a2a",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "low",
-        "_note": "Even low-tier reasoning benefits from cloud models"
+        "_note": "Local reasoning — even low-tier benefits from 35B MoE"
       }
     },
     "coding": {
@@ -95,14 +96,14 @@
         "_note": "Complex coding via orchestrator cloud access"
       },
       "medium": {
-        "model": "cloud-via-a2a",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "medium",
-        "_note": "Medium coding via orchestrator cloud access"
+        "_note": "Local coding — MoE 35B, tools+thinking, good code generation"
       },
       "low": {
         "model": "ollama/qwen3.5:4b",
         "thinking": "off",
-        "_note": "Simple code tasks can run locally — lint, format, typos"
+        "_note": "Simple code tasks — lint, format, typos run locally"
       }
     },
     "general": {
@@ -124,14 +125,14 @@
     },
     "local": {
       "high": {
-        "model": "ollama/openbmb/minicpm-o2.6:8b",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "high",
-        "_note": "Best local model — vision-capable, reasoning, 8B params"
+        "_note": "Best local model — MoE 35B, tools+thinking+vision, 10.4 tok/s"
       },
       "medium": {
-        "model": "ollama/qwen3.5:4b",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "medium",
-        "_note": "Local default — good balance of speed and quality"
+        "_note": "Local flagship — same model, medium thinking"
       },
       "low": {
         "model": "ollama/qwen3.5:4b",
@@ -180,14 +181,14 @@
         "_note": "Complex vision via orchestrator cloud access"
       },
       "medium": {
-        "model": "ollama/openbmb/minicpm-o2.6:8b",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "medium",
-        "_note": "Local vision — MiniCPM-o 2.6 8B, best local vision model"
+        "_note": "Local vision — MoE 35B, multimodal (text+image+video+audio)"
       },
       "low": {
-        "model": "ollama/openbmb/minicpm-o2.6:8b",
+        "model": "ollama/qwen3.5:35b-a3b",
         "thinking": "off",
-        "_note": "Local vision — MiniCPM-o 2.6 8B, no thinking for speed"
+        "_note": "Local vision — MoE 35B, no thinking for speed"
       }
     },
     "embedding": {

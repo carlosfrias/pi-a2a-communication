@@ -1,6 +1,6 @@
 ---
 name: pi-a2a-communication
-summary: "v0.4.0. All 5 gaps resolved. PiSessionTaskHandler implemented. Node-router archived. Fleet profiles created. 215 tests."
+summary: "v0.4.0 deployed. GAP-3.5 in progress — qwen3.5:35b-a3b benchmarked (10.4 tok/s CPU), profiles updated, deploying to nodes. 215 tests."
 status: active
 phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
 progress: 100
@@ -13,7 +13,7 @@ updated: 2026-06-23
 
 ## [S-TIGHT]
 
-**v0.4.0 deployed to fleet. All 5 gaps resolved. PiSessionTaskHandler implemented. Node-router archived. Fleet profiles deployed. 215 tests. A2A running on all 7 nodes.**
+**v0.4.0 deployed to fleet. GAP-3.5 in progress — qwen3.5:35b-a3b (MoE 35B/3B active) benchmarked at 10.4 tok/s on CPU, supersedes minicpm-o2.6:8b. Profiles updated locally, deploying to nodes. See [Architecture & Executive Report](./wiki/pi-a2a-communication/reference/architecture-and-executive-report.md).**
 
 ## What's Done
 
@@ -41,14 +41,17 @@ updated: 2026-06-23
 
 ## Active Work
 
-All 5 gaps resolved and deployed. Remaining strategic items:
+All 5 original gaps resolved and deployed. GAP-3.5 (model upgrade) in progress.
 
-- [ ] GAP-3.5: Consider adding `qwen3:8b` to linux-31gi for local reasoning/coding (reduces A2A latency)
+- [ ] GAP-3.5: Deploy updated linux-31gi profiles with qwen3.5:35b-a3b to fnet3-6
+- [ ] GAP-3.5: Decide whether to remove minicpm-o2.6:8b from 32GB nodes
 - [ ] M7.2: Offer PR to upstream if maintainer responds
 - [x] Version bump to v0.4.0 ✅
 - [x] GAP-3.3: Model profiles deployed to all 7 fleet nodes ✅
 - [x] GAP-2.2: v0.4.0 deployed to all 7 fleet nodes ✅
 - [x] GAP-3.4: Model routing verified on all nodes ✅
+- [x] GAP-3.5: qwen3.5:35b-a3b benchmarked on fnet3 (10.4 tok/s CPU) ✅
+- [x] GAP-3.5: qwen3.5:35b-a3b pulled on all 4 × 32GB nodes ✅
 
 ## Fleet Availability Bottom Line
 

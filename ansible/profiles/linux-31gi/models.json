@@ -1,5 +1,5 @@
 {
-  "_comment": "Fleet node models (32GB RAM, CPU-only Linux). No cloud providers — all cloud requests route through A2A bridge to orchestrator. No MLX models — Apple Silicon only. No models >8B params. GAP-3.",
+  "_comment": "Fleet node models (32GB RAM, CPU-only Linux). No cloud providers — all cloud requests route through A2A bridge to orchestrator. No MLX models — Apple Silicon only. Updated 2026-06-23: qwen3.5:35b-a3b replaces openbmb/minicpm-o2.6:8b as flagship. MoE model — 3B active per token, 10.4 tok/s on CPU, multimodal (text+image+video+audio), tools+thinking.",
   "_hardware": "32GB RAM, CPU-only (no GPU). i7-10710U 12c. For: fnet3, fnet4, fnet5, fnet6.",
   "_cloud_routing": "Fleet nodes have NO direct cloud API access. Cloud requests go through A2A bridge to orchestrator. model-router.json uses 'cloud-via-a2a' placeholder for cloud routes.",
   "providers": {
@@ -18,23 +18,23 @@
       },
       "models": [
         {
+          "id": "qwen3.5:35b-a3b",
+          "name": "Qwen 3.5 35B MoE (A3B)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 262144,
+          "maxTokens": 65536,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "_note": "Flagship — MoE 36B total/3B active, 10.4 tok/s CPU, tools+thinking+vision. 23GB disk. Replaces minicpm-o2.6:8b. Multimodal input (text+image+video+audio via Ollama). Benchmarked 2026-06-23 on fnet3."
+        },
+        {
           "id": "qwen3.5:4b",
           "reasoning": true,
           "input": ["text", "image"],
           "contextWindow": 262144,
           "maxTokens": 4096,
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "_note": "Local 4B vision — fast/lightweight tier. maxTokens 4096 per MAX-TOKENS-GUIDE. 262K ctx technically supported but practically capped by 32GB RAM on CPU."
-        },
-        {
-          "id": "openbmb/minicpm-o2.6:8b",
-          "name": "MiniCPM-o 2.6 8B",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 131072,
-          "maxTokens": 8192,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "_note": "Vision-capable 5.5GB model — mid-tier local cost. CPU inference on 32GB nodes. Largest model that fits with headroom."
+          "_note": "Fast/lightweight tier — 4.7B dense, 8.9 tok/s CPU, tools+thinking+vision. 3.4GB disk. maxTokens 4096 per MAX-TOKENS-GUIDE."
         },
         {
           "id": "gemma3:4b",
@@ -43,7 +43,7 @@
           "contextWindow": 131072,
           "maxTokens": 4096,
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "_note": "Gemma 3 4B — general purpose local model. 128K ctx, vision capable, CPU-friendly, non-reasoning."
+          "_note": "General purpose local model — Gemma 3 4B, non-reasoning, 128K ctx, vision capable. 3.3GB disk."
         },
         {
           "id": "nomic-embed-text",
