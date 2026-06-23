@@ -94,7 +94,7 @@ node-router has been archived. Its coms-net components (`fleet_agent.py`, `orche
 - `deliverAs: "nextTurn"` type added to `ReplacedSessionContext`
 
 - [x] GAP-2.1: Implement PiSessionTaskHandler using `ctx.newSession()` in pi v0.79.10
-- [ ] GAP-2.2: Verify PiSessionTaskHandler auto-activates on fleet nodes
+- [x] GAP-2.2: Verify PiSessionTaskHandler auto-activates on fleet nodes ✅ (v0.4.0 deployed to all 7 nodes)
 - [~] GAP-2.3: Configure `SubprocessPiTaskBridge` as interim solution (current fallback — can be replaced by GAP-2.1)
 
 ### GAP-3: local-model-pilot Profiles — Created ✅
@@ -103,8 +103,8 @@ Created fleet node model profiles and Ansible deployment playbook.
 
 - [x] GAP-3.1: Create `linux-31gi` profile (6 models, local-first routing) and `linux-15gi` profile (1 model, cloud-first routing)
 - [x] GAP-3.2: Create `deploy-model-profiles.yml` Ansible playbook with RAM detection and security validation
-- [ ] GAP-3.3: Deploy profiles to fleet nodes (requires Ansible run)
-- [ ] GAP-3.4: Verify model routing produces correct `model_match_score` values
+- [x] GAP-3.3: Deploy profiles to fleet nodes ✅ (linux-31gi on fnet3-6, linux-15gi on fnet1,2,7)
+- [x] GAP-3.4: Verify model routing produces correct `model_match_score` values ✅ (all 7 nodes verified)
 
 ### GAP-4: capacity_score Zero for CPU-Only Nodes — Fixed ✅
 

@@ -9,7 +9,7 @@
 # What this does:
 #   1. Pulls latest pi-a2a-communication from GitHub
 #   2. Builds dist (npm install + npm run build)
-#   3. Removes conflicting npm package (if present)
+#   3. Runs 'pi update' to register extension
 #   4. Updates A2A config (bridge type, auth token, version)
 #   5. Updates agent card versions
 #   6. Restarts pi-agent service
@@ -20,6 +20,12 @@
 #   - Node.js installed via nvm on each node
 #   - pi installed globally via nvm
 #   - pi-agent@<node>.service configured in systemd
+#
+# Deploy options:
+#   ansible-playbook -i inventory.ini deploy-a2a.yml              # Full deploy
+#   ansible-playbook -i inventory.ini deploy-a2a.yml --tags build  # Build only
+#   ansible-playbook -i inventory.ini deploy-a2a.yml --tags config # Config only
+#   ansible-playbook -i inventory.ini deploy-a2a.yml --tags restart # Restart only
 
 - name: Deploy A2A Communication Extension to Fleet
   hosts: lab_nodes
@@ -45,7 +51,7 @@
     service_name: "pi-agent@{{ inventory_hostname }}"
 
     # A2A version to set in agent cards
-    a2a_version: "0.3.0"
+    a2a_version: "0.4.0"
 
     # Bridge type for fleet nodes:
     # 'noop' — returns placeholder (pi already running in tmux, can't spawn subprocess)
@@ -76,23 +82,16 @@
         force: yes
       tags: [deploy, code]
 
-    - name: Install npm dependencies
+    - name: Build A2A extension (npm install + build)
       ansible.builtin.shell: |
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-        npm install --prefer-offline
+        cd {{ a2a_repo }}
+        npm install --prefer-offline && npm run build
       args:
         chdir: "{{ a2a_repo }}"
-      tags: [deploy, code]
-
-    - name: Build dist
-      ansible.builtin.shell: |
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-        npm run build
-      args:
-        chdir: "{{ a2a_repo }}"
-      tags: [deploy, code]
+        executable: /bin/bash
+      tags: [deploy, code, build]
 
     - name: Verify built version
       ansible.builtin.shell: grep '"version"' package.json | head -1
@@ -108,11 +107,22 @@
       tags: [deploy, code]
 
   # ── Phase 2: Remove conflicting npm package ──────────────────────────
+    - name: Register A2A extension with pi
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pi update git:github.com/carlosfrias/pi-a2a-communication 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      tags: [deploy, code, build]
+
     - name: Remove conflicting npm pi-a2a-communication
       ansible.builtin.shell: |
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
         pi remove npm:pi-a2a-communication 2>/dev/null || true
+      args:
+        executable: /bin/bash
       tags: [deploy]
 
   # ── Phase 3: Update Configuration ────────────────────────────────────

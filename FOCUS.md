@@ -13,7 +13,7 @@ updated: 2026-06-23
 
 ## [S-TIGHT]
 
-**v0.4.0-dev. All 5 gaps resolved. M6–M10 complete. 215 tests passing. PiSessionTaskHandler implemented. Node-router archived (migrated to fleet-resource-manager + A2A). See [Architecture & Executive Report](./wiki/pi-a2a-communication/reference/architecture-and-executive-report.md).**
+**v0.4.0 deployed to fleet. All 5 gaps resolved. PiSessionTaskHandler implemented. Node-router archived. Fleet profiles deployed. 215 tests. A2A running on all 7 nodes.**
 
 ## What's Done
 
@@ -41,12 +41,14 @@ updated: 2026-06-23
 
 ## Active Work
 
-All 5 gaps resolved. Remaining operational items:
+All 5 gaps resolved and deployed. Remaining strategic items:
 
-- [ ] GAP-3.3: Deploy model profiles to fleet nodes (requires Ansible run)
-- [ ] GAP-2.2: Verify PiSessionTaskHandler auto-activates on fleet nodes
-- [ ] Version bump to v0.4.0 (package.json, pi-package.json, CHANGELOG.md)
+- [ ] GAP-3.5: Consider adding `qwen3:8b` to linux-31gi for local reasoning/coding (reduces A2A latency)
 - [ ] M7.2: Offer PR to upstream if maintainer responds
+- [x] Version bump to v0.4.0 ✅
+- [x] GAP-3.3: Model profiles deployed to all 7 fleet nodes ✅
+- [x] GAP-2.2: v0.4.0 deployed to all 7 fleet nodes ✅
+- [x] GAP-3.4: Model routing verified on all nodes ✅
 
 ## Fleet Availability Bottom Line
 
