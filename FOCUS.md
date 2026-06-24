@@ -1,6 +1,6 @@
 ---
 name: pi-a2a-communication
-summary: "v0.4.0 deployed. GAP-3.5 in progress — qwen3.5:35b-a3b benchmarked (10.4 tok/s CPU), profiles updated, deploying to nodes. 215 tests."
+summary: "v0.4.0 deployed. All gaps resolved. qwen3.5:35b-a3b flagship on 32GB nodes (10.4 tok/s). pi-model-router removed from fleet. 215 tests."
 status: active
 phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
 progress: 100
@@ -13,7 +13,7 @@ updated: 2026-06-23
 
 ## [S-TIGHT]
 
-**v0.4.0 deployed to fleet. GAP-3.5 in progress — qwen3.5:35b-a3b (MoE 35B/3B active) benchmarked at 10.4 tok/s on CPU, supersedes minicpm-o2.6:8b. Profiles updated locally, deploying to nodes. See [Architecture & Executive Report](./wiki/pi-a2a-communication/reference/architecture-and-executive-report.md).**
+**v0.4.0 deployed to fleet. All gaps resolved. qwen3.5:35b-a3b (MoE 36B/3B active) is the flagship model on 32GB nodes — 10.4 tok/s CPU, tools+thinking+vision. pi-model-router removed from fleet (Ansible manages routing). 23 local + 10 cloud-via-A2A routes on 32GB nodes. Only M7.2 (upstream PR) remains for user decision.**
 
 ## What's Done
 
@@ -24,44 +24,55 @@ updated: 2026-06-23
 - ✅ M10: Server integration — PiTaskBridge, SubprocessPiTaskBridge, session handler
 - ✅ M10.5: Fleet deployment (all 7 nodes on v0.3.0)
 - ✅ M10.6: PiSessionTaskHandler with fallback
-- ✅ Wiki remediation — Rule 25/27 compliant, stale files removed, vault synced
-- ✅ Fleet hardware audit — node-pool.json v2.0.0 with actual specs
-- ✅ 215/215 tests passing (9 new from GAP-2 PiSessionTaskHandler)
-- ✅ Fleet hardware audit — node-pool.json v2.0.0 with actual specs
+- ✅ GAP-1: node-router archived, migrated to fleet-resource-manager
+- ✅ GAP-2: PiSessionTaskHandler implemented (ctx.newSession, adaptive polling)
+- ✅ GAP-3: Fleet model profiles created and deployed
+- ✅ GAP-4: capacity_score fix confirmed in fleet-resource-manager v0.1.0
+- ✅ GAP-5: A2A playbooks, coms-net references cleaned
+- ✅ GAP-3.5: qwen3.5:35b-a3b deployed as flagship on 32GB nodes
+- ✅ Fleet routing verified: 23 local + 10 cloud-via-A2A on 32GB, 6 local + 18 cloud-via-A2A on 16GB
+- ✅ pi-model-router removed from fleet (was overwriting Ansible-deployed config)
+- ✅ Wiki remediation — Rule 25/27 compliant
+- ✅ 215/215 tests passing
 
-## Known Gaps (Reassessed 2026-06-23)
+## Known Gaps (All Resolved)
 
-| ID | Severity | Gap | Status | Change |
-|----|----------|-----|--------|--------|
-| GAP-1 | 🔴 High | node-router coms-net components archived — superseded by fleet-resource-manager + A2A | ✅ Archived | **orchestrator_client.py and fleet_agent.py archived, scoring/routing migrated to fleet-resource-manager** |
-| GAP-2 | 🟡 Medium | PiSessionTaskHandler using ctx.newSession() | ✅ Implemented | **Polling-based response reader, streaming handler support** |
-| GAP-3 | 🟡 Medium | local-model-pilot profiles for fleet nodes | ✅ Created | **linux-31gi + linux-15gi profiles + Ansible deploy playbook** |
-| GAP-4 | 🟡 Medium | capacity_score formula for CPU-only nodes | ✅ Closed | **Fixed in fleet-resource-manager v0.1.0** |
-| GAP-5 | 🟢 Low | Stale playbook-executor references to coms-net | ✅ Cleaned | **New A2A playbooks, old files removed, index updated** |
+| ID | Severity | Gap | Status |
+|----|----------|-----|--------|
+| GAP-1 | 🔴 High | node-router archived — superseded by fleet-resource-manager + A2A | ✅ |
+| GAP-2 | 🟡 Medium | PiSessionTaskHandler using ctx.newSession() | ✅ |
+| GAP-3 | 🟡 Medium | local-model-pilot profiles for fleet nodes | ✅ |
+| GAP-3.5 | 🟡 Medium | Fleet model upgrade (35b-a3b flagship) | ✅ |
+| GAP-4 | 🟡 Medium | capacity_score formula for CPU-only nodes | ✅ |
+| GAP-5 | 🟢 Low | Stale playbook-executor references to coms-net | ✅ |
 
-## Active Work
+## Remaining Items (User Decision)
 
-All original gaps resolved. GAP-3.5 (model upgrade) complete.
+- [~] minicmp-o2.6:8b: Kept as fallback on 32GB nodes (5.5GB each, superseded by 35b-a3b)
+- [ ] M7.2: Offer PR to upstream (DrOlu/pi-a2a-communication) — upstream inactive 3+ months, 6 issues unanswered. **Recommendation: narrow PR with S1-S6b spec fixes only.**
 
-- [x] GAP-3.5: Deployed qwen3.5:35b-a3b as flagship on 32GB nodes ✅
-- [x] GAP-3.5: Updated linux-31gi routing — 8 routes now use 35b-a3b ✅
-- [x] GAP-3.5: Removed pi-model-router from fleet nodes (was overwriting config) ✅
-- [x] GAP-3.5: Verified routing persists across pi-agent restarts ✅
-- [ ] minicpm-o2.6:8b: Keep for fallback or remove from 32GB nodes?
-- [ ] M7.2: Offer PR to upstream if maintainer responds
+## Fleet Status
 
-## Fleet Availability Bottom Line
+| Node | RAM | Profile | Flagship Model | Routes | A2A |
+|------|-----|---------|---------------|--------|-----|
+| fnet1 | 16GB | linux-15gi | qwen3.5:4b | 6 local + 18 cloud | v0.4.0 ✅ |
+| fnet2 | 16GB | linux-15gi | qwen3.5:4b | 6 local + 18 cloud | v0.4.0 ✅ |
+| fnet3 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | v0.4.0 ✅ |
+| fnet4 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | v0.4.0 ✅ |
+| fnet5 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | v0.4.0 ✅ |
+| fnet6 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | v0.4.0 ✅ |
+| fnet7 | 16GB | linux-15gi | qwen3.5:4b | 6 local + 18 cloud | v0.4.0 ✅ |
 
-Fleet nodes **auto-start via systemd** on reboot. No "stand up fleet" command needed for routine reboots.
+**32GB flagship: qwen3.5:35b-a3b** — MoE 36B total, 3B active per token, 10.4 tok/s on CPU, tools+thinking+vision. Handles `reasoning/medium+low`, `coding/medium`, `local/high+medium`, `vision/medium+low`, `auto/medium` locally instead of routing through A2A bridge.
+
+**Routing managed by Ansible** — pi-model-router removed from fleet nodes to prevent config overwrite. `deploy-model-profiles.yml` handles deployment and restart.
 
 | Scenario | Playbook |
 |----------|----------|
 | First-time setup | `bootstrap-pi.sh --profile linux-31gi` |
 | A2A update | `deploy-a2a.yml` |
+| Model config changes | `deploy-model-profiles.yml` |
 | Health monitor update | `deploy-fleet.yml` |
-| Model config changes | `bootstrap-pi.sh --profile linux-31gi` |
-
-→ Full details: [Architecture & Executive Report](./wiki/pi-a2a-communication/reference/architecture-and-executive-report.md)
 
 ## Spec Compliance Status
 
@@ -75,17 +86,15 @@ Fleet nodes **auto-start via systemd** on reboot. No "stand up fleet" command ne
 | S6 | 🔴 High | Method names slash-separated, not PascalCase | ✅ Fixed |
 | S6b | 🟢 Low | `id: 0` instead of `id: null` in parse errors | ✅ Fixed |
 
-→ Full report: [A2A-v1-Conformance-Report](./wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md)
-→ Audit report: [A2A-v1-Conformance-Audit](./wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md)
-
 ## Cross-References
 
 | Project | Status | Location |
 |---------|--------|----------|
 | pi-a2a-gateway | ❌ Archived | [FOCUS](../../../04-Archive/Infrastructure/pi-a2a-gateway/FOCUS.md) |
 | pi-cross-node-comms | ❌ Archived | [FOCUS](../../../04-Archive/Infrastructure/pi-cross-node-comms/FOCUS.md) |
-| node-router | ✅ Archived | Archived to `04-Archive/Infrastructure/node-router/` — scoring/routing/benchmarking migrated to fleet-resource-manager |
-| health-monitor | ⚠️ Deployed but stale | [health-monitor](../../health-monitor/) — health data 3+ weeks old |
+| node-router | ✅ Archived | Archived to `04-Archive/Infrastructure/node-router/` |
+| health-monitor | ⚠️ Deployed but stale | [health-monitor](../../health-monitor/) |
+| fleet-resource-manager | ✅ Active | [fleet-resource-manager](../../fleet-resource-manager/) — includes benchmark subcommand |
 
 ---
 

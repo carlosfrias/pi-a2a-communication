@@ -125,17 +125,27 @@ Replaced coms-net playbooks with A2A-aware equivalents:
 - [x] GAP-5.3: Removed obsolete `deploy-hub-to-fnet2.yml`, `deploy-fleet.yml`, `inventory/coms-net.yml`
 - [x] GAP-5.4: Backed up and removed `start-agents.yml` and `shutdown-fleet.yml` (old coms-net versions)
 
-### Fleet Availability Bottom Line
+### GAP-3.5: Fleet Model Upgrade — qwen3.5:35b-a3b ✅
 
-Fleet nodes **auto-start via systemd** on reboot. No single "stand up fleet" command exists anymore. The old coms-net `standup-fleet.yml` is archived.
+Replaced `openbmb/minicpm-o2.6:8b` with `qwen3.5:35b-a3b` as flagship model on 32GB nodes. MoE architecture (36B total, 3B active per token) provides 10.4 tok/s on CPU — faster than expected and faster than the 4B dense model.
+
+- [x] GAP-3.5.1: Benchmark qwen3.5:35b-a3b on fnet3 (10.4 tok/s eval, 28s cold load, 9.1GB RAM) ✅
+- [x] GAP-3.5.2: Pull qwen3.5:35b-a3b on all 4 × 32GB nodes ✅
+- [x] GAP-3.5.3: Update linux-31gi models.json and model-router.json with 35b-a3b as flagship ✅
+- [x] GAP-3.5.4: Deploy updated profiles to all 7 fleet nodes ✅
+- [x] GAP-3.5.5: Remove pi-model-router from fleet nodes (was overwriting Ansible-deployed config) ✅
+- [x] GAP-3.5.6: Verify routing persists across pi-agent restarts ✅
+- [~] minicpm-o2.6:8b: Kept as fallback on 32GB node disks (5.5GB each, superseded by 35b-a3b)
+
+**Routing impact:** 8 routes moved from cloud-via-A2A or minicpm to 35b-a3b: `auto/medium`, `reasoning/medium`, `reasoning/low`, `coding/medium`, `local/high`, `local/medium`, `vision/medium`, `vision/low`. Total 32GB routing: 23 local + 10 cloud-via-A2A.
 
 | Scenario | Playbook | Command |
 |----------|----------|--------|
 | First-time node setup | pi-carlos-env-bootstrap | `scripts/bootstrap-pi.sh --profile linux-31gi` |
 | A2A extension update | deploy-a2a.yml | `ansible-playbook -i ansible/inventory.ini ansible/deploy-a2a.yml` |
+| Model config changes | deploy-model-profiles.yml | `ansible-playbook -i ansible/inventory.ini ansible/deploy-model-profiles.yml` |
 | Health monitor update | deploy-fleet.yml | `ansible-playbook -i ansible/inventory.ini ansible/deploy-fleet.yml` |
-| Model config changes | bootstrap-pi.sh (re-run) | `scripts/bootstrap-pi.sh --profile linux-31gi` |
-| Full fleet refresh | Both playbooks | Deploy A2A, then deploy node-router |
+| Full fleet refresh | Both playbooks | Deploy A2A, then deploy model profiles |
 
 ---
 

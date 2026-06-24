@@ -21,7 +21,7 @@ project: pi-a2a-communication
 
 ## 📋 Remaining (require user decision)
 
-- ⏳ **minicpm-o2.6:8b**: Still on 32GB node disks (5.5GB each). Superseded by 35b-a3b. Keep for fallback or remove to reclaim disk?
+- [~] **minicmp-o2.6:8b**: Kept as fallback on 32GB nodes (5.5GB each, superseded by 35b-a3b for routing)
 - ⏳ **M7.2**: Offer PR to upstream (DrOlu/pi-a2a-communication) — upstream inactive 3+ months. Recommendation: narrow PR with S1-S6b spec fixes only.
 
 ---
