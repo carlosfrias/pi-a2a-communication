@@ -71,7 +71,7 @@ last_updated: 2026-06-23
 ## M7: Upstream Issues (Deferred)
 
 - [x] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
-- [x] M7.2: Offer PR with fixes if maintainer responds
+- [ ] M7.2: Offer PR to upstream — assessment ready, awaiting user decision. See `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`. **Recommendation: narrow PR with S1–S6b spec fixes only.**
 
 ## Known Gaps
 
