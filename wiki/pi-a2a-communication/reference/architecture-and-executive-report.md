@@ -1,27 +1,29 @@
 ---
 name: Architecture & Executive Report
-updated: 2026-06-20
-version: 1.0.0
+updated: 2026-06-23
+version: 2.0.0
 ---
 
 # pi-a2a-communication — Architecture & Executive Report
 
 > **Audience:** Technical leadership, infrastructure planning, agent handoffs.  
-> **Status:** Current as of v0.3.0 (2026-06-20).
+> **Status:** Current as of v0.4.0 (2026-06-23).
 
 ---
 
 ## Executive Summary
 
-pi-a2a-communication is a pi extension providing **A2A v1.0 protocol** client and server for a 7-node fleet (fnet1–fnet7). It replaced the deprecated coms-net HTTP/SSE hub with the Google Agent-to-Agent standard. The project has completed all 10 milestones (M1–M10), with **206/206 tests passing** and all 7 fleet nodes deployed on v0.3.0.
+pi-a2a-communication is a pi extension providing **A2A v1.0 protocol** client and server for a 7-node fleet (fnet1–fnet7). It replaced the deprecated coms-net HTTP/SSE hub with the Google Agent-to-Agent standard. The project has completed all milestones through v0.4.0, with **215/215 tests passing** and all 7 fleet nodes deployed on v0.4.0.
 
-**Three critical gaps remain:**
+**All critical gaps are resolved:**
 
-1. **fleet-resource-manager is inert** — still targets deprecated coms-net, not A2A. Health data is 3+ weeks stale. Capacity scoring is zero for all CPU-only nodes.
-2. **PiSessionTaskHandler is blocked** — depends on `ctx.newSession()` which is not available in pi v0.79.4. A2A server falls back to NoOp bridge, returning placeholder responses.
-3. **local-model-pilot profiles are empty** — fleet nodes have no model routing configuration, so the fleet-resource-manager cannot optimize task assignment by model availability.
+1. **node-router archived** — orchestrator_client.py and fleet_agent.py superseded by A2A tools (a2a_call, a2a_parallel, a2a_chain). Scoring, routing, and benchmarking migrated to fleet-resource-manager.
+2. **PiSessionTaskHandler implemented** — uses `ctx.newSession({withSession})` in pi v0.79.10 with adaptive polling and PI_SESSION_UNAVAILABLE fallthrough to SubprocessPiTaskBridge.
+3. **Fleet model profiles deployed** — linux-31gi (6 models, local-first) and linux-15gi (1 model, cloud-first) with Ansible deploy playbook. qwen3.5:35b-a3b (MoE 36B/3B) is the flagship model on 32GB nodes at 10.4 tok/s CPU.
+4. **capacity_score fixed** — fleet-resource-manager v0.1.0 correctly scores CPU-only nodes.
+5. **Stale coms-net references cleaned** — A2A-aware playbooks replace coms-net playbooks.
 
-**Bottom line:** The fleet auto-starts on reboot via systemd. A single "stand up fleet" command no longer exists. Fleet availability requires running **multiple independent playbooks** for initial setup, but routine reboots are self-healing. The A2A communication layer is spec-compliant but produces placeholder responses until pi adds the `newSession()` API.
+**Bottom line:** The fleet auto-starts on reboot via systemd. A2A communication is fully operational with 23 local + 10 cloud-via-A2A routes on 32GB nodes, 6 local + 18 cloud-via-A2A on 16GB nodes. pi-model-router has been removed from fleet nodes — Ansible manages routing configuration.
 
 ---
 
