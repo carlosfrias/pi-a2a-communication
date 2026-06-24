@@ -10,41 +10,32 @@
 
 ---
 
-## Two-PR Strategy (Recommended)
+## Strategy: Two PRs (Recommended)
 
 Following the pattern of existing upstream PRs (#1, #2) — one concern area per PR.
 
-### PR 1: Security & Crash Bugs (S2, S3, S5)
-
-**Title:** `fix: A2A v1.0 security and crash bugs — auth header, agent card discovery, parse error handling`
-
-**4 commits:**
-| Commit | SHA | Changes | Files |
-|--------|-----|---------|-------|
-| P0: S2, S3, S5 | `fd3a23d` | +29/-8 | `src/a2a-server.ts`, `src/types.ts`, `tests/a2a-v1-conformance.test.ts` |
-| P1: S1, S6, S6b | `cab19ea` | +20/-4 | `src/a2a-server.ts` |
-| P2: S4 | `d83f21e` | +10/-1 | `src/a2a-server.ts` |
-| S3 client fallback | `15afaf9` | +85/-20 | `src/a2a-client.ts`, `src/agent-discovery.ts`, `src/types.ts`, `tests/a2a-tools-conformance.test.ts` |
-
-Wait — this bundles all 4 commits together. The two-PR split would separate differently:
+| | PR 1 | PR 2 |
+|---|------|------|
+| **Title** | `fix: A2A v1.0 auth, agent discovery, and crash handling` | `fix: A2A v1.0 protocol compliance — JSON-RPC errors, method names, transport routes` |
+| **Scope** | S2, S3, S5 — security & robustness | S1, S4, S6, S6b — protocol compliance |
+| **Commits** | `fd3a23d` + `15afaf9` (2 commits) | `cab19ea` + `d83f21e` (2 commits) |
+| **Source lines** | +123/-24 across 4 files | +30/-5 in a2a-server.ts only |
+| **Overlap with PR #1** | Complementary (adds WWW-Authenticate they lack, corrects agent-card path) | None — zero overlap with any existing PR |
 
 ---
 
-### Revised: Two-PR Split by Concern Area
+## PR 1: Auth, Agent Discovery, and Crash Handling
 
-#### PR 1: `fix: A2A v1.0 auth, agent discovery, and crash handling`
+**Fixes:** S2, S3, S5
 
-**Scope:** S2, S3, S5 — security and robustness fixes that prevent crashes and comply with HTTP/RFC standards.
+**Commits:**
 
-**Commits:** 2 (fd3a23d + 15afaf9)
+| # | SHA | Scope | Lines | Files |
+|---|-----|-------|-------|-------|
+| 1 | `fd3a23d` | S2: WWW-Authenticate header, S3: agent-card.json path, S5: parse error handling | +29/-8 | `a2a-server.ts`, `types.ts` |
+| 2 | `15afaf9` | S3: client-side discovery fallback across 3 paths | +85/-20 | `a2a-client.ts`, `agent-discovery.ts`, `types.ts` |
 
-**Changes:** `src/a2a-server.ts`, `src/a2a-client.ts`, `src/agent-discovery.ts`, `src/types.ts`
-
-**Body:**
-
----
-
-## Summary
+### Summary
 
 This fixes three A2A v1.0 spec compliance issues that affect security and robustness:
 
@@ -52,34 +43,29 @@ This fixes three A2A v1.0 spec compliance issues that affect security and robust
 - **S3:** Added `/.well-known/agent-card.json` as the primary Agent Card discovery path, per A2A v1.0 §8.2 and RFC 8615. Both legacy paths (`/.well-known/agent.json`, `/.well-known/agent-card`) are kept for backward compatibility. Client-side discovery now tries all three paths on 404.
 - **S5:** Added try/catch around `JSON.parse` in `handleSendMessage`. Previously, malformed JSON caused an uncaught `SyntaxError` that crashed the request with HTTP 500. Now returns a proper JSON-RPC `-32700 Parse error` response.
 
-## Motivation
-
-These are the most impactful spec violations for real-world interop:
+### Motivation
 
 - **S2** violates RFC 7235 — any HTTP client or proxy that implements auth negotiation relies on the `WWW-Authenticate` header to know the required scheme. Without it, 401 responses are opaque.
 - **S3** means Agent Card discovery fails against spec-compliant clients. The A2A v1.0 spec mandates `/.well-known/agent-card.json` (with `.json` suffix per RFC 8615). The current code serves `/.well-known/agent-card` (no suffix) and `/.well-known/agent.json` (local fork path), neither of which matches the spec.
 - **S5** is a crash bug — any malformed JSON body sent to `/sendMessage` causes an unhandled exception. This is a reliability issue for production deployments.
 
-## Backward Compatibility
+### Backward Compatibility
 
-All changes are backward-compatible:
+- **S2:** Adds a header to existing 401 responses. No behavioral change for clients that don't use it.
+- **S3:** Adds new discovery paths alongside existing ones. The server handles three paths: `agent-card.json` (spec), `agent.json` (local fork), `agent-card` (npm v1.0.1). The client tries them in order, falling back on 404.
+- **S5:** Changes behavior only for malformed input that previously crashed. Valid requests are unaffected.
 
-- S2: Adds a header to existing 401 responses. No behavioral change for clients that don't use it.
-- S3: Adds new discovery paths alongside existing ones. The server now handles three paths: `agent-card.json` (spec), `agent.json` (local fork), `agent-card` (npm v1.0.1). The client tries them in order, falling back on 404.
-- S5: Changes behavior only for malformed input that previously crashed. Valid requests are unaffected.
+### Overlap with PR #1 (5queezer)
 
-## Overlap with PR #1
+PR #1 restructures auth checks to per-route handlers and changes the default host to `127.0.0.1`. Our S2 fix is **complementary** — PR #1 moves auth logic but does not add the `WWW-Authenticate` header that RFC 7235 requires. Our S3 fix **corrects** PR #1's agent-card path — PR #1 uses `/.well-known/agent-card` which is also not the spec path (`/.well-known/agent-card.json` per A2A v1.0 §8.2).
 
-PR #1 (5queezer) moves auth checks to per-route handlers and changes the default host to `127.0.0.1`. Our S2 fix is complementary — PR #1 restructures auth routing but does not add the `WWW-Authenticate` header that RFC 7235 requires. Our S3 fix corrects the discovery path — PR #1 uses `/.well-known/agent-card` which is also not the spec path (`/.well-known/agent-card.json` per A2A v1.0 §8.2).
-
-## Validation
+### Validation
 
 ```bash
 npm install
 npm test -- --run     # 51 conformance tests, 215 total
 npm run build
 
-# Manual protocol-level checks:
 # S2: curl -i http://localhost:10000/message:send -X POST
 #     → 401 with WWW-Authenticate: Bearer
 
@@ -99,19 +85,18 @@ npm run build
 
 ---
 
-#### PR 2: `fix: A2A v1.0 protocol compliance — JSON-RPC error codes, method names, transport routes`
+## PR 2: JSON-RPC Errors, Method Names, Transport Routes
 
-**Scope:** S1, S4, S6, S6b — protocol-level compliance fixes.
+**Fixes:** S1, S4, S6, S6b
 
-**Commits:** 2 (cab19ea + d83f21e)
+**Commits:**
 
-**Changes:** `src/a2a-server.ts`
+| # | SHA | Scope | Lines | Files |
+|---|-----|-------|-------|-------|
+| 1 | `cab19ea` | S1: HTTP 200 for JSON-RPC errors, S6: PascalCase method names, S6b: id null | +20/-4 | `a2a-server.ts` |
+| 2 | `d83f21e` | S4: transport binding routes (/rpc, /message:send, /message:stream) | +10/-1 | `a2a-server.ts` |
 
-**Body:**
-
----
-
-## Summary
+### Summary
 
 This fixes four A2A v1.0 protocol compliance issues:
 
@@ -120,36 +105,31 @@ This fixes four A2A v1.0 protocol compliance issues:
 - **S6:** Added PascalCase method name mapping (`SendMessage` → `message/send`, `GetTask` → `tasks/get`, etc.) in the root JSON-RPC dispatcher, per A2A v1.0 §5.3. The spec defines method names as PascalCase; the existing code only accepted slash-separated names.
 - **S6b:** Changed `id` fallback from `id ?? 0` to `id ?? null` in `sendJSONRPCResponse` and `sendJSONRPCError`, per JSON-RPC 2.0 §5.1. When the request ID is absent, the response must use `null`, not `0`.
 
-## Motivation
-
-These fixes bring the server into compliance with the A2A v1.0 specification and JSON-RPC 2.0:
+### Motivation
 
 - **S1** is a common interop issue — HTTP clients that treat HTTP 400 as a transport error will misinterpret JSON-RPC errors. The spec convention is clear: JSON-RPC errors travel in HTTP 200 bodies.
 - **S4** makes the server accessible via the spec-defined transport paths. Clients that follow the A2A v1.0 spec will try `/message:send` and `/message:stream` first. Without these routes, such clients get 404.
 - **S6** enables interop with clients that send PascalCase method names (the spec format). Currently only slash-separated method names are accepted.
-- **S6b** is a JSON-RPC 2.0 compliance fix — `id: 0` is a valid JSON-RPC ID and means "the request had id 0", while `id: null` means "the request had no id".
+- **S6b** is a JSON-RPC 2.0 compliance fix — `id: 0` is a valid JSON-RPC ID meaning "the request had id 0", while `id: null` means "the request had no id".
 
-## Backward Compatibility
+### Backward Compatibility
 
-All changes are backward-compatible:
+- **S1:** Changes HTTP status code only. JSON-RPC error body is identical.
+- **S4:** Adds new routes alongside existing `POST /sendMessage` and `POST /sendStreamingMessage`. No existing paths are removed.
+- **S6:** Adds PascalCase method names alongside existing slash-separated names. Both formats are accepted.
+- **S6b:** Changes `id` in error responses only. Clients should not rely on error response IDs.
 
-- S1: Changes HTTP status code only. JSON-RPC error body is identical.
-- S4: Adds new routes alongside existing `POST /sendMessage` and `POST /sendStreamingMessage`. No existing paths are removed.
-- S6: Adds PascalCase method names alongside existing slash-separated names. Both formats are accepted.
-- S6b: Changes `id` in error responses only. Clients should not rely on error response IDs.
-
-## No Overlap with Existing PRs
+### No Overlap with Existing PRs
 
 None of these fixes overlap with PR #1 (5queezer) or PR #2 (cavos-io). PR #1 focuses on session execution mode and auth restructuring; it does not address JSON-RPC error codes, transport binding routes, or method name formats.
 
-## Validation
+### Validation
 
 ```bash
 npm install
 npm test -- --run     # 51 conformance tests, 215 total
 npm run build
 
-# Manual protocol-level checks:
 # S1: curl -X POST http://localhost:10000/ \
 #     -H "Authorization: Bearer <token>" \
 #     -H "Content-Type: application/json" \
@@ -181,17 +161,16 @@ npm run build
 
 If preferred, all 4 commits can be combined into a single PR:
 
-**Title:** `fix: A2A v1.0 spec compliance — 6 conformance fixes`
-
-**Commits:** fd3a23d, cab19ea, d83f21e, 15afaf9 (4 commits, +144/-33 lines in source)
-
-**Risk:** Larger diff, harder to review, mixes security fixes with protocol compliance.
+- **Title:** `fix: A2A v1.0 spec compliance — 6 conformance fixes`
+- **Commits:** `fd3a23d`, `cab19ea`, `d83f21e`, `15afaf9` (4 commits, +144/-33 lines in source)
+- **Risk:** Larger diff, harder to review, mixes security fixes with protocol compliance
 
 ---
 
 ## Commit-by-Commit Detail
 
-### Commit 1: fd3a23d — P0: S2, S3, S5
+### Commit 1: `fd3a23d` — S2, S3, S5
+
 **Files:** `src/a2a-server.ts` (+9/-2), `src/types.ts` (+14/-3), `tests/a2a-v1-conformance.test.ts` (+6/-3)
 
 | Fix | Change | Spec Reference |
@@ -200,7 +179,8 @@ If preferred, all 4 commits can be combined into a single PR:
 | S3 | Route handler accepts `/.well-known/agent-card.json` alongside legacy paths. `AGENT_CARD_PATH` constant changed from `/agent.json` to `/agent-card.json` | A2A v1.0 §8.2, RFC 8615 |
 | S5 | `JSON.parse` wrapped in try/catch; on failure sends `-32700 Parse error` | JSON-RPC 2.0 §5.1 |
 
-### Commit 2: cab19ea — P1: S1, S6, S6b
+### Commit 2: `cab19ea` — S1, S6, S6b
+
 **Files:** `src/a2a-server.ts` (+20/-4)
 
 | Fix | Change | Spec Reference |
@@ -209,14 +189,16 @@ If preferred, all 4 commits can be combined into a single PR:
 | S6 | `PASCAL_CASE_MAP` constant maps PascalCase → slash-separated method names (10 entries) | A2A v1.0 §5.3 |
 | S6b | `id ?? 0` → `id ?? null` in `sendJSONRPCResponse` and `sendJSONRPCError` | JSON-RPC 2.0 §5.1 |
 
-### Commit 3: d83f21e — P2: S4
+### Commit 3: `d83f21e` — S4
+
 **Files:** `src/a2a-server.ts` (+10/-1)
 
 | Fix | Change | Spec Reference |
 |-----|--------|----------------|
 | S4 | Added routes: `POST /rpc`, `POST /message:send`, `POST /message:stream` | A2A v1.0 §9.2, §11.3.1 |
 
-### Commit 4: 15afaf9 — S3 client fallback
+### Commit 4: `15afaf9` — S3 client fallback
+
 **Files:** `src/a2a-client.ts` (+26/-14), `src/agent-discovery.ts` (+42/-4), `src/types.ts` (+10), `tests/a2a-tools-conformance.test.ts` (+2/-2)
 
 | Fix | Change | Spec Reference |
