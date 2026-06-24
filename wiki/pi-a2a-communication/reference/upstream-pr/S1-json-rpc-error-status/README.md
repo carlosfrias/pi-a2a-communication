@@ -2,7 +2,9 @@
 name: S1 — JSON-RPC errors return HTTP 400 instead of HTTP 200
 severity: MEDIUM
 spec: JSON-RPC over HTTP convention
+upstream_issue: "#5"
 fix_commit: cab19ea
+pr_group: 2 (protocol compliance)
 status: draft
 ---
 
@@ -69,7 +71,7 @@ describe('S1: JSON-RPC error HTTP status codes', () => {
       },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'message/send', params: {}, id: 'test' }),
     });
-    expect(response.status).toBe(200);  // Not 400
+    expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.error).toBeDefined();
   });
@@ -93,7 +95,3 @@ describe('S1: JSON-RPC error HTTP status codes', () => {
 ## Backward Compatibility
 
 Changes HTTP status code only. The JSON-RPC error body (code, message) is identical. Clients that already handle 400 responses will still work because they typically check the body. Clients that correctly use the JSON-RPC protocol will now work as the spec intends.
-
----
-
-*Last updated: 2026-06-24*

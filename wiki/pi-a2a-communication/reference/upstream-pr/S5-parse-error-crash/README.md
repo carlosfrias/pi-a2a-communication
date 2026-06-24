@@ -2,7 +2,9 @@
 name: S5 — Uncaught parse error in /sendMessage returns HTTP 500
 severity: HIGH
 spec: JSON-RPC 2.0 §5.1
+upstream_issue: "#6"
 fix_commit: fd3a23d
+pr_group: 1 (auth, agent discovery, crash handling)
 status: draft
 ---
 
@@ -82,7 +84,3 @@ describe('S5: Legacy path /sendMessage parse error handling', () => {
 ## Backward Compatibility
 
 Changes behavior only for malformed input that previously crashed. Valid requests are completely unaffected. This is a crash bug fix — no legitimate client should be sending invalid JSON.
-
----
-
-*Last updated: 2026-06-24*

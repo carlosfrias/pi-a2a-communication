@@ -2,7 +2,9 @@
 name: S2 — Missing WWW-Authenticate header on 401 responses
 severity: HIGH
 spec: RFC 7235 §2.1
+upstream_issue: "#4"
 fix_commit: fd3a23d
+pr_group: 1 (auth, agent discovery, crash handling)
 status: draft
 ---
 
@@ -57,7 +59,6 @@ Content-Type: application/json
 ## Conformance Test
 
 ```typescript
-// tests/a2a-v1-conformance.test.ts
 describe('S2: WWW-Authenticate header on 401 responses', () => {
   it('MUST include WWW-Authenticate header on 401 response (RFC 7235)', async () => {
     const response = await fetch(`${baseUrl}/message:send`, {
@@ -85,10 +86,6 @@ describe('S2: WWW-Authenticate header on 401 responses', () => {
 
 No breaking change. Adds a header to existing 401 responses. Clients that don't use it are unaffected.
 
-## Overlap with PR #1
+## Overlap with PR #1 (5queezer)
 
-PR #1 (5queezer) restructures auth checks to per-route handlers but does **not** add the `WWW-Authenticate` header. This fix is complementary.
-
----
-
-*Last updated: 2026-06-24*
+Complementary, not conflicting. PR #1 restructures auth checks to per-route handlers but does **not** add the `WWW-Authenticate` header that RFC 7235 requires.

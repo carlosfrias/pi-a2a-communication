@@ -2,7 +2,9 @@
 name: S6 — Wrong JSON-RPC method names (slash-separated instead of PascalCase)
 severity: HIGH
 spec: A2A v1.0 §5.3
+upstream_issue: "#7"
 fix_commit: cab19ea
+pr_group: 2 (protocol compliance)
 status: draft
 ---
 
@@ -66,10 +68,7 @@ describe('S6: JSON-RPC method names must be PascalCase (A2A v1.0)', () => {
   it('MUST accept "SendMessage" method (A2A v1.0 PascalCase)', async () => {
     const response = await fetch(`${baseUrl}/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TEST_TOKEN}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TEST_TOKEN}` },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'SendMessage', params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } }, id: 'test' }),
     });
     expect(response.status).toBe(200);
@@ -78,10 +77,7 @@ describe('S6: JSON-RPC method names must be PascalCase (A2A v1.0)', () => {
   it('MUST accept "GetTask" method (A2A v1.0 PascalCase)', async () => {
     const response = await fetch(`${baseUrl}/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TEST_TOKEN}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TEST_TOKEN}` },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'GetTask', params: { id: 'nonexistent' }, id: 'test' }),
     });
     expect(response.status).toBe(200);
@@ -91,8 +87,4 @@ describe('S6: JSON-RPC method names must be PascalCase (A2A v1.0)', () => {
 
 ## Backward Compatibility
 
-Fully backward-compatible. Slash-separated method names (`message/send`, `tasks/get`) continue to work via the `?? rawMethod` fallback. PascalCase is added as a new accepted format.
-
----
-
-*Last updated: 2026-06-24*
+Fully backward-compatible. Slash-separated method names (`message/send`, `tasks/get`) continue to work via the `?? rawMethod` fallback. PascalCase is added as a new accepted format alongside the existing format.

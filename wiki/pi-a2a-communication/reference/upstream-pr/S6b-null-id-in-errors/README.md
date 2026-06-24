@@ -2,7 +2,9 @@
 name: S6b — Wrong id in parse errors (id: 0 instead of id: null)
 severity: LOW
 spec: JSON-RPC 2.0 §5.1
+upstream_issue: "#7"
 fix_commit: cab19ea
+pr_group: 2 (protocol compliance)
 status: draft
 ---
 
@@ -72,7 +74,3 @@ expect(data.error.code).toBe(-32700);
 ## Backward Compatibility
 
 Minimal impact. Changes `id` in error responses only. Clients that rely on `id: 0` in error responses are misusing the JSON-RPC protocol — `0` is a valid request ID, not a placeholder for "unknown."
-
----
-
-*Last updated: 2026-06-24*

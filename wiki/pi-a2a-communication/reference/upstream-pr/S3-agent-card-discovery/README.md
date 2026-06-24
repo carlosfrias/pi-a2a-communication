@@ -2,7 +2,9 @@
 name: S3 — Wrong Agent Card discovery path
 severity: HIGH
 spec: A2A v1.0 §8.2, RFC 8615
+upstream_issue: "#3"
 fix_commits: fd3a23d, 15afaf9
+pr_group: 1 (auth, agent discovery, crash handling)
 status: draft
 ---
 
@@ -39,7 +41,7 @@ GET /.well-known/agent.json       → 200 (local fork, not spec)
 
 ## Fix
 
-Two commits fix server and client separately:
+Two commits fix server and client separately.
 
 ### Commit fd3a23d — Server-side route handler
 
@@ -74,23 +76,7 @@ export const AGENT_CARD_DISCOVERY_PATHS = [
 ] as const;
 ```
 
-**File:** `src/a2a-client.ts` — `discoverAgent()` now tries all three paths on 404:
-
-```typescript
-for (const cardPath of discoveryPaths) {
-  const fullUrl = `${agentUrl.origin}${cardPath}`;
-  const response = await this.httpGet(fullUrl);
-  if (response.ok) {
-    const card = await response.json();
-    return { ...card, url };
-  }
-  if (response.status === 404) {
-    lastError = new Error(`Agent Card not found at ${cardPath} (404)`);
-    continue;  // Try next path
-  }
-  throw new Error(`Failed to discover agent: ${response.status} ${response.statusText}`);
-}
-```
+**File:** `src/a2a-client.ts` — `discoverAgent()` tries all three paths on 404.
 
 **File:** `src/agent-discovery.ts` — Added `fetchAgentCardWithFallback()` with same pattern.
 
@@ -131,10 +117,6 @@ describe('S3: Agent Card discovery paths', () => {
 
 Fully backward-compatible. New spec path added alongside existing paths. Both legacy paths continue to work. Client-side fallback ensures compatibility with servers that only serve legacy paths.
 
-## Overlap with PR #1
+## Overlap with PR #1 (5queezer)
 
-PR #1 (5queezer) uses `/.well-known/agent-card` — still not the spec path. Our fix corrects this to `/.well-known/agent-card.json` while keeping legacy paths working.
-
----
-
-*Last updated: 2026-06-24*
+PR #1 uses `/.well-known/agent-card` — still not the spec path. Our fix corrects this to `/.well-known/agent-card.json` while keeping legacy paths working.

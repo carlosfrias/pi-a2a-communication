@@ -2,7 +2,9 @@
 name: S4 — Missing A2A v1.0 transport binding paths
 severity: HIGH
 spec: A2A v1.0 §9.2, §11.3.1
+upstream_issue: "#8"
 fix_commit: d83f21e
+pr_group: 2 (protocol compliance)
 status: draft
 ---
 
@@ -77,10 +79,7 @@ describe('S4: A2A v1.0 HTTP/REST endpoint paths', () => {
   it('MUST accept POST /message:send (A2A v1.0 HTTP/REST binding)', async () => {
     const response = await fetch(`${baseUrl}/message:send`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TEST_TOKEN}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TEST_TOKEN}` },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'message/send', params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } }, id: 'test' }),
     });
     expect(response.status).toBe(200);
@@ -89,10 +88,7 @@ describe('S4: A2A v1.0 HTTP/REST endpoint paths', () => {
   it('MUST accept POST /message:stream (A2A v1.0 HTTP/REST binding)', async () => {
     const response = await fetch(`${baseUrl}/message:stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TEST_TOKEN}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TEST_TOKEN}` },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'message/stream', params: { message: { role: 'user', parts: [{ type: 'text', text: 'test' }] } }, id: 'test' }),
     });
     expect([200, 201]).toContain(response.status);
@@ -101,10 +97,7 @@ describe('S4: A2A v1.0 HTTP/REST endpoint paths', () => {
   it('MUST support JSON-RPC dispatch at POST /rpc (A2A v1.0 JSON-RPC binding)', async () => {
     const response = await fetch(`${baseUrl}/rpc`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TEST_TOKEN}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TEST_TOKEN}` },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'tasks/get', params: { id: 'nonexistent' }, id: 'test' }),
     });
     expect(response.status).toBe(200);
@@ -115,7 +108,3 @@ describe('S4: A2A v1.0 HTTP/REST endpoint paths', () => {
 ## Backward Compatibility
 
 Fully backward-compatible. Adds new routes alongside existing `/sendMessage` and `/sendStreamingMessage`. No existing paths are removed or changed.
-
----
-
-*Last updated: 2026-06-24*
