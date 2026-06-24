@@ -18,3 +18,6 @@
 > ⚠️ Previous version of this file incorrectly listed `claude-sonnet-4` as the model. Corrected to `ollama/glm-5.1:cloud` based on session JSONL `model_change` events.
 
 *Last updated: 2026-06-20 — session-costs.sh latest + summary modes*
+| 2026-06-24 | m72-upstream-pr | claude-sonnet-4 (pi) | ~80,000 | ~80,000 | $0.00 | $42.22 |
+
+> ⚠️ No session JSONL for this session. Model usage estimated from context. Cost is $0.00 (via pi harness).

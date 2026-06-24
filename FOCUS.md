@@ -34,8 +34,16 @@ updated: 2026-06-24
 
 ## Awaiting User Decision
 
-- [ ] **M7.2: Upstream PR** — Assessment at `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`. Unauthorized issues #3–#8 closed. Upstream has 2 existing PRs: PR #1 (5queezer) overlaps S2+S3 partially, adds session execution mode; PR #2 (cavos-io) no overlap. Our S1, S4, S5, S6/S6b fixes are unique — no other PR addresses them.
+- [ ] **M7.2: Upstream PR** — PR bundle at `wiki/pi-a2a-communication/reference/upstream-pr/` (7 per-issue folders with README.md + PR-body.md). Unauthorized issues #3–#8 closed. Upstream has 2 existing PRs: PR #1 (5queezer) overlaps S2+S3 partially; PR #2 (cavos-io) no overlap. Our S1, S4, S5, S6/S6b fixes are unique.
 - [~] minicpm-o2.6:8b: Kept as fallback on 32GB nodes (5.5GB each, superseded by 35b-a3b)
+
+### Handoff Notes
+
+- PR bundle in `wiki/reference/upstream-pr/` with 7 folders (S1-S6b). Each has README.md (technical analysis) and PR-body.md (copy-paste for GitHub). Index at `upstream-pr/README.md`.
+- Two-PR strategy recommended: PR 1 (S2,S3,S5) + PR 2 (S1,S4,S6,S6b). Zero overlap with existing PRs on S1,S4,S5,S6,S6b.
+- Issues #3-#8 closed. Do NOT re-open unless PR is submitted.
+- Wiki cleaned: 5 stale files archived, Home.md and architecture report updated to v0.4.0.
+- Never file issues or PRs against external repos without explicit authorization. Never include internal identifiers in public-facing content.
 
 ## Fleet Status
 
@@ -80,4 +88,4 @@ updated: 2026-06-24
 
 ---
 
-*Last updated: 2026-06-23*
+*Last updated: 2026-06-24*
