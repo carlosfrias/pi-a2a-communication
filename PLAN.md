@@ -3,7 +3,7 @@ name: pi-a2a-communication
 phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
 progress: 100
 status: active
-last_updated: 2026-06-23
+last_updated: 2026-06-24
 ---
 
 # PLAN — pi-a2a-communication
@@ -71,7 +71,18 @@ last_updated: 2026-06-23
 ## M7: Upstream Issues (Deferred)
 
 - [x] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
-- [ ] M7.2: Offer PR to upstream — assessment ready, awaiting user decision. See `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`. **Recommendation: narrow PR with S1–S6b spec fixes only.**
+- [ ] M7.2: Offer PR to upstream — awaiting user decision. Unauthorized issues #3–#8 closed. See `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`.
+
+**Upstream PR landscape:**
+
+| PR | Author | Scope | Overlap with S1–S6b |
+|----|--------|-------|----------------------|
+| #1 | 5queezer (Christian Pojoni) | Session execution mode, auth restructuring, streaming fix, Bearer undefined fix | S2 partial (moves auth to per-route but no WWW-Authenticate header), S3 partial (uses `/.well-known/agent-card` not spec `/.well-known/agent-card.json`), adds session execution (we solved differently via PiTaskBridge) |
+| #2 | cavos-io (Ramdhan Hidayat) | Custom A2A config directory (`PI_A2A_CONFIG_DIR`) | None — purely additive feature |
+
+**Our unique fixes (no overlap):** S1 (JSON-RPC errors → HTTP 200), S4 (transport binding routes), S5 (parse error handling), S6+S6b (PascalCase methods, `id: null`). These 4 fixes have zero coverage from existing PRs.
+
+**Recommendation remains: narrow PR with S1–S6b spec fixes only.** Session execution approach differs from PR #1 — ours uses PiTaskBridge/SubprocessPiTaskBridge, theirs uses executionMode + SessionReplyBridge. Both approaches are valid; ours is fleet-specific.
 
 ## Known Gaps
 

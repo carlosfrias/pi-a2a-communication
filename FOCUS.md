@@ -6,7 +6,7 @@ phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-06-23
+updated: 2026-06-24
 ---
 
 # FOCUS — pi-a2a-communication
@@ -32,9 +32,9 @@ updated: 2026-06-23
 - ✅ pi-model-router removed from fleet (was overwriting Ansible config)
 - ✅ 215/215 tests passing
 
-## Remaining Items (User Decision)
+## Awaiting User Decision
 
-- [ ] **M7.2: Offer PR to upstream** — See `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`. Upstream inactive 3+ months. **Recommendation: narrow PR with S1-S6b spec fixes only (7 commits, 51 tests).** Morning reminder in vault.
+- [ ] **M7.2: Upstream PR** — Assessment at `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`. Unauthorized issues #3–#8 closed. Upstream has 2 existing PRs: PR #1 (5queezer) overlaps S2+S3 partially, adds session execution mode; PR #2 (cavos-io) no overlap. Our S1, S4, S5, S6/S6b fixes are unique — no other PR addresses them.
 - [~] minicpm-o2.6:8b: Kept as fallback on 32GB nodes (5.5GB each, superseded by 35b-a3b)
 
 ## Fleet Status

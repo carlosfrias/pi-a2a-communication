@@ -1,6 +1,6 @@
 ---
 workbench: true
-updated: 2026-06-23
+updated: 2026-06-24
 project: pi-a2a-communication
 ---
 
@@ -12,20 +12,18 @@ project: pi-a2a-communication
 
 ## ✅ Recently done
 
-- 📅 2026-06-23: **GAP-3.5 COMPLETE** — qwen3.5:35b-a3b deployed as flagship on 32GB nodes, routing updated (8 routes now use 35b-a3b including reasoning/medium+low, coding/medium, local/high+medium, vision/medium+low)
-- 📅 2026-06-23: **pi-model-router removed from fleet nodes** — was overwriting Ansible-deployed model-router.json; routing now managed exclusively via Ansible
-- 📅 2026-06-23: **Profile deployment verified** — 32GB: 23 local + 10 cloud-via-A2A routes; 16GB: 6 local + 18 cloud-via-A2A routes; persists across pi-agent restarts
-- 📅 2026-06-23: **Benchmark: qwen3.5:35b-a3b** — 10.4 tok/s eval on CPU, 28s cold load, 9.1GB RAM, supersedes minicpm-o2.6:8b
+- 📅 2026-06-24: **Wiki cleanup** — archived 5 stale guides/references (expertise curriculum, nodejs SDK, learning guide, decommissioned skills migration, spec compliance summary). Updated Home.md and architecture report to v0.4.0.
+- 📅 2026-06-24: **Unauthorized issues closed** — 6 issues (#3–#8) filed without authorization against DrOlu/pi-a2a-communication have been closed
+- 📅 2026-06-23: **GAP-3.5 COMPLETE** — qwen3.5:35b-a3b deployed as flagship on 32GB nodes
+- 📅 2026-06-23: **pi-model-router removed from fleet nodes** — routing now managed exclusively via Ansible
 - 📅 2026-06-23: **v0.4.0 deployed to all 7 nodes** — A2A responding on all nodes
-- 📅 2026-06-23: **deploy-model-profiles.yml updated** — removes pi-model-router, updates settings.json enabledModels per tier
 
-## 📋 Remaining (require user decision)
+## 📋 Emergent
 
-- [~] **minicmp-o2.6:8b**: Kept as fallback on 32GB nodes (5.5GB each, superseded by 35b-a3b for routing)
-- ⏳ **M7.2**: Offer PR to upstream (DrOlu/pi-a2a-communication) — upstream inactive 3+ months. Recommendation: narrow PR with S1-S6b spec fixes only.
+- ⏳ **M7.2: Upstream PR decision** — Assessment at `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`. Upstream has 2 existing PRs (see PLAN for overlap analysis). Unauthorized issues closed. **Decision needed.**
 
 ---
 
 > 📋 **Checkbox states:** `[ ]` To Do | `[/]` In Progress | `[~]` Good Enough | `[x]` Done | `[>]` Deferred | `[!]` Blocked | `[-]` Cancelled
 
-*Last updated: 2026-06-23*
+*Last updated: 2026-06-24*
