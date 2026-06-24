@@ -164,7 +164,33 @@
       changed_when: false
       tags: [deploy, validate]
 
-  # ── Phase 4: Restart Service ──────────────────────────────────────────
+  # ── Phase 4: Remove pi-model-router (managed by Ansible) ──────────────
+    - name: Remove pi-model-router extension
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pi remove npm:@yeliu84/pi-model-router 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      tags: [deploy, config]
+
+    - name: Update settings.json (remove pi-model-router, set enabled models)
+      ansible.builtin.shell: |
+        python3 -c "
+        import json
+        s = json.load(open('{{ agent_dir }}/settings.json'))
+        s['packages'] = [p for p in s.get('packages', []) if 'pi-model-router' not in p]
+        if {{ ansible_memtotal_mb }} >= {{ ram_threshold_mb }}:
+            s['enabledModels'] = ['qwen3.5:35b-a3b', 'qwen3.5:4b', 'gemma3:4b', 'nomic-embed-text']
+        else:
+            s['enabledModels'] = ['qwen3.5:4b']
+        s['defaultModel'] = 'auto'
+        s['defaultProvider'] = 'router'
+        json.dump(s, open('{{ agent_dir }}/settings.json', 'w'), indent=2)
+        "
+      tags: [deploy, config]
+
+  # ── Phase 5: Restart Service ──────────────────────────────────────────
     - name: Check if pi-agent service exists
       ansible.builtin.systemd:
         name: "{{ service_name }}"
