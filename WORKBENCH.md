@@ -12,22 +12,17 @@ project: pi-a2a-communication
 
 ## ✅ Recently done
 
-- 📅 2026-06-23: **qwen3.5:35b-a3b pulled on all 4 × 32GB nodes** — MoE flagship (10.4 tok/s CPU, tools+thinking+vision), replaces minicpm-o2.6:8b
-- 📅 2026-06-23: **GAP-3.5 model profile update in progress** — linux-31gi models.json and model-router.json updated with 35b-a3b as flagship, not yet deployed to nodes
-- 📅 2026-06-23: **v0.4.0 deployed to all 7 fleet nodes** — git pull + build + restart, A2A responding on all nodes
-- 📅 2026-06-23: **Model profiles deployed (v1) to all 7 nodes** — linux-31gi (fnet3-6), linux-15gi (fnet1,2,7)
-- 📅 2026-06-23: **v0.4.0 released** — All 5 gaps resolved, version bumped, CHANGELOG written
-- 📅 2026-06-23: **Benchmark: qwen3.5:35b-a3b on fnet3** — 10.4 tok/s eval, 28s load, 9.1GB RAM, supersedes minicpm-o2.6:8b
-- 📅 2026-06-23: **All 6 models pulled on 32GB nodes** — qwen3.5:4b, gemma3:4b, nomic-embed-text, whisper, orpheus, minicpm-o2.6:8b
-
-## 📋 In progress
-
-- 🔄 **GAP-3.5: Deploy updated linux-31gi profiles** — models.json and model-router.json updated locally with qwen3.5:35b-a3b, need to run `ansible-playbook deploy-model-profiles.yml` and restart pi-agent on fnet3-6
-- 🔄 **GAP-3.5: Remove minicpm-o2.6:8b from 32GB nodes** — superseded by 35b-a3b, but still on disk. Decision: keep for fallback or remove?
+- 📅 2026-06-23: **GAP-3.5 COMPLETE** — qwen3.5:35b-a3b deployed as flagship on 32GB nodes, routing updated (8 routes now use 35b-a3b including reasoning/medium+low, coding/medium, local/high+medium, vision/medium+low)
+- 📅 2026-06-23: **pi-model-router removed from fleet nodes** — was overwriting Ansible-deployed model-router.json; routing now managed exclusively via Ansible
+- 📅 2026-06-23: **Profile deployment verified** — 32GB: 23 local + 10 cloud-via-A2A routes; 16GB: 6 local + 18 cloud-via-A2A routes; persists across pi-agent restarts
+- 📅 2026-06-23: **Benchmark: qwen3.5:35b-a3b** — 10.4 tok/s eval on CPU, 28s cold load, 9.1GB RAM, supersedes minicpm-o2.6:8b
+- 📅 2026-06-23: **v0.4.0 deployed to all 7 nodes** — A2A responding on all nodes
+- 📅 2026-06-23: **deploy-model-profiles.yml updated** — removes pi-model-router, updates settings.json enabledModels per tier
 
 ## 📋 Remaining (require user decision)
 
-- ⏳ **M7.2**: Offer PR to upstream (DrOlu/pi-a2a-communication) — upstream inactive 3+ months, 6 issues unanswered. Recommendation: narrow PR with just S1-S6b spec fixes.
+- ⏳ **minicpm-o2.6:8b**: Still on 32GB node disks (5.5GB each). Superseded by 35b-a3b. Keep for fallback or remove to reclaim disk?
+- ⏳ **M7.2**: Offer PR to upstream (DrOlu/pi-a2a-communication) — upstream inactive 3+ months. Recommendation: narrow PR with S1-S6b spec fixes only.
 
 ---
 

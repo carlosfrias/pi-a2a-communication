@@ -41,17 +41,14 @@ updated: 2026-06-23
 
 ## Active Work
 
-All 5 original gaps resolved and deployed. GAP-3.5 (model upgrade) in progress.
+All original gaps resolved. GAP-3.5 (model upgrade) complete.
 
-- [ ] GAP-3.5: Deploy updated linux-31gi profiles with qwen3.5:35b-a3b to fnet3-6
-- [ ] GAP-3.5: Decide whether to remove minicpm-o2.6:8b from 32GB nodes
+- [x] GAP-3.5: Deployed qwen3.5:35b-a3b as flagship on 32GB nodes ✅
+- [x] GAP-3.5: Updated linux-31gi routing — 8 routes now use 35b-a3b ✅
+- [x] GAP-3.5: Removed pi-model-router from fleet nodes (was overwriting config) ✅
+- [x] GAP-3.5: Verified routing persists across pi-agent restarts ✅
+- [ ] minicpm-o2.6:8b: Keep for fallback or remove from 32GB nodes?
 - [ ] M7.2: Offer PR to upstream if maintainer responds
-- [x] Version bump to v0.4.0 ✅
-- [x] GAP-3.3: Model profiles deployed to all 7 fleet nodes ✅
-- [x] GAP-2.2: v0.4.0 deployed to all 7 fleet nodes ✅
-- [x] GAP-3.4: Model routing verified on all nodes ✅
-- [x] GAP-3.5: qwen3.5:35b-a3b benchmarked on fnet3 (10.4 tok/s CPU) ✅
-- [x] GAP-3.5: qwen3.5:35b-a3b pulled on all 4 × 32GB nodes ✅
 
 ## Fleet Availability Bottom Line
 
