@@ -1,6 +1,6 @@
 ---
 workbench: true
-updated: 2026-06-24
+updated: 2026-06-26
 project: pi-a2a-communication
 ---
 
@@ -12,7 +12,8 @@ project: pi-a2a-communication
 
 ## ✅ Recently done
 
-- 📅 2026-06-24: **Wiki cleanup** — archived 5 stale guides/references (expertise curriculum, nodejs SDK, learning guide, decommissioned skills migration, spec compliance summary). Updated Home.md and architecture report to v0.4.0.
+- 📅 2026-06-26: **Ansible deploy playbook fix** — `git stash` chdir crash on first deploy fixed (wrapped in conditional block, skips when repo missing). Agent card version update now uses `ansible.builtin.find` + loop (no glob fail on empty dir). `wait_for` host fixed from `0.0.0.0` to `127.0.0.1`. Agents directory creation added before sed. Syntax check + dry-run pass.
+- 📅 2026-06-24: **Wiki cleanup** — archived 5 stale guides/references (expertise curriculum, nodejs SDK, learning guide, decomissioned skills migration, spec compliance summary). Updated Home.md and architecture report to v0.4.0.
 - 📅 2026-06-24: **Unauthorized issues closed** — 6 issues (#3–#8) filed without authorization against DrOlu/pi-a2a-communication have been closed
 - 📅 2026-06-23: **GAP-3.5 COMPLETE** — qwen3.5:35b-a3b deployed as flagship on 32GB nodes
 - 📅 2026-06-23: **pi-model-router removed from fleet nodes** — routing now managed exclusively via Ansible
@@ -26,4 +27,4 @@ project: pi-a2a-communication
 
 > 📋 **Checkbox states:** `[ ]` To Do | `[/]` In Progress | `[~]` Good Enough | `[x]` Done | `[>]` Deferred | `[!]` Blocked | `[-]` Cancelled
 
-*Last updated: 2026-06-24*
+*Last updated: 2026-06-26*

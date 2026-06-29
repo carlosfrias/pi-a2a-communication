@@ -164,15 +164,21 @@ export class A2AServer {
         return;
       }
 
-      // Check authentication
-      if (!this.isAuthenticated(req)) {
+      // A2A v1.0 spec: Public agent card endpoints do NOT require authentication.
+      // Only JSON-RPC endpoints and task endpoints require auth.
+      // See: https://a2a-protocol.org/v1.0.0/specification/ Section 5 & 8
+      const isPublicAgentCard = path === "/.well-known/agent-card.json"
+        || path === "/.well-known/agent.json"
+        || path === "/.well-known/agent-card";
+
+      if (!isPublicAgentCard && !this.isAuthenticated(req)) {
         res.setHeader("WWW-Authenticate", "Bearer");
         this.sendError(res, 401, "Unauthorized");
         return;
       }
 
       // Route requests
-      if (path === "/.well-known/agent-card.json" || path === "/.well-known/agent.json" || path === "/.well-known/agent-card") {
+      if (isPublicAgentCard) {
         await this.handleAgentCard(req, res);
       } else if (path === "/" || path === "") {
         // A2A v1.0 spec: root endpoint with JSON-RPC method dispatch

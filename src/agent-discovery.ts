@@ -358,7 +358,13 @@ export class AgentDiscovery {
           lastError = new Error(`Agent Card not found at ${url} (404)`);
           continue;
         }
-        // Auth errors or other issues — don't try fallbacks
+        // 401/403 means the endpoint exists but requires auth — try next fallback
+        // (the spec path may be auth-protected while a legacy path isn't, or vice versa)
+        if (response.status === 401 || response.status === 403) {
+          lastError = new Error(`Agent Card auth required at ${url} (${response.status})`);
+          continue;
+        }
+        // Other errors — don't try fallbacks
         return response;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));

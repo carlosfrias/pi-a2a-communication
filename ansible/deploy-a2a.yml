@@ -67,12 +67,14 @@
       register: a2a_repo_exists
       tags: [deploy, code]
 
-    - name: Stash any local changes in A2A repo
-      ansible.builtin.shell: git stash 2>/dev/null || true
-      args:
-        chdir: "{{ a2a_repo }}"
+    - name: Handle existing A2A repo (stash + pre-clone checks)
       when: a2a_repo_exists.stat.exists
-      tags: [deploy, code]
+      block:
+        - name: Stash any local changes in A2A repo
+          ansible.builtin.shell: git stash 2>/dev/null || true
+          args:
+            chdir: "{{ a2a_repo }}"
+          tags: [deploy, code]
 
     - name: Pull latest pi-a2a-communication
       ansible.builtin.git:
@@ -171,12 +173,26 @@
           }
       tags: [deploy, config]
 
+    - name: Ensure agents directory exists for version update
+      ansible.builtin.file:
+        path: "{{ a2a_config_dir }}/agents"
+        state: directory
+        mode: '0755'
+      tags: [deploy, config]
+
+    - name: Find agent card files
+      ansible.builtin.find:
+        paths: "{{ a2a_config_dir }}/agents"
+        patterns: ['*.json']
+      register: agent_card_files
+      tags: [deploy, config]
+
     - name: Update agent card versions
       ansible.builtin.shell: |
-        for f in {{ a2a_config_dir }}/agents/*.json; do
-          sed -i 's/"version": "0\.2\.0-alpha\.[0-9]*"/"version": "{{ a2a_version }}"/g' "$f"
-          sed -i 's/"version": "0\.2\.0"/"version": "{{ a2a_version }}"/g' "$f"
-        done
+        sed -i 's/"version": "0\.2\.0-alpha\.[0-9]*"/"version": "{{ a2a_version }}"/g' "{{ item.path }}"
+        sed -i 's/"version": "0\.2\.0"/"version": "{{ a2a_version }}"/g' "{{ item.path }}"
+      loop: "{{ agent_card_files.files }}"
+      when: agent_card_files.files | length > 0
       tags: [deploy, config]
 
   # ── Phase 4: Restart Service ─────────────────────────────────────────
@@ -190,7 +206,7 @@
     - name: Wait for A2A server to respond
       ansible.builtin.wait_for:
         port: 10000
-        host: "0.0.0.0"
+        host: "127.0.0.1"
         delay: 10
         timeout: 60
       tags: [deploy, restart]
