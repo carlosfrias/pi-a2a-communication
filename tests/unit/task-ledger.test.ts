@@ -102,4 +102,23 @@ describe("TaskLedger", () => {
       expect(t!.agentUrl).toBe("http://fnet3:4299/a2a");
     });
   });
+
+  describe("taskSpec + target retarget (6A2 parity)", () => {
+    it("stores taskSpec on add", async () => {
+      const lg = makeLedger();
+      await lg.add({ taskId: "t1", target: "local", modelTier: "cloud", status: "running", taskSpec: "heavy task" });
+      expect((await lg.get("t1"))!.taskSpec).toBe("heavy task");
+    });
+
+    it("retargets local→fleet with checkpoint + agentUrl (6A2)", async () => {
+      const lg = makeLedger();
+      await lg.add({ taskId: "run-1", target: "local", modelTier: "cloud", status: "running", taskSpec: "heavy" });
+      await lg.update("run-1", { checkpointRef: "heavy", target: "fleet", status: "dispatched", agentUrl: "http://fnet3/a2a" });
+      const t = await lg.get("run-1");
+      expect(t!.target).toBe("fleet");
+      expect(t!.status).toBe("dispatched");
+      expect(t!.checkpointRef).toBe("heavy");
+      expect(t!.agentUrl).toBe("http://fnet3/a2a");
+    });
+  });
 });

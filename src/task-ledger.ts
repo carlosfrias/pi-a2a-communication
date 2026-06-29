@@ -28,6 +28,8 @@ export interface TaskRecord {
   status: TaskStatus;
   checkpointRef?: string | null;
   result?: string | null;
+  /** The serialized task message/spec — stored so 6A2 can checkpoint + re-dispatch. */
+  taskSpec?: string | null;
   /** Fleet node A2A agent URL — needed by reclamation to call getTaskStatus. */
   agentUrl?: string | null;
   createdAt: string;
@@ -36,9 +38,11 @@ export interface TaskRecord {
 
 export interface TaskUpdate {
   status?: TaskStatus;
+  target?: TaskTarget;
   modelTier?: ModelTier;
   checkpointRef?: string | null;
   result?: string | null;
+  taskSpec?: string | null;
   agentUrl?: string | null;
 }
 
