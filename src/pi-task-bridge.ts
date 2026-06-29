@@ -11,6 +11,7 @@
  */
 
 import { spawn } from "node:child_process";
+import type { TaskLedger, CheckpointRef } from "./task-ledger.js";
 
 /**
  * Interface for task execution backends.
@@ -38,6 +39,19 @@ export interface PiTaskBridge {
     message: string,
     onProgress: (progress: string) => void
   ): Promise<string>;
+
+  /**
+   * Phase-2 (HE-4 / RULE 24): checkpoint an in-flight task to the ledger.
+   * MUST durably flush (await) before returning the ref — never cancel-then-hope.
+   * Captures enough state to resume on another node (6A2 migration).
+   */
+  checkpoint(taskId: string, message: string, ledger: TaskLedger): Promise<CheckpointRef>;
+
+  /**
+   * Resume execution from a checkpoint ref (e.g. on a remote fleet node after 6A2).
+   * Returns the result text, as executeTask would.
+   */
+  resume(ref: CheckpointRef, ledger: TaskLedger): Promise<string>;
 }
 
 /**
@@ -58,6 +72,18 @@ export class NoOpPiTaskBridge implements PiTaskBridge {
   ): Promise<string> {
     onProgress("Analyzing request...");
     onProgress("Processing task...");
+    return this.executeTask(message);
+  }
+
+  async checkpoint(taskId: string, message: string, ledger: TaskLedger): Promise<CheckpointRef> {
+    // RULE 24: await the flush before returning the ref.
+    await ledger.update(taskId, { checkpointRef: message });
+    return { taskId, ledgerKey: taskId };
+  }
+
+  async resume(ref: CheckpointRef, ledger: TaskLedger): Promise<string> {
+    const t = await ledger.get(ref.taskId);
+    const message = t?.checkpointRef ?? "";
     return this.executeTask(message);
   }
 }
@@ -143,5 +169,21 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     const result = await this.executeTask(message);
     onProgress("Generating response...");
     return result;
+  }
+
+  async checkpoint(taskId: string, message: string, ledger: TaskLedger): Promise<CheckpointRef> {
+    // Subprocess bridge is one-shot (`pi --print`); the resumable state IS the
+    // message. RULE 24: await the flush before returning.
+    await ledger.update(taskId, { checkpointRef: message });
+    return { taskId, ledgerKey: taskId };
+  }
+
+  async resume(ref: CheckpointRef, ledger: TaskLedger): Promise<string> {
+    const t = await ledger.get(ref.taskId);
+    if (!t || !t.checkpointRef) {
+      throw new Error(`Cannot resume ${ref.taskId}: no checkpoint recorded`);
+    }
+    // Re-invoke pi with the captured message (6A2 migration to this node).
+    return this.executeTask(t.checkpointRef);
   }
 }
