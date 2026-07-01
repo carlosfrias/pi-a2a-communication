@@ -1,9 +1,9 @@
 ---
 name: pi-a2a-communication
-phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
+phase: "Post-v0.4.0: A2A-to-fnet execution gap closed; follow-ups filed"
 progress: 100
 status: active
-last_updated: 2026-06-24
+last_updated: 2026-07-01
 ---
 
 # PLAN — pi-a2a-communication
@@ -276,6 +276,25 @@ Replaced `openbmb/minicpm-o2.6:8b` with `qwen3.5:35b-a3b` as flagship model on 3
 
 ---
 
+## Post-v0.4.0: A2A-to-fnet execution (2026-07-01) ✅
+
+The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks returned a NoOp placeholder, never executing. This workstream closed that gap.
+
+- [x] Extension builds in the pi install location — `prepare` script (9a7fcf0) + ambient `node:sqlite`/`better-sqlite3` decls (6a39222). Without this, `a2a_call`/`a2a_parallel` never loaded.
+- [x] `a2a_call` authenticates against auth-protected fleet agent cards — bearer header in `fetchAgentCard` + 2 conformance tests (e2c7e6b).
+- [x] fnet3 pi upgrade 0.79.4→0.80.3 — `upgrade-pi.yml` playbook, RULE 28, `become_user: friasc` for nvm (00277a7, f0db9fe). Good housekeeping; NOT the execution fix.
+- [x] fnet3 executes real A2A tasks — `PI_A2A_SKIP_SERVER` env gate in `index.ts` + `SubprocessPiTaskBridge` env-on-spawn + `stdio:['ignore','pipe','pipe']` + SIGTERM→SIGKILL (2c4db15). TDD (5 new tests; 111/111 unit + 39/39 conformance). Dual-model audit (deepseek-v4-pro validate + kimi-k2.7 audit). fnet3 returned `391` for `17×23` (qwen3.5:35b-a3b).
+- [~] GAP-2 (`PiSessionTaskHandler`) reclassified NON-FUNCTIONAL — design flaw: `ctx.newSession` is only on `ExtensionCommandContext`, not the `session_start` event's `ExtensionContext`. Always threw `PI_SESSION_UNAVAILABLE` → always fell back to the bridge. Filed for cleanup.
+
+### Follow-ups filed (not done)
+- [ ] a2a_call tool output-extraction quirk (returns `status.message.parts` input echo instead of `artifacts[0].parts` real answer)
+- [ ] Dead `PiSessionTaskHandler` cleanup (remove or own the bridge explicitly)
+- [ ] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`)
+- [ ] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart
+- [ ] M7.2: Upstream PR (unchanged — awaits user decision)
+
+---
+
 ## Decisions
 
 | Decision | Choice | Rationale |
@@ -290,4 +309,4 @@ Replaced `openbmb/minicpm-o2.6:8b` with `qwen3.5:35b-a3b` as flagship model on 3
 
 > 📋 **Checkbox states:** `[ ]` To Do | `[/]` In Progress | `[~]` Good Enough | `[x]` Done | `[>]` Deferred | `[!]` Blocked | `[-]` Cancelled
 
-*Last updated: 2026-06-23*
+*Last updated: 2026-07-01*
