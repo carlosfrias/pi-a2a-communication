@@ -122,7 +122,7 @@ describe('A2AServer — Characterization', () => {
         name: 'test-agent',
         description: 'A test agent'
       };
-      const securityConfig = { type: 'none' as const };
+      const securityConfig = { defaultScheme: 'bearer' as const, bearerToken: 'test-token', authFirst: true };
       runningServer = new A2AServer(serverConfig, securityConfig, mockCtx);
       await runningServer.start();
     });

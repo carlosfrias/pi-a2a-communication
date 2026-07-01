@@ -296,6 +296,9 @@ export interface DiscoveryConfig {
 export interface SecurityConfig {
   defaultScheme: "bearer" | "apiKey" | "oauth2" | "mtls" | "none";
   verifySsl: boolean;
+  /** When true, the public agent-card endpoint ALSO requires auth (hardened profile).
+   *  Default false = A2A v1.0 spec-compliant public card (discoverable pre-auth). */
+  authFirst?: boolean;
   apiKey?: string;
   bearerToken?: string;
   oauth2Config?: {

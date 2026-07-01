@@ -94,7 +94,7 @@ describe('A2A v1.0 Protocol Conformance', () => {
   beforeAll(async () => {
     server = new A2AServer(
       { enabled: true, port: TEST_PORT, host: TEST_HOST },
-      { defaultScheme: 'bearer', bearerToken: TEST_TOKEN },
+      { defaultScheme: 'bearer', bearerToken: TEST_TOKEN, authFirst: true },
       null
     );
     await server.start();

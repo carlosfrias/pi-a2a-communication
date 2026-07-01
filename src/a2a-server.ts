@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import { URL } from "node:url";
 import * as os from "node:os";
 import * as path from "node:path";
+import { timingSafeEqual } from "node:crypto";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { NoOpPiTaskBridge } from "./pi-task-bridge.js";
 import type { PiTaskBridge } from "./pi-task-bridge.js";
@@ -35,6 +36,14 @@ type TaskHandler = (task: A2ATask, onUpdate: (update: Partial<A2ATask>) => void)
 /**
  * A2A Server class
  */
+/** Constant-time string comparison to avoid timing side-channels on token checks. */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
 export class A2AServer {
   private config: ServerConfig;
   private security: SecurityConfig;
@@ -167,18 +176,25 @@ export class A2AServer {
       // A2A v1.0 spec: Public agent card endpoints do NOT require authentication.
       // Only JSON-RPC endpoints and task endpoints require auth.
       // See: https://a2a-protocol.org/v1.0.0/specification/ Section 5 & 8
-      const isPublicAgentCard = path === "/.well-known/agent-card.json"
+      //
+      // authFirst (hardened profile, opt-in): when true, the agent card ALSO
+      // requires auth (401 + WWW-Authenticate without credentials). Default false =
+      // spec-compliant public card so clients can discover the agent + its security
+      // schemes pre-auth. Route dispatch (isCardPath) is separate from the auth
+      // exemption so the card is still served when authenticated under authFirst.
+      const isCardPath = path === "/.well-known/agent-card.json"
         || path === "/.well-known/agent.json"
         || path === "/.well-known/agent-card";
-
-      if (!isPublicAgentCard && !this.isAuthenticated(req)) {
+      const cardRequiresAuth = !!this.security.authFirst;
+      // Auth required for every non-card path; for the card only when authFirst.
+      if ((!isCardPath || cardRequiresAuth) && !this.isAuthenticated(req)) {
         res.setHeader("WWW-Authenticate", "Bearer");
         this.sendError(res, 401, "Unauthorized");
         return;
       }
 
       // Route requests
-      if (isPublicAgentCard) {
+      if (isCardPath) {
         await this.handleAgentCard(req, res);
       } else if (path === "/" || path === "") {
         // A2A v1.0 spec: root endpoint with JSON-RPC method dispatch
@@ -1064,23 +1080,33 @@ export class A2AServer {
    * Check if request is authenticated
    */
   private isAuthenticated(req: http.IncomingMessage): boolean {
-    // If no security configured, allow all
+    // scheme "none": allow all ONLY when not in authFirst (hardened) mode.
+    // authFirst + none is a misconfiguration that would silently void hardening,
+    // so fail closed (forces a real scheme).
     if (this.security.defaultScheme === "none") {
-      return true;
+      return !this.security.authFirst;
     }
 
     const authHeader = req.headers.authorization;
-    
     if (!authHeader) {
       return false;
     }
 
     switch (this.security.defaultScheme) {
-      case "bearer":
-        return authHeader === `Bearer ${this.security.bearerToken}`;
-      case "apiKey":
-        return authHeader === `ApiKey ${this.security.apiKey}`;
+      case "bearer": {
+        // Empty/missing configured token -> fail closed (never authenticate),
+        // so an unconfigured bearer scheme can't be bypassed with "Bearer ".
+        const expected = this.security.bearerToken;
+        if (!expected) return false;
+        return safeEqual(authHeader, `Bearer ${expected}`);
+      }
+      case "apiKey": {
+        const expected = this.security.apiKey;
+        if (!expected) return false;
+        return safeEqual(authHeader, `ApiKey ${expected}`);
+      }
       default:
+        // oauth2/mtls not implemented -> fail closed (do not authenticate).
         return false;
     }
   }
