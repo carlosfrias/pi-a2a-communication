@@ -80,8 +80,9 @@ export default function (pi: ExtensionAPI) {
     // Initialize A2A client
     a2aClient = new A2AClient(config.client, config.security);
 
-    // Initialize agent discovery
-    agentDiscovery = new AgentDiscovery(config.discovery);
+    // Initialize agent discovery (with security so agent-card fetches
+    // authenticate against auth-protected fleet nodes)
+    agentDiscovery = new AgentDiscovery(config.discovery, config.security);
 
     // Initialize task manager
     taskManager = new TaskManager(a2aClient, config.client);

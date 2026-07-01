@@ -872,4 +872,86 @@ describe("AgentDiscovery uses correct Agent Card path", () => {
 
     fetchSpy.mockRestore();
   });
+
+  it("should attach Authorization: Bearer header to agent-card fetch when token configured", async () => {
+    const discoveryConfig = {
+      cacheEnabled: false,
+      cacheTtl: 300000,
+      agentCardPath: AGENT_CARD_PATH,
+    };
+    const security = { defaultScheme: "bearer" as const, verifySsl: true, bearerToken: "lab-fleet-2026" };
+    const discovery = new AgentDiscovery(discoveryConfig, security);
+
+    const mockCard: AgentCard = {
+      name: "fnet3",
+      description: "auth-protected fleet node",
+      url: "http://fnet3:10000",
+      version: "0.3.0",
+      skills: [{ id: "a2a-task-execution", name: "A2A Task Execution", description: "exec", tags: ["a2a"] }],
+      capabilities: { streaming: true },
+      defaultInputModes: ["text/plain"],
+      defaultOutputModes: ["text/plain"],
+    };
+
+    let capturedHeaders: Record<string, string> = {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
+      capturedHeaders = init?.headers ?? {};
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: { get: () => null },
+        json: async () => mockCard,
+      };
+    }));
+
+    await discovery.discoverAgent("http://fnet3:10000");
+
+    // The bearer token MUST be attached so auth-protected agent cards return 200, not 401.
+    expect(capturedHeaders["Authorization"]).toBe("Bearer lab-fleet-2026");
+    expect(capturedHeaders["Accept"]).toBe("application/json");
+    // capturedHeaders being populated proves fetch was invoked with the auth header attached.
+
+    vi.unstubAllGlobals();
+  });
+
+  it("should NOT attach Authorization header when no bearer token configured (backward compat)", async () => {
+    const discoveryConfig = {
+      cacheEnabled: false,
+      cacheTtl: 300000,
+      agentCardPath: AGENT_CARD_PATH,
+    };
+    // No security passed — legacy behavior (no auth header).
+    const discovery = new AgentDiscovery(discoveryConfig);
+
+    const mockCard: AgentCard = {
+      name: "open-agent",
+      description: "unauthenticated",
+      url: "http://open:10000",
+      version: "1.0.0",
+      skills: [{ id: "t", name: "T", description: "t", tags: ["t"] }],
+      capabilities: { streaming: true },
+      defaultInputModes: ["text/plain"],
+      defaultOutputModes: ["text/plain"],
+    };
+
+    let capturedHeaders: Record<string, string> = {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
+      capturedHeaders = init?.headers ?? {};
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: { get: () => null },
+        json: async () => mockCard,
+      };
+    }));
+
+    await discovery.discoverAgent("http://open:10000");
+
+    expect(capturedHeaders["Authorization"]).toBeUndefined();
+    expect(capturedHeaders["Accept"]).toBe("application/json");
+
+    vi.unstubAllGlobals();
+  });
 });

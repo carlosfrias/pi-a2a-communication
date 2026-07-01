@@ -11,6 +11,7 @@ import type {
   DiscoveryConfig, 
   CachedAgent,
   AgentHealth,
+  SecurityConfig,
 } from "./types.js";
 import { AGENT_CARD_PATH, AGENT_CARD_DISCOVERY_PATHS } from "./types.js";
 
@@ -19,11 +20,25 @@ import { AGENT_CARD_PATH, AGENT_CARD_DISCOVERY_PATHS } from "./types.js";
  */
 export class AgentDiscovery {
   private config: DiscoveryConfig;
+  private security?: SecurityConfig;
   private cache: Map<string, CachedAgent> = new Map();
   private healthChecks: Map<string, AgentHealth> = new Map();
 
-  constructor(config: DiscoveryConfig) {
+  constructor(config: DiscoveryConfig, security?: SecurityConfig) {
     this.config = config;
+    this.security = security;
+  }
+
+  /**
+   * Build the Authorization header for agent-card fetches when a bearer
+   * token is configured. Agent cards on auth-protected servers (e.g. the
+   * lab fleet) return 401 without it, so discovery must authenticate.
+   */
+  private agentCardAuthHeader(): string | undefined {
+    if (this.security?.bearerToken) {
+      return `Bearer ${this.security.bearerToken}`;
+    }
+    return undefined;
   }
 
   /**
@@ -384,11 +399,16 @@ export class AgentDiscovery {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.config.timeout || 10000);
 
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      const authHeader = this.agentCardAuthHeader();
+      if (authHeader) {
+        headers["Authorization"] = authHeader;
+      }
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: {
-          Accept: "application/json",
-        },
+        headers,
       });
 
       clearTimeout(timeout);
