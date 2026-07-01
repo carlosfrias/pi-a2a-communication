@@ -23,7 +23,8 @@
     "prepublishOnly": "npm run build",
     "prepare": "npm run build",
     "lint": "eslint . --ext .ts",
-    "test": "vitest"
+    "test": "vitest",
+    "test:build": "bash scripts/test-prod-build.sh"
   },
   "keywords": [
     "pi",
