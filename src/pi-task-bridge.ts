@@ -121,11 +121,20 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
   async executeTask(message: string): Promise<string> {
     return new Promise((resolve, reject) => {
+      // PI_A2A_SKIP_SERVER: the spawned `pi --print` loads this same A2A
+      // extension (it's in the user's settings.json). Without this gate, the
+      // child's session_start handler re-binds port 10000 -> EADDRINUSE (port
+      // already held by the fleet pi-agent service) -> unhandled rejection ->
+      // the child hangs and never prints, hitting the bridge timeout. The env
+      // var is read in src/index.ts to skip the server-start block in the child.
+      // stdio: stdin is 'ignore' so the child never blocks waiting for EOF.
       const proc = spawn(this.command, ["--print", "--no-session", message], {
         timeout: this.timeout,
-        stdio: ["pipe", "pipe", "pipe"],
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PI_A2A_SKIP_SERVER: "1" },
       });
 
+      let settled = false;
       let stdout = "";
       let stderr = "";
 
@@ -138,6 +147,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       });
 
       proc.on("close", (code: number | null) => {
+        if (settled) return;
+        settled = true;
         if (code === 0) {
           resolve(stdout.trim());
         } else {
@@ -146,6 +157,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       });
 
       proc.on("error", (err: Error) => {
+        if (settled) return;
+        settled = true;
         if ((err as NodeJS.ErrnoException).code === "ENOENT") {
           reject(new Error(`Pi CLI not found: ${err.message}. Ensure pi is installed and in PATH.`));
         } else {
@@ -153,11 +166,21 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
         }
       });
 
-      // Set timeout
-      setTimeout(() => {
+      // Timeout: SIGTERM first, then SIGKILL after a grace period so a stuck
+      // child cannot become a zombie. Reject once.
+      const killTimer = setTimeout(() => {
         proc.kill("SIGTERM");
+        setTimeout(() => {
+          proc.kill("SIGKILL");
+        }, 5000);
+        if (settled) return;
+        settled = true;
         reject(new Error(`Pi process timed out after ${this.timeout}ms`));
       }, this.timeout);
+
+      // If the process exits before the timeout fires, clear the kill timer to
+      // avoid a dangling SIGKILL against an already-exited pid.
+      proc.on("close", () => clearTimeout(killTimer));
     });
   }
 

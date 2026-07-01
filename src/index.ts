@@ -87,8 +87,12 @@ export default function (pi: ExtensionAPI) {
     // Initialize task manager
     taskManager = new TaskManager(a2aClient, config.client);
 
-    // Initialize A2A server if enabled
-    if (config.server?.enabled) {
+    // Initialize A2A server if enabled AND not suppressed.
+    // PI_A2A_SKIP_SERVER is set by SubprocessPiTaskBridge on the spawned
+    // `pi --print` child so it does NOT re-bind port 10000 (EADDRINUSE vs
+    // the running fleet pi-agent service). The child only needs to execute
+    // the prompt and print, not serve A2A.
+    if (config.server?.enabled && !process.env.PI_A2A_SKIP_SERVER) {
       // Create PiTaskBridge from config
       let bridge: PiTaskBridge;
       if (config.bridge?.type === "subprocess") {
@@ -112,6 +116,8 @@ export default function (pi: ExtensionAPI) {
 
       await a2aServer.start();
       ctx.ui?.notify?.(`A2A server started on ${config.server.host}:${config.server.port}`, "info");
+    } else if (process.env.PI_A2A_SKIP_SERVER) {
+      ctx.ui?.notify?.("A2A server skipped (PI_A2A_SKIP_SERVER) — child process mode", "info");
     }
 
     ctx.ui?.notify?.("A2A communication initialized", "info");
