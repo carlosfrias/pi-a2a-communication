@@ -19,7 +19,6 @@
     "noUnusedParameters": false,
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": false,
-    "baseUrl": ".",
     "paths": {
       "@mariozechner/pi-coding-agent": ["./types/pi-runtime.d.ts"],
       "@mariozechner/pi-ai": ["./types/pi-runtime.d.ts"],
@@ -27,7 +26,7 @@
       "@mariozechner/pi-agent-core": ["./types/pi-runtime.d.ts"]
     }
   },
-    "include": [
+  "include": [
     "src/**/*.ts",
     "types/**/*.ts"
   ],
