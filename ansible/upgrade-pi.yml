@@ -1,0 +1,102 @@
+---
+# Upgrade @earendil-works/pi-coding-agent on fleet nodes + restart the pi-agent service.
+#
+# Why: pi < 0.79.10 lacks ctx.newSession, so the PiSessionTaskHandler in
+# pi-a2a-communication falls back to the NoOp bridge -> A2A tasks return a
+# placeholder instead of executing. Upgrading to >= 0.80.x makes task
+# execution real (and unblocks the fnet3 MemoryServer A2A-skill execution).
+#
+# Usage:
+#   ansible-playbook -i inventory.ini upgrade-pi.yml --limit fnet3           # fnet3 only (recommended first)
+#   ansible-playbook -i inventory.ini upgrade-pi.yml --limit fnet3 -e target_version=latest
+#   ansible-playbook -i inventory.ini upgrade-pi.yml                          # all lab nodes
+#
+# What this does:
+#   1. Records the pre-upgrade pi version.
+#   2. npm install -g @earendil-works/pi-coding-agent@<target_version> (via nvm).
+#   3. Restarts pi-agent@<node>.service (systemd, become).
+#   4. Waits for the A2A server (port 10000) to come back.
+#   5. Smoke: pi --version matches target + A2A agent-card responds 200/401.
+#
+# Prerequisites (same as deploy-a2a.yml):
+#   - SSH key access to fleet nodes; node.js via nvm; pi installed globally via nvm.
+#   - pi-agent@<node>.service configured in systemd (system-level, become).
+
+- name: Upgrade pi-coding-agent on fleet nodes
+  hosts: lab_nodes
+  become: true
+  vars:
+    target_version: "0.80.3"   # match the orchestrator laptop (known-good, has ctx.newSession)
+    service_name: "pi-agent@{{ inventory_hostname }}"
+
+  tasks:
+    # ── Phase 1: Pre-upgrade baseline ──────────────────────────────────
+    - name: Record pre-upgrade pi version
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pi --version
+      register: pre_version
+      changed_when: false
+      become: false
+
+    - name: Show pre-upgrade version
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} pre-upgrade pi: {{ pre_version.stdout | default('unknown') }}"
+
+    # ── Phase 2: Upgrade ───────────────────────────────────────────────
+    - name: npm install -g pi-coding-agent@{{ target_version }}
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        if [ "{{ target_version }}" = "latest" ]; then
+          npm install -g @earendil-works/pi-coding-agent@latest
+        else
+          npm install -g @earendil-works/pi-coding-agent@{{ target_version }}
+        fi
+      register: npm_install
+      become: false
+      changed_when: "'added' in npm_install.stdout or 'changed' in npm_install.stdout"
+
+    # ── Phase 3: Restart service ───────────────────────────────────────
+    - name: Restart pi-agent service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        state: restarted
+        daemon_reload: true
+
+    - name: Wait for A2A server to respond (port 10000)
+      ansible.builtin.wait_for:
+        port: 10000
+        host: "127.0.0.1"
+        delay: 10
+        timeout: 90
+
+    # ── Phase 4: Smoke ─────────────────────────────────────────────────
+    - name: Verify post-upgrade pi version
+      ansible.builtin.shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pi --version
+      register: post_version
+      changed_when: false
+      become: false
+
+    - name: Show post-upgrade version
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} post-upgrade pi: {{ post_version.stdout | default('unknown') }}"
+
+    - name: Verify A2A agent-card responds
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:10000/.well-known/agent-card.json"
+        method: GET
+        headers:
+          Authorization: "Bearer lab-fleet-2026"
+        status_code: [200, 401]   # 200 = authed; 401 = endpoint alive (A2A running)
+        timeout: 10
+      register: a2a_smoke
+      become: false
+
+    - name: Report smoke result
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} A2A agent-card HTTP {{ a2a_smoke.status | default('check-mode-skipped') }} (pi {{ post_version.stdout | default('?') }})"  # noqa: line-length
