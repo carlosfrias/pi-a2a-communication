@@ -1,19 +1,19 @@
 ---
 name: pi-a2a-communication
-summary: "v0.4.0 deployed. All gaps resolved. qwen3.5:35b-a3b flagship on 32GB nodes (10.4 tok/s). pi-model-router removed from fleet. 215 tests. M7.2 PR assessment ready for review."
+summary: "A2A-to-fnet gap CLOSED: transport+auth+real model execution proven (fnet3 returned 391). Fixed unbuilt-extension, 401 auth, dead PiSessionTaskHandler (design flaw), EADDRINUSE on subprocess spawn. TDD + dual-model audit. v0.4.0 + new fixes deployed. Follow-ups filed."
 status: active
-phase: "Post-M10: Gap Remediation Complete — v0.4.0 released"
+phase: "Post-v0.4.0: A2A-to-fnet execution gap closed; follow-ups filed"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-06-24
+updated: 2026-07-01
 ---
 
 # FOCUS — pi-a2a-communication
 
 ## [S-TIGHT]
 
-**v0.4.0 deployed to fleet. All gaps resolved. qwen3.5:35b-a3b (MoE 36B/3B active) is the flagship model on 32GB nodes — 10.4 tok/s CPU, tools+thinking+vision. pi-model-router removed from fleet (Ansible manages routing). 23 local + 10 cloud-via-A2A routes on 32GB nodes. Only M7.2 (upstream PR) remains for user decision.**
+**A2A-to-fnet gap CLOSED (2026-07-01).** The extension now builds in the pi install location (prepare script), `a2a_call` authenticates (bearer header), and fnet3 ACTUALLY EXECUTES dispatched tasks via the subprocess bridge + `PI_A2A_SKIP_SERVER` env gate (returned a real model answer `391` for `17×23`, qwen3.5:35b-a3b). The original "all gaps resolved" claim was overstated — GAP-2's `PiSessionTaskHandler` was dead code (a design flaw: `ctx.newSession` is only on `ExtensionCommandContext`, not the session_start event's `ExtensionContext`), so execution was always a NoOp placeholder until this session. fnet3 on pi 0.80.3. Follow-ups filed (not done): a2a_call output-extraction quirk, dead-handler cleanup, Option B (command-context reuse to avoid per-task cold start). M7.2 upstream PR still awaits user decision. **⚠ pi `/reload` does NOT re-evaluate extension ESM modules — a full process restart is required to load a rebuilt `dist/`.**
 
 ## What's Done
 
@@ -23,7 +23,8 @@ updated: 2026-06-24
 - ✅ M9: Client features — broadcast, chain, status, a2a_chain tool
 - ✅ M10: Server integration — PiTaskBridge, SubprocessPiTaskBridge, session handler
 - ✅ GAP-1: node-router archived, migrated to fleet-resource-manager
-- ✅ GAP-2: PiSessionTaskHandler implemented (ctx.newSession, adaptive polling)
+- ⚠️ GAP-2: PiSessionTaskHandler implemented but **NON-FUNCTIONAL** — it checks `ctx.newSession` from the session_start event handler, where `ctx` is `ExtensionContext` (no `newSession`; that's only on `ExtensionCommandContext`). Always throws `PI_SESSION_UNAVAILABLE` → always falls back to the bridge. Filed for cleanup.
+- ✅ A2A-TO-FNET EXECUTION (2026-07-01): extension now builds (prepare script), `a2a_call` authenticates (bearer header), fnet3 executes real tasks (subprocess bridge + `PI_A2A_SKIP_SERVER` env gate + stdio/SIGKILL fix). TDD + dual-model audit. Spine proven end-to-end (fnet3 returned `391`). Commits: 9a7fcf0, 6a39222, e2c7e6b, 00277a7, f0db9fe, 2c4db15.
 - ✅ GAP-3: Fleet model profiles created and deployed
 - ✅ GAP-3.5: qwen3.5:35b-a3b deployed as flagship on 32GB nodes
 - ✅ GAP-4: capacity_score fix confirmed in fleet-resource-manager v0.1.0
