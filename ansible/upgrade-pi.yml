@@ -24,7 +24,9 @@
 
 - name: Upgrade pi-coding-agent on fleet nodes
   hosts: lab_nodes
-  become: true
+  # Inventory sets ansible_become=true (sudo). nvm/npm tasks escalate then
+  # drop to friasc via become_user: friasc (friasc owns the nvm/pi install);
+  # the systemd restart task runs as root (default become_user).
   vars:
     target_version: "0.80.3"   # match the orchestrator laptop (known-good, has ctx.newSession)
     service_name: "pi-agent@{{ inventory_hostname }}"
@@ -36,9 +38,12 @@
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
         pi --version
+      args:
+        executable: /bin/bash
       register: pre_version
       changed_when: false
-      become: false
+      become: true
+      become_user: friasc
 
     - name: Show pre-upgrade version
       ansible.builtin.debug:
@@ -54,9 +59,12 @@
         else
           npm install -g @earendil-works/pi-coding-agent@{{ target_version }}
         fi
+      args:
+        executable: /bin/bash
       register: npm_install
-      become: false
       changed_when: "'added' in npm_install.stdout or 'changed' in npm_install.stdout"
+      become: true
+      become_user: friasc
 
     # ── Phase 3: Restart service ───────────────────────────────────────
     - name: Restart pi-agent service
@@ -64,6 +72,7 @@
         name: "{{ service_name }}"
         state: restarted
         daemon_reload: true
+      become: true       # systemd service is system-level; needs root
 
     - name: Wait for A2A server to respond (port 10000)
       ansible.builtin.wait_for:
@@ -78,9 +87,12 @@
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
         pi --version
+      args:
+        executable: /bin/bash
       register: post_version
       changed_when: false
-      become: false
+      become: true
+      become_user: friasc
 
     - name: Show post-upgrade version
       ansible.builtin.debug:
@@ -95,7 +107,6 @@
         status_code: [200, 401]   # 200 = authed; 401 = endpoint alive (A2A running)
         timeout: 10
       register: a2a_smoke
-      become: false
 
     - name: Report smoke result
       ansible.builtin.debug:
