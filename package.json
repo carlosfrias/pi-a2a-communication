@@ -21,6 +21,7 @@
     "build": "tsc && npm run build:cjs",
     "build:cjs": "tsc -p tsconfig.cjs.json && mv dist/cjs/index.js dist/index.cjs",
     "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "lint": "eslint . --ext .ts",
     "test": "vitest"
   },
