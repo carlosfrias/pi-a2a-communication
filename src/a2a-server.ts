@@ -352,14 +352,19 @@ export class A2AServer {
         this.sendJSONRPCResponse(res, request.id ?? null, { task });
         this.processTask(task).catch(console.error);
       } else {
+        const ac = new AbortController();
+        const onClose = () => ac.abort();
+        req.on("close", onClose);
         try {
-          const completedTask = await this.processTask(task);
+          const completedTask = await this.processTask(task, ac.signal);
           this.sendJSONRPCResponse(res, request.id ?? null, { task: completedTask });
         } catch (error) {
           task.status.state = "failed";
           task.isError = true;
           task.error = String(error);
           this.sendJSONRPCResponse(res, request.id ?? null, { task });
+        } finally {
+          req.off("close", onClose);
         }
       }
     }
@@ -715,14 +720,19 @@ export class A2AServer {
         this.processTask(task).catch(console.error);
       } else {
         // Wait for task completion
+        const ac = new AbortController();
+        const onClose = () => ac.abort();
+        req.on("close", onClose);
         try {
-          const completedTask = await this.processTask(task);
+          const completedTask = await this.processTask(task, ac.signal);
           this.sendJSONRPCResponse(res, request.id, { task: completedTask });
         } catch (error) {
           task.status.state = "failed";
           task.isError = true;
           task.error = String(error);
           this.sendJSONRPCResponse(res, request.id, { task });
+        } finally {
+          req.off("close", onClose);
         }
       }
     }
@@ -842,7 +852,7 @@ export class A2AServer {
   /**
    * Process a task (non-streaming)
    */
-  private async processTask(task: A2ATask): Promise<A2ATask> {
+  private async processTask(task: A2ATask, signal?: AbortSignal): Promise<A2ATask> {
     // Update state to working
     task.status.state = "working";
     task.status.timestamp = new Date().toISOString();
@@ -886,7 +896,7 @@ export class A2AServer {
         .join("\n");
 
       // Execute using pi's capabilities
-      const result = await this.executePiTask(textContent);
+      const result = await this.executePiTask(textContent, signal);
 
       // Update task with result
       task.status.state = "completed";
@@ -1062,8 +1072,8 @@ export class A2AServer {
   /**
    * Execute a task using pi's capabilities
    */
-  private async executePiTask(message: string): Promise<string> {
-    return this.piTaskBridge.executeTask(message);
+  private async executePiTask(message: string, signal?: AbortSignal): Promise<string> {
+    return this.piTaskBridge.executeTask(message, signal);
   }
 
   /**

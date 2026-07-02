@@ -28,7 +28,7 @@ export interface PiTaskBridge {
    * @param message The text content extracted from the A2A message
    * @returns The result text to send back as the task response
    */
-  executeTask(message: string): Promise<string>;
+  executeTask(message: string, signal?: AbortSignal): Promise<string>;
 
   /**
    * Execute a task with progress callbacks for streaming updates.
@@ -63,7 +63,7 @@ export interface PiTaskBridge {
  * for backward compatibility.
  */
 export class NoOpPiTaskBridge implements PiTaskBridge {
-  async executeTask(message: string): Promise<string> {
+  async executeTask(message: string, _signal?: AbortSignal): Promise<string> {
     return `[A2A Task Result]\n\nMessage received: ${message}\n\nThis is a placeholder response from the NoOp bridge. Replace with a real PiTaskBridge implementation.`;
   }
 
@@ -151,16 +151,19 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
   }
 
-  async executeTask(message: string): Promise<string> {
+  async executeTask(message: string, signal?: AbortSignal): Promise<string> {
     // Concurrency cap (maxConcurrent <= 0 = unlimited). Protects CPU/RAM-
     // constrained nodes from N simultaneous `pi --print` processes. Tasks
-    // beyond the cap queue and wait.
+    // beyond the cap queue and wait. Node is single-threaded: the capacity
+    // check and `active++` run with no await between them, so admission is
+    // atomic (no burst overshoot); waiters are released one-at-a-time via
+    // shift() in the finally below.
     if (this.maxConcurrent > 0 && this.active >= this.maxConcurrent) {
       await new Promise<void>((resolve) => this.waiters.push(resolve));
     }
     this.active++;
     try {
-      return await this.runSubprocess(message);
+      return await this.runSubprocess(message, signal);
     } finally {
       this.active--;
       const next = this.waiters.shift();
@@ -168,7 +171,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     }
   }
 
-  private runSubprocess(message: string): Promise<string> {
+  private runSubprocess(message: string, signal?: AbortSignal): Promise<string> {
     return new Promise((resolve, reject) => {
       // PI_A2A_SKIP_SERVER: the spawned `pi --print` loads this same A2A
       // extension (in the user's settings.json). Without this gate the child's
@@ -195,6 +198,10 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       });
 
       let settled = false;
+      // procExited guards every proc.kill() so a late SIGTERM/SIGKILL (timeout
+      // or external abort firing as the child exits) cannot target a dead or
+      // reused PID.
+      let procExited = false;
       // StringDecoder handles multi-byte UTF-8 split across chunk boundaries
       // (data.toString() per chunk can split a code point). Byte counters make
       // maxBuffer byte-accurate (string .length counts chars, not bytes).
@@ -208,15 +215,30 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
       // SINGLE manual timeout timer (no spawn `timeout`, to avoid a double
       // SIGTERM). SIGTERM first, then SIGKILL after a grace period. Both timers
-      // are cleared on close/error so a late SIGKILL cannot hit a reused PID.
+      // are cleared on close/error; every kill is guarded by procExited.
       let sigKillTimer: NodeJS.Timeout | null = null;
       const killTimer = setTimeout(() => {
-        proc.kill("SIGTERM");
-        sigKillTimer = setTimeout(() => proc.kill("SIGKILL"), 5000);
+        if (!procExited) {
+          proc.kill("SIGTERM");
+          sigKillTimer = setTimeout(() => { if (!procExited) proc.kill("SIGKILL"); }, 5000);
+        }
         if (settled) return;
         settled = true;
         reject(new Error(`Pi process timed out after ${this.timeout}ms`));
       }, this.timeout);
+
+      // External cancellation: if the caller aborts the signal, kill the child.
+      // (Only the synchronous wait path wires a signal; fire-and-forget/
+      // returnImmediately tasks do not, so a client disconnecting after a queued
+      // ack won't cancel them.)
+      const onAbort = () => { if (!procExited && !settled) proc.kill("SIGTERM"); };
+      if (signal) {
+        if (signal.aborted) {
+          if (!procExited) proc.kill("SIGTERM");
+        } else {
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+      }
 
       proc.stdout.on("data", (data: Buffer) => {
         stdoutBytes += data.length;
@@ -237,10 +259,12 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       });
 
       proc.on("close", (code: number | null) => {
+        procExited = true;
         if (settled) return;
         settled = true;
         clearTimeout(killTimer);
         if (sigKillTimer) clearTimeout(sigKillTimer);
+        if (signal) signal.removeEventListener("abort", onAbort);
         // Flush any trailing partial multi-byte bytes from the decoders.
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
@@ -254,10 +278,12 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       });
 
       proc.on("error", (err: Error) => {
+        procExited = true;
         if (settled) return;
         settled = true;
         clearTimeout(killTimer);
         if (sigKillTimer) clearTimeout(sigKillTimer);
+        if (signal) signal.removeEventListener("abort", onAbort);
         // Flush any trailing partial multi-byte bytes from the decoders so
         // captured stderr can be included in the error context.
         stdout += stdoutDecoder.end();
