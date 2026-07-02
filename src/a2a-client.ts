@@ -460,7 +460,7 @@ export class A2AClient {
     }
 
     try {
-      const response = await this.httpPost(url, body, headers, options.timeout || this.config.timeout);
+      const response = await this.httpPost(url, body, headers, options.timeout || this.config.timeout, options.signal);
       
       if (!response.ok) {
         // Retry on 5xx errors
@@ -641,7 +641,8 @@ export class A2AClient {
     url: string,
     body: string,
     headers: Record<string, string>,
-    timeout: number
+    timeout: number,
+    signal?: AbortSignal
   ): Promise<{ ok: boolean; status: number; statusText: string; json: () => Promise<any> }> {
     return new Promise((resolve, reject) => {
       const urlObj = new URL(url);
@@ -671,7 +672,20 @@ export class A2AClient {
         });
       });
 
+      // Forward AbortSignal: abort the in-flight request when the caller cancels.
+      const onAbort = () => req.destroy(new Error("Aborted"));
+      if (signal) {
+        if (signal.aborted) {
+          req.destroy(new Error("Aborted"));
+        } else {
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+      }
+
       req.on("error", reject);
+      req.on("close", () => {
+        if (signal) signal.removeEventListener("abort", onAbort);
+      });
       req.on("timeout", () => {
         req.destroy();
         reject(new Error("Request timeout"));

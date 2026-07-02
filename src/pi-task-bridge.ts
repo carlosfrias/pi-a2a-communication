@@ -11,6 +11,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import type { TaskLedger, CheckpointRef } from "./task-ledger.js";
 
 /**
@@ -151,9 +152,10 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
   }
 
   async executeTask(message: string): Promise<string> {
-    // Concurrency cap: protect CPU/RAM-constrained nodes from N simultaneous
-    // `pi --print` processes. Tasks beyond maxConcurrent queue and wait.
-    if (this.active >= this.maxConcurrent) {
+    // Concurrency cap (maxConcurrent <= 0 = unlimited). Protects CPU/RAM-
+    // constrained nodes from N simultaneous `pi --print` processes. Tasks
+    // beyond the cap queue and wait.
+    if (this.maxConcurrent > 0 && this.active >= this.maxConcurrent) {
       await new Promise<void>((resolve) => this.waiters.push(resolve));
     }
     this.active++;
@@ -193,8 +195,15 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       });
 
       let settled = false;
+      // StringDecoder handles multi-byte UTF-8 split across chunk boundaries
+      // (data.toString() per chunk can split a code point). Byte counters make
+      // maxBuffer byte-accurate (string .length counts chars, not bytes).
+      const stdoutDecoder = new StringDecoder("utf8");
+      const stderrDecoder = new StringDecoder("utf8");
       let stdout = "";
       let stderr = "";
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
       let overflowed = false;
 
       // SINGLE manual timeout timer (no spawn `timeout`, to avoid a double
@@ -210,16 +219,18 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       }, this.timeout);
 
       proc.stdout.on("data", (data: Buffer) => {
-        stdout += data.toString();
-        if (stdout.length > this.maxBufferBytes) {
+        stdoutBytes += data.length;
+        stdout += stdoutDecoder.write(data);
+        if (stdoutBytes > this.maxBufferBytes) {
           overflowed = true;
           proc.kill("SIGTERM");
         }
       });
 
       proc.stderr.on("data", (data: Buffer) => {
-        stderr += data.toString();
-        if (stderr.length > this.maxBufferBytes) {
+        stderrBytes += data.length;
+        stderr += stderrDecoder.write(data);
+        if (stderrBytes > this.maxBufferBytes) {
           overflowed = true;
           proc.kill("SIGTERM");
         }
@@ -230,6 +241,9 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
         settled = true;
         clearTimeout(killTimer);
         if (sigKillTimer) clearTimeout(sigKillTimer);
+        // Flush any trailing partial multi-byte bytes from the decoders.
+        stdout += stdoutDecoder.end();
+        stderr += stderrDecoder.end();
         if (overflowed) {
           reject(new Error(`Pi subprocess output exceeded ${this.maxBufferBytes} bytes and was killed.`));
         } else if (code === 0) {
