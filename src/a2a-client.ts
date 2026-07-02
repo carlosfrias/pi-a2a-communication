@@ -474,6 +474,10 @@ export class A2AClient {
 
       return await response.json();
     } catch (error) {
+      // Fail fast on caller abort — do NOT retry an aborted request.
+      if (options.signal?.aborted || (error instanceof Error && error.message === "Aborted")) {
+        throw error;
+      }
       // Retry on network errors
       if (attempt < this.config.retryAttempts) {
         await this.delay(this.config.retryDelay * Math.pow(2, attempt));

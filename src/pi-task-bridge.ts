@@ -258,6 +258,10 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
         settled = true;
         clearTimeout(killTimer);
         if (sigKillTimer) clearTimeout(sigKillTimer);
+        // Flush any trailing partial multi-byte bytes from the decoders so
+        // captured stderr can be included in the error context.
+        stdout += stdoutDecoder.end();
+        stderr += stderrDecoder.end();
         const code = (err as NodeJS.ErrnoException).code;
         if (code === "ENOENT") {
           reject(new Error(`Pi CLI not found: ${err.message}. Ensure pi is installed and in PATH.`));

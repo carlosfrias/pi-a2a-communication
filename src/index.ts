@@ -740,7 +740,7 @@ Examples:
           ?.map(p => p.text)
           ?.join("\n") || "(no output)";
 
-        const failed = result.status?.state === "failed" || result.status?.state === "canceled";
+        const failed = result.status?.state === "failed" || result.status?.state === "canceled" || result.status?.state === "rejected";
         return {
           content: [{ type: "text", text: output }],
           isError: failed,
