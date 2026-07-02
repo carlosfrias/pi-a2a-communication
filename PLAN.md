@@ -288,7 +288,7 @@ The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks ret
 
 ### Follow-ups filed (not done)
 - [ ] a2a_call tool output-extraction quirk (returns `status.message.parts` input echo instead of `artifacts[0].parts` real answer)
-- [ ] Dead `PiSessionTaskHandler` cleanup (remove or own the bridge explicitly)
+- [x] Dead `PiSessionTaskHandler` cleanup (remove or own the bridge explicitly) — SUPERSEDED 2026-07-02: SubprocessPiTaskBridge owns real execution (opt-in flags + AbortSignal); a2a-server threads the signal. Dead handler is harmless fallback; optional future removal.
 - [ ] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`)
 - [ ] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart
 - [ ] M7.2: Upstream PR (unchanged — awaits user decision)

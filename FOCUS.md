@@ -1,19 +1,21 @@
 ---
 name: pi-a2a-communication
-summary: "A2A-to-fnet gap CLOSED: transport+auth+real model execution proven (fnet3 returned 391). Fixed unbuilt-extension, 401 auth, dead PiSessionTaskHandler (design flaw), EADDRINUSE on subprocess spawn. TDD + dual-model audit. v0.4.0 + new fixes deployed. Follow-ups filed."
+summary: "v0.5.5 STABLE — fleet A2A re-enable + comprehensive hardening arc complete. All 7 nodes execute dispatched tasks locally (subprocess bridge, opt-in flags, qwen3.5:4b). Non-fleet regression fixed (opt-in). Dual-model review converged (deepseek PASS, kimi no HIGH/MED). Resolves the a2a_call echo + dead-handler follow-ups."
 status: active
-phase: "Post-v0.4.0: A2A-to-fnet execution gap closed; follow-ups filed"
+phase: "v0.5.5 stable — fleet re-enable + hardening arc complete"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-07-01
+updated: 2026-07-02
 ---
 
 # FOCUS — pi-a2a-communication
 
 ## [S-TIGHT]
 
-**A2A-to-fnet gap CLOSED (2026-07-01).** The extension now builds in the pi install location (prepare script), `a2a_call` authenticates (bearer header), and fnet3 ACTUALLY EXECUTES dispatched tasks via the subprocess bridge + `PI_A2A_SKIP_SERVER` env gate (returned a real model answer `391` for `17×23`, qwen3.5:35b-a3b). The original "all gaps resolved" claim was overstated — GAP-2's `PiSessionTaskHandler` was dead code (a design flaw: `ctx.newSession` is only on `ExtensionCommandContext`, not the session_start event's `ExtensionContext`), so execution was always a NoOp placeholder until this session. fnet3 on pi 0.80.3. Follow-ups filed (not done): a2a_call output-extraction quirk, dead-handler cleanup, Option B (command-context reuse to avoid per-task cold start). M7.2 upstream PR still awaits user decision. **⚠ pi `/reload` does NOT re-evaluate extension ESM modules — a full process restart is required to load a rebuilt `dist/`.**
+**v0.5.5 STABLE (2026-07-02).** Fleet A2A re-enable + hardening arc complete: all 7 nodes execute dispatched A2A tasks locally via the `SubprocessPiTaskBridge` (opt-in flags `--no-extensions --provider ollama --model qwen3.5:4b --tools bash`, 300s, `PI_A2A_SKIP_SERVER`). Root cause of the original 'echo back' was 4 layered issues (noop bridge, extension stdout interference, model-router cloud-via-a2a cross-node loop, 120s timeout) — all fixed across v0.4.1→v0.5.5. The non-fleet regression (v0.5.0 had hardcoded fleet defaults) was fixed by making all execution-shaping flags OPT-IN (non-fleet users get original `pi --print --no-session <msg>`; fleet sets them via per-node `config.json`). Hardening: concurrency cap, byte-accurate maxBuffer, `StringDecoder`, single timeout timer + `procExited` guard, external `AbortSignal` cancellation (bridge + a2a-server threads it, aborts on client disconnect), `a2a_call` streaming=false/300s/`isError`, fail-fast retry-on-abort. Dual-model review (RULE 23, 4 rounds) CONVERGED: deepseek PASS, kimi no HIGH/MED. **Resolves the 'a2a_call output-extraction quirk' + 'dead PiSessionTaskHandler' Emergent follow-ups.** Tip of main = `2619da0`. Accepted limitations (intentional): `--no-extensions` drops extension tools in the subprocess; no cloud/hard-task escalation (all → local qwen3.5:4b); 300s ceiling; checkpoint resume replays from scratch; custom task handlers don't receive the signal. **⚠ pi `/reload` does NOT re-evaluate extension ESM modules — a full process restart is required to load a rebuilt `dist/`.**
+
+> **Session 2026-07-02 closed.** Journal: `.frias/journal/2026-07-02-0708.md`. This session also handled non-a2a items (Chroma Explorer, agenticos consolidation, Trading retirement, carlos-trading-desk alignment, whisper-cpp cleanup, `td frame persist-*` CLI) — noted in the journal; they belong to other project contexts. Coordinated with the concurrent `subagent-chat-019f1eed` session (separate git repos; serialized fleet ansible).
 
 **Workshop submodule structure cleaned up (2026-07-01, phase 2):** pi-a2a-communication was an ORPHAN gitlink (mode 160000, no .gitmodules) — the recurring gitlink-bump was cosmetic busywork (no functional consumer; `git submodule status` aborted). Now a PROPER submodule. 6 orphans → proper submodules, 3 stale `.gitmodules` removed; open-notebook consolidated into one repo + relocated 03-Resources→01-Projects (vault alignment, RULE 20); node-router vault docs archived (RULE 26). `git submodule status` works (28 submodules). RULE 29 merged to universal-rules. **v0.5.0 release tag DEFERRED** until 6614045 (agent-memory dispatch) is deployed+verified on fnet3. **⚠ Re-establish lockstep with the active subagent-chat-019f1eed session before further superproject edits — it swept my staged git mv into commit 084e0df (mixed-concern collision).**
 

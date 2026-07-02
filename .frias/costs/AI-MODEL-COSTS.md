@@ -19,6 +19,7 @@
 
 *Last updated: 2026-06-20 — session-costs.sh latest + summary modes*
 | 2026-06-24 | m72-upstream-pr | ⚠️ not tracked (self-awareness) | ~80,000 | ~80,000 | $0.00 | $42.22 |
+| 2026-07-02 | 2026-07-02-0708 | ollama/glm-5.2:cloud + deepseek-v4-pro:cloud + kimi-k2.7-code:cloud + ollama/qwen3.5:4b | ~1,000,000 | ~380,000 | ~$3.96 | ~$46.18 |
 
 > ⚠️ No session JSONL for this session. Model usage estimated from context. Cost is $0.00 (via pi harness).
 
