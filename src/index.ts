@@ -253,8 +253,8 @@ export default function (pi: ExtensionAPI) {
 
         // Send task
         const result = await taskManager.sendTask(agent, message, {
-          streaming: true,
-          timeout: 60000,
+          streaming: false,
+          timeout: 300000,
         }, (update) => {
           // Progress callback
           if (update.status?.state) {
@@ -345,7 +345,7 @@ export default function (pi: ExtensionAPI) {
           agents.map((agent) => ({
             agent,
             message,
-            options: { timeout: 60000 },
+            options: { timeout: 300000 },
           })),
           (update, index) => {
             ctx.ui?.notify?.(`${agents[index].name}: ${update.status?.state || "update"}`, "info");
@@ -777,7 +777,8 @@ Examples:
         },
         timeout: {
           type: "number",
-          default: 60000,
+          description: "Timeout per task in milliseconds (default 300000 — A2A tasks run a local-model subprocess that can take minutes on CPU nodes)",
+          default: 300000,
         },
       },
       required: ["tasks"],
@@ -800,7 +801,7 @@ Examples:
         const taskConfigs = agents.map((agent, i) => ({
           agent,
           message: tasks[i].message,
-          options: { timeout: (params.timeout as number) ?? 60000, signal },
+          options: { timeout: (params.timeout as number) ?? 300000, signal },
         }));
 
         const results = await taskManager.sendParallelTasks(taskConfigs);
@@ -855,8 +856,8 @@ Examples:
         },
         timeout: {
           type: "number",
-          description: "Timeout per step in milliseconds",
-          default: 60000,
+          description: "Timeout per step in milliseconds (default 300000 — A2A tasks run a local-model subprocess that can take minutes on CPU nodes)",
+          default: 300000,
         },
       },
       required: ["steps"],
@@ -883,7 +884,7 @@ Examples:
           steps: steps.map((s: { agent_url: string; message: string }, i: number) => ({
             agent: agents[i],
             message: s.message,
-            options: { timeout: (params.timeout as number) ?? 60000, streaming: false, signal },
+            options: { timeout: (params.timeout as number) ?? 300000, streaming: false, signal },
           })),
           continueOnError,
         };
