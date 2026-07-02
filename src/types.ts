@@ -325,16 +325,20 @@ export interface BridgeConfig {
   type: "noop" | "subprocess";
   /** Command to invoke (subprocess only, default: 'pi') */
   command?: string;
-  /** Timeout in ms (subprocess only, default: 300000) */
+  /** Timeout in ms (subprocess only, default: 120000; fleet uses 300000) */
   timeout?: number;
-  /** Provider for pi --print (subprocess only, default: 'ollama') — bypasses the model-router */
+  /** Provider for pi --print (optional; opt-in — bypasses the model-router when set) */
   provider?: string;
-  /** Model for pi --print (subprocess only, default: 'qwen3.5:4b') */
+  /** Model for pi --print (optional; opt-in — pins to a specific local model when set) */
   model?: string;
-  /** Tools to enable (subprocess only, default: 'bash') */
+  /** Tools to enable (optional; opt-in — passed via --tools when set) */
   tools?: string;
-  /** Disable extension discovery in the subprocess (default: true) */
+  /** Disable extension discovery in the subprocess (optional; opt-in, default false) */
   noExtensions?: boolean;
+  /** Max concurrent subprocess executions (default 2; protects CPU/RAM on small nodes) */
+  maxConcurrent?: number;
+  /** Max bytes captured per stream before killing the child (default 10 MB) */
+  maxBufferBytes?: number;
 }
 
 export interface A2AConfig {

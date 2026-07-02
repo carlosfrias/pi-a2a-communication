@@ -98,11 +98,14 @@ export default function (pi: ExtensionAPI) {
       if (config.bridge?.type === "subprocess") {
         const bridgeOptions: SubprocessBridgeOptions = {
           command: config.bridge.command || "pi",
-          timeout: config.bridge.timeout || 300000,
-          provider: config.bridge.provider || "ollama",
-          model: config.bridge.model || "qwen3.5:4b",
-          tools: config.bridge.tools || "bash",
-          noExtensions: config.bridge.noExtensions ?? true,
+          timeout: config.bridge.timeout ?? 120000,
+          // Opt-in: pass through only when configured (undefined -> safe default).
+          provider: config.bridge.provider,
+          model: config.bridge.model,
+          tools: config.bridge.tools,
+          noExtensions: config.bridge.noExtensions ?? false,
+          maxConcurrent: config.bridge.maxConcurrent,
+          maxBufferBytes: config.bridge.maxBufferBytes,
         };
         bridge = new SubprocessPiTaskBridge(bridgeOptions);
         ctx.ui?.notify?.(`A2A bridge: subprocess (${bridgeOptions.command})`, "info");
@@ -460,7 +463,13 @@ export default function (pi: ExtensionAPI) {
         if (config.bridge?.type === "subprocess") {
           bridge = new SubprocessPiTaskBridge({
             command: config.bridge.command || "pi",
-            timeout: config.bridge.timeout || 120000,
+            timeout: config.bridge.timeout ?? 120000,
+            provider: config.bridge.provider,
+            model: config.bridge.model,
+            tools: config.bridge.tools,
+            noExtensions: config.bridge.noExtensions ?? false,
+            maxConcurrent: config.bridge.maxConcurrent,
+            maxBufferBytes: config.bridge.maxBufferBytes,
           });
         } else {
           bridge = new NoOpPiTaskBridge();
@@ -686,13 +695,13 @@ Examples:
         },
         streaming: {
           type: "boolean",
-          description: "Enable streaming responses",
-          default: true,
+          description: "Enable streaming responses (default false — synchronous waits for the completed task result)",
+          default: false,
         },
         timeout: {
           type: "number",
-          description: "Timeout in milliseconds",
-          default: 60000,
+          description: "Timeout in milliseconds (default 300000 — A2A tasks run a local-model subprocess that can take minutes on CPU nodes)",
+          default: 300000,
         },
       },
       required: ["agent_url", "message"],
@@ -711,8 +720,8 @@ Examples:
         const agent = await agentDiscovery.discoverAgent(agent_url);
         
         const result = await taskManager.sendTask(agent, message, {
-          streaming: (params.streaming as boolean) ?? true,
-          timeout: (params.timeout as number) ?? 60000,
+          streaming: (params.streaming as boolean) ?? false,
+          timeout: (params.timeout as number) ?? 300000,
           signal,
         }, onUpdate ? (update) => {
           if (update.status?.state) {

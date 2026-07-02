@@ -40,13 +40,13 @@ const DEFAULTS: A2AConfig = {
     verifySsl: true,
   },
   bridge: {
+    // Safe defaults: subprocess bridge spawns `pi --print --no-session <msg>`
+    // with NO extra flags. Fleet nodes opt into --no-extensions/--provider/
+    // --model/--tools via per-node config.json (see BridgeConfig). This keeps
+    // non-fleet installs on the original behaviour (no regression).
     type: "subprocess",
     command: "pi",
-    timeout: 300000,
-    provider: "ollama",
-    model: "qwen3.5:4b",
-    tools: "bash",
-    noExtensions: true,
+    timeout: 120000,
   },
 };
 

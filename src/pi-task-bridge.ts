@@ -92,18 +92,22 @@ export class NoOpPiTaskBridge implements PiTaskBridge {
  * Options for SubprocessPiTaskBridge
  */
 export interface SubprocessBridgeOptions {
-  /** Maximum execution time in milliseconds (default: 300000 = 5 minutes) */
+  /** Maximum execution time in milliseconds (default: 120000 = 2 minutes; fleet sets 300000). */
   timeout?: number;
   /** Override pi command (default: "pi") */
   command?: string;
-  /** Provider for pi --print (default: "ollama") — bypasses the model-router to avoid cloud-via-a2a cross-node dispatch loops. */
+  /** Provider for pi --print (optional; when set, bypasses the model-router to avoid cloud-via-a2a cross-node dispatch loops). */
   provider?: string;
-  /** Model for pi --print (default: "qwen3.5:4b" — tools-capable, present on all fleet nodes). */
+  /** Model for pi --print (optional; when set, pins execution to a specific local model). */
   model?: string;
-  /** Tools to enable in the subprocess (default: "bash"). */
+  /** Tools to enable in the subprocess (optional; when set, passed via --tools). */
   tools?: string;
-  /** Disable extension discovery in the subprocess (default: true — extensions interfere with --print stdout). */
+  /** Disable extension discovery in the subprocess (optional; when true, avoids extension interference with --print stdout). Default: false (safe; opt-in for fleet). */
   noExtensions?: boolean;
+  /** Max concurrent subprocess executions (default: 2; protects CPU/RAM on small nodes). */
+  maxConcurrent?: number;
+  /** Max bytes captured per stream before killing the child (default: 10 MB). */
+  maxBufferBytes?: number;
 }
 
 /**
@@ -121,39 +125,69 @@ export interface SubprocessBridgeOptions {
 export class SubprocessPiTaskBridge implements PiTaskBridge {
   private timeout: number;
   private command: string;
-  private provider: string;
-  private model: string;
-  private tools: string;
+  private provider?: string;
+  private model?: string;
+  private tools?: string;
   private noExtensions: boolean;
+  private maxConcurrent: number;
+  private maxBufferBytes: number;
+  // Concurrency cap state
+  private active = 0;
+  private waiters: Array<() => void> = [];
 
   constructor(options: SubprocessBridgeOptions = {}) {
-    this.timeout = options.timeout ?? 300000;
+    // Safe defaults: the subprocess bridge spawns `pi --print --no-session <msg>`
+    // with NO extra flags unless explicitly configured. Fleet nodes set
+    // provider/model/tools/noExtensions via config.json. This keeps non-fleet
+    // installs on the original behaviour (no regression).
+    this.timeout = options.timeout ?? 120000;
     this.command = options.command ?? "pi";
-    this.provider = options.provider ?? "ollama";
-    this.model = options.model ?? "qwen3.5:4b";
-    this.tools = options.tools ?? "bash";
-    this.noExtensions = options.noExtensions ?? true;
+    this.provider = options.provider;
+    this.model = options.model;
+    this.tools = options.tools;
+    this.noExtensions = options.noExtensions ?? false;
+    this.maxConcurrent = options.maxConcurrent ?? 2;
+    this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
   }
 
   async executeTask(message: string): Promise<string> {
+    // Concurrency cap: protect CPU/RAM-constrained nodes from N simultaneous
+    // `pi --print` processes. Tasks beyond maxConcurrent queue and wait.
+    if (this.active >= this.maxConcurrent) {
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    }
+    this.active++;
+    try {
+      return await this.runSubprocess(message);
+    } finally {
+      this.active--;
+      const next = this.waiters.shift();
+      if (next) next();
+    }
+  }
+
+  private runSubprocess(message: string): Promise<string> {
     return new Promise((resolve, reject) => {
       // PI_A2A_SKIP_SERVER: the spawned `pi --print` loads this same A2A
-      // extension (it's in the user's settings.json). Without this gate, the
-      // child's session_start handler re-binds port 10000 -> EADDRINUSE (port
-      // already held by the fleet pi-agent service) -> unhandled rejection ->
-      // the child hangs and never prints, hitting the bridge timeout. The env
-      // var is read in src/index.ts to skip the server-start block in the child.
-      // stdio: stdin is 'ignore' so the child never blocks waiting for EOF.
-      // Build subprocess args. --no-extensions avoids extension interference
-      // with --print stdout; explicit --provider/--model bypasses the model
-      // router (which can route to the cloud-via-a2a placeholder and dispatch
-      // the task to a different node); --tools bash enables command execution.
+      // extension (in the user's settings.json). Without this gate the child's
+      // session_start handler re-binds port 10000 -> EADDRINUSE -> the child
+      // hangs and never prints. The env var is read in src/index.ts to skip the
+      // server-start block in the child. stdin is 'ignore' so the child never
+      // blocks waiting for EOF.
+      //
+      // Flags are OPT-IN (safe defaults): --no-extensions / --provider /
+      // --model / --tools are added only when configured, so non-fleet users
+      // get the original `pi --print --no-session <msg>` behaviour. Fleet nodes
+      // set these via bridge config to avoid (a) extension interference with
+      // --print stdout and (b) the model-router's cloud-via-a2a cross-node loop.
       const args = ["--print", "--no-session"];
       if (this.noExtensions) args.push("--no-extensions");
-      args.push("--provider", this.provider, "--model", this.model, "--tools", this.tools, message);
+      if (this.provider) args.push("--provider", this.provider);
+      if (this.model) args.push("--model", this.model);
+      if (this.tools) args.push("--tools", this.tools);
+      args.push(message);
 
       const proc = spawn(this.command, args, {
-        timeout: this.timeout,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PI_A2A_SKIP_SERVER: "1" },
       });
@@ -161,19 +195,44 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       let settled = false;
       let stdout = "";
       let stderr = "";
+      let overflowed = false;
+
+      // SINGLE manual timeout timer (no spawn `timeout`, to avoid a double
+      // SIGTERM). SIGTERM first, then SIGKILL after a grace period. Both timers
+      // are cleared on close/error so a late SIGKILL cannot hit a reused PID.
+      let sigKillTimer: NodeJS.Timeout | null = null;
+      const killTimer = setTimeout(() => {
+        proc.kill("SIGTERM");
+        sigKillTimer = setTimeout(() => proc.kill("SIGKILL"), 5000);
+        if (settled) return;
+        settled = true;
+        reject(new Error(`Pi process timed out after ${this.timeout}ms`));
+      }, this.timeout);
 
       proc.stdout.on("data", (data: Buffer) => {
         stdout += data.toString();
+        if (stdout.length > this.maxBufferBytes) {
+          overflowed = true;
+          proc.kill("SIGTERM");
+        }
       });
 
       proc.stderr.on("data", (data: Buffer) => {
         stderr += data.toString();
+        if (stderr.length > this.maxBufferBytes) {
+          overflowed = true;
+          proc.kill("SIGTERM");
+        }
       });
 
       proc.on("close", (code: number | null) => {
         if (settled) return;
         settled = true;
-        if (code === 0) {
+        clearTimeout(killTimer);
+        if (sigKillTimer) clearTimeout(sigKillTimer);
+        if (overflowed) {
+          reject(new Error(`Pi subprocess output exceeded ${this.maxBufferBytes} bytes and was killed.`));
+        } else if (code === 0) {
           resolve(stdout.trim());
         } else {
           reject(new Error(`Pi process exited with code ${code}: ${stderr.trim()}`));
@@ -183,28 +242,17 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       proc.on("error", (err: Error) => {
         if (settled) return;
         settled = true;
-        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        clearTimeout(killTimer);
+        if (sigKillTimer) clearTimeout(sigKillTimer);
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === "ENOENT") {
           reject(new Error(`Pi CLI not found: ${err.message}. Ensure pi is installed and in PATH.`));
+        } else if (code === "EACCES" || code === "EPERM") {
+          reject(new Error(`Permission denied executing '${this.command}': ${err.message}.`));
         } else {
           reject(err);
         }
       });
-
-      // Timeout: SIGTERM first, then SIGKILL after a grace period so a stuck
-      // child cannot become a zombie. Reject once.
-      const killTimer = setTimeout(() => {
-        proc.kill("SIGTERM");
-        setTimeout(() => {
-          proc.kill("SIGKILL");
-        }, 5000);
-        if (settled) return;
-        settled = true;
-        reject(new Error(`Pi process timed out after ${this.timeout}ms`));
-      }, this.timeout);
-
-      // If the process exits before the timeout fires, clear the kill timer to
-      // avoid a dangling SIGKILL against an already-exited pid.
-      proc.on("close", () => clearTimeout(killTimer));
     });
   }
 
