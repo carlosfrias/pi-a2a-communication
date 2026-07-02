@@ -42,7 +42,11 @@ const DEFAULTS: A2AConfig = {
   bridge: {
     type: "subprocess",
     command: "pi",
-    timeout: 120000,
+    timeout: 300000,
+    provider: "ollama",
+    model: "qwen3.5:4b",
+    tools: "bash",
+    noExtensions: true,
   },
 };
 

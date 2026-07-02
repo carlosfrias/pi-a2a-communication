@@ -92,10 +92,18 @@ export class NoOpPiTaskBridge implements PiTaskBridge {
  * Options for SubprocessPiTaskBridge
  */
 export interface SubprocessBridgeOptions {
-  /** Maximum execution time in milliseconds (default: 120000 = 2 minutes) */
+  /** Maximum execution time in milliseconds (default: 300000 = 5 minutes) */
   timeout?: number;
   /** Override pi command (default: "pi") */
   command?: string;
+  /** Provider for pi --print (default: "ollama") — bypasses the model-router to avoid cloud-via-a2a cross-node dispatch loops. */
+  provider?: string;
+  /** Model for pi --print (default: "qwen3.5:4b" — tools-capable, present on all fleet nodes). */
+  model?: string;
+  /** Tools to enable in the subprocess (default: "bash"). */
+  tools?: string;
+  /** Disable extension discovery in the subprocess (default: true — extensions interfere with --print stdout). */
+  noExtensions?: boolean;
 }
 
 /**
@@ -113,10 +121,18 @@ export interface SubprocessBridgeOptions {
 export class SubprocessPiTaskBridge implements PiTaskBridge {
   private timeout: number;
   private command: string;
+  private provider: string;
+  private model: string;
+  private tools: string;
+  private noExtensions: boolean;
 
   constructor(options: SubprocessBridgeOptions = {}) {
-    this.timeout = options.timeout ?? 120000;
+    this.timeout = options.timeout ?? 300000;
     this.command = options.command ?? "pi";
+    this.provider = options.provider ?? "ollama";
+    this.model = options.model ?? "qwen3.5:4b";
+    this.tools = options.tools ?? "bash";
+    this.noExtensions = options.noExtensions ?? true;
   }
 
   async executeTask(message: string): Promise<string> {
@@ -128,7 +144,15 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       // the child hangs and never prints, hitting the bridge timeout. The env
       // var is read in src/index.ts to skip the server-start block in the child.
       // stdio: stdin is 'ignore' so the child never blocks waiting for EOF.
-      const proc = spawn(this.command, ["--print", "--no-session", message], {
+      // Build subprocess args. --no-extensions avoids extension interference
+      // with --print stdout; explicit --provider/--model bypasses the model
+      // router (which can route to the cloud-via-a2a placeholder and dispatch
+      // the task to a different node); --tools bash enables command execution.
+      const args = ["--print", "--no-session"];
+      if (this.noExtensions) args.push("--no-extensions");
+      args.push("--provider", this.provider, "--model", this.model, "--tools", this.tools, message);
+
+      const proc = spawn(this.command, args, {
         timeout: this.timeout,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PI_A2A_SKIP_SERVER: "1" },

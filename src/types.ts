@@ -325,8 +325,16 @@ export interface BridgeConfig {
   type: "noop" | "subprocess";
   /** Command to invoke (subprocess only, default: 'pi') */
   command?: string;
-  /** Timeout in ms (subprocess only, default: 120000) */
+  /** Timeout in ms (subprocess only, default: 300000) */
   timeout?: number;
+  /** Provider for pi --print (subprocess only, default: 'ollama') — bypasses the model-router */
+  provider?: string;
+  /** Model for pi --print (subprocess only, default: 'qwen3.5:4b') */
+  model?: string;
+  /** Tools to enable (subprocess only, default: 'bash') */
+  tools?: string;
+  /** Disable extension discovery in the subprocess (default: true) */
+  noExtensions?: boolean;
 }
 
 export interface A2AConfig {

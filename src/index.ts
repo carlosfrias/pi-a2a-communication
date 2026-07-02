@@ -98,7 +98,11 @@ export default function (pi: ExtensionAPI) {
       if (config.bridge?.type === "subprocess") {
         const bridgeOptions: SubprocessBridgeOptions = {
           command: config.bridge.command || "pi",
-          timeout: config.bridge.timeout || 120000,
+          timeout: config.bridge.timeout || 300000,
+          provider: config.bridge.provider || "ollama",
+          model: config.bridge.model || "qwen3.5:4b",
+          tools: config.bridge.tools || "bash",
+          noExtensions: config.bridge.noExtensions ?? true,
         };
         bridge = new SubprocessPiTaskBridge(bridgeOptions);
         ctx.ui?.notify?.(`A2A bridge: subprocess (${bridgeOptions.command})`, "info");
