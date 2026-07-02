@@ -157,9 +157,21 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     // beyond the cap queue and wait. Node is single-threaded: the capacity
     // check and `active++` run with no await between them, so admission is
     // atomic (no burst overshoot); waiters are released one-at-a-time via
-    // shift() in the finally below.
+    // shift() in the finally below. The wait races the caller's signal so an
+    // aborted caller fails fast instead of spawning a child it would kill.
     if (this.maxConcurrent > 0 && this.active >= this.maxConcurrent) {
-      await new Promise<void>((resolve) => this.waiters.push(resolve));
+      if (signal?.aborted) throw new Error("Aborted");
+      await new Promise<void>((resolve, reject) => {
+        this.waiters.push(resolve);
+        if (signal) {
+          const onWaitAbort = () => {
+            const idx = this.waiters.indexOf(resolve);
+            if (idx >= 0) this.waiters.splice(idx, 1);
+            reject(new Error("Aborted"));
+          };
+          signal.addEventListener("abort", onWaitAbort, { once: true });
+        }
+      });
     }
     this.active++;
     try {
@@ -245,7 +257,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
         stdout += stdoutDecoder.write(data);
         if (stdoutBytes > this.maxBufferBytes) {
           overflowed = true;
-          proc.kill("SIGTERM");
+          if (!procExited) proc.kill("SIGTERM");
         }
       });
 
@@ -254,17 +266,17 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
         stderr += stderrDecoder.write(data);
         if (stderrBytes > this.maxBufferBytes) {
           overflowed = true;
-          proc.kill("SIGTERM");
+          if (!procExited) proc.kill("SIGTERM");
         }
       });
 
       proc.on("close", (code: number | null) => {
         procExited = true;
+        if (signal) signal.removeEventListener("abort", onAbort);
         if (settled) return;
         settled = true;
         clearTimeout(killTimer);
         if (sigKillTimer) clearTimeout(sigKillTimer);
-        if (signal) signal.removeEventListener("abort", onAbort);
         // Flush any trailing partial multi-byte bytes from the decoders.
         stdout += stdoutDecoder.end();
         stderr += stderrDecoder.end();
@@ -279,11 +291,11 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
       proc.on("error", (err: Error) => {
         procExited = true;
+        if (signal) signal.removeEventListener("abort", onAbort);
         if (settled) return;
         settled = true;
         clearTimeout(killTimer);
         if (sigKillTimer) clearTimeout(sigKillTimer);
-        if (signal) signal.removeEventListener("abort", onAbort);
         // Flush any trailing partial multi-byte bytes from the decoders so
         // captured stderr can be included in the error context.
         stdout += stdoutDecoder.end();

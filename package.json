@@ -1,6 +1,6 @@
 {
   "name": "pi-a2a-communication",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Enterprise-grade A2A (Agent2Agent) protocol implementation for pi coding agent - enables multi-node, multi-agent collaboration across enterprise environments",
   "type": "module",
   "main": "dist/index.js",
