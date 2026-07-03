@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-03
+
+### Added
+
+- **Executor-role system prompt (Phase EXEC Tier A)** — `SubprocessPiTaskBridge` now steers the spawned `pi --print` with an opt-in `--system-prompt` / `--append-system-prompt` so the fleet's qwen3.5:4b actually invokes tools + pastes real stdout instead of narrating command plans. Closes the executor-tier gap (fleet nodes echoed command plans rather than executing). See `wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md`.
+  - `systemPrompt` / `appendSystemPrompt` on `SubprocessBridgeOptions` + `BridgeConfig` (opt-in; non-fleet safe — flags omitted when unset).
+  - `buildBridgeOptions()` pure helper (`src/bridge-options.ts`) extracted from `index.ts`; both start paths (`session_start` + `/a2a-server start`) now use it.
+  - Default fleet-executor prompt shipped in `ansible/deploy-a2a.yml` (`bridge_systemPrompt`).
+  - 10 TDD tests (`tests/unit/executor-tier-system-prompt.test.ts`); RULE 23 dual-model review (deepseek VALIDATE + kimi AUDIT) converged; 296/296 green.
+  - Deployed + verified on all 7 fleet nodes — regression test `echo $((17*23))` → `391` (real stdout) on every node.
+
+### Changed
+
+- `ansible/deploy-a2a.yml`: fixed stale template (`bridge_type` noop→subprocess, `bridge_timeout` 120000→300000, `a2a_version` 0.4.0→0.5.5) and added the opt-in fleet bridge flags (`provider=ollama`, `model=qwen3.5:4b`, `tools=bash,read,edit`, `noExtensions=true`, `maxConcurrent=2`, `maxBufferBytes=10485760`); JSON values now use `| to_json`.
+
 ## [0.4.0] - 2026-06-23
 
 ### Added
