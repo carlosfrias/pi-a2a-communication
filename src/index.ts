@@ -117,22 +117,21 @@ export default function (pi: ExtensionAPI) {
       a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
       // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
       a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
-      // Phase EXEC Tier D: agent-exec strong-model escalation (opt-in; 32GB nodes).
-      if (config.bridge?.agentExecEnabled) {
-        a2aServer.registerTaskHandler("agent-exec", createAgentExecHandler({
-          model: config.bridge.agentExecModel,
-          provider: config.bridge.provider,
-          tools: config.bridge.tools,
-          systemPrompt: config.bridge.systemPrompt,
-          timeout: config.bridge.agentExecTimeout ?? 600000,
-          noExtensions: config.bridge.noExtensions,
-          maxConcurrent: 1,
-          maxBufferBytes: config.bridge.maxBufferBytes,
-          narrationGuardEnabled: config.bridge.narrationGuardEnabled,
-          narrationMaxRetries: config.bridge.narrationMaxRetries,
-        }));
-        ctx.ui?.notify?.("A2A: registered agent-exec handler (Tier D strong-model escalation)", "info");
-      }
+      // Phase EXEC Tier D: agent-exec strong-model escalation. Registered everywhere;
+      // on nodes where the strong model doesn't fit (agentExecEnabled=false), an
+      // exec="agent" task fails explicitly so the caller targets a 32GB node.
+      a2aServer.registerTaskHandler("agent-exec", createAgentExecHandler({
+        enabled: config.bridge?.agentExecEnabled ?? false,
+        model: config.bridge?.agentExecModel,
+        provider: config.bridge?.provider,
+        tools: config.bridge?.tools,
+        systemPrompt: config.bridge?.agentExecSystemPrompt ?? config.bridge?.systemPrompt,
+        timeout: config.bridge?.agentExecTimeout ?? 600000,
+        noExtensions: config.bridge?.noExtensions,
+        maxConcurrent: 1,
+        maxQueue: 2,
+        maxBufferBytes: config.bridge?.maxBufferBytes,
+      }));
       ctx.ui?.notify?.("A2A: registered session task handler", "info");
 
       await a2aServer.start();
@@ -494,22 +493,20 @@ export default function (pi: ExtensionAPI) {
         a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
         // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
         a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
-        // Phase EXEC Tier D: agent-exec strong-model escalation (opt-in; 32GB nodes).
-        if (config.bridge?.agentExecEnabled) {
-          a2aServer.registerTaskHandler("agent-exec", createAgentExecHandler({
-            model: config.bridge.agentExecModel,
-            provider: config.bridge.provider,
-            tools: config.bridge.tools,
-            systemPrompt: config.bridge.systemPrompt,
-            timeout: config.bridge.agentExecTimeout ?? 600000,
-            noExtensions: config.bridge.noExtensions,
-            maxConcurrent: 1,
-            maxBufferBytes: config.bridge.maxBufferBytes,
-            narrationGuardEnabled: config.bridge.narrationGuardEnabled,
-            narrationMaxRetries: config.bridge.narrationMaxRetries,
-          }));
-          ctx.ui?.notify?.("A2A: registered agent-exec handler (Tier D)", "info");
-        }
+        // Phase EXEC Tier D: agent-exec strong-model escalation (registered everywhere;
+        // fails explicitly on nodes where the strong model doesn't fit).
+        a2aServer.registerTaskHandler("agent-exec", createAgentExecHandler({
+          enabled: config.bridge?.agentExecEnabled ?? false,
+          model: config.bridge?.agentExecModel,
+          provider: config.bridge?.provider,
+          tools: config.bridge?.tools,
+          systemPrompt: config.bridge?.agentExecSystemPrompt ?? config.bridge?.systemPrompt,
+          timeout: config.bridge?.agentExecTimeout ?? 600000,
+          noExtensions: config.bridge?.noExtensions,
+          maxConcurrent: 1,
+          maxQueue: 2,
+          maxBufferBytes: config.bridge?.maxBufferBytes,
+        }));
 
         try {
           await a2aServer.start();

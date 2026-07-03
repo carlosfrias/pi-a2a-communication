@@ -363,6 +363,12 @@ export interface BridgeConfig {
   agentExecModel?: string;
   /** Max execution time for agent-exec in ms (default 600000 = 10 min; agentic loops on CPU are slow). */
   agentExecTimeout?: number;
+  /**
+   * Dedicated capable-agent system prompt for agent-exec (the strong-model decision loop).
+   * Falls back to `systemPrompt` if unset. The Tier A prompt is tuned for the weak 4B
+   * model; agent-exec uses a planning/self-check/verify prompt for the capable model.
+   */
+  agentExecSystemPrompt?: string;
 }
 
 export interface A2AConfig {

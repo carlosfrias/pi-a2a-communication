@@ -69,6 +69,10 @@
     bridge_agentExecEnabled: "{{ (ansible_memtotal_mb | default(0) | int) >= 30000 }}"
     bridge_agentExecModel: "qwen3.5:35b-a3b"
     bridge_agentExecTimeout: 600000
+    # Phase EXEC Tier D — dedicated capable-agent prompt for the strong model (the
+    # Tier A fleet-executor prompt is tuned for the weak 4B; this one lets the 35B
+    # plan / self-check / verify across multi-step agentic work).
+    bridge_agentExecSystemPrompt: "You are a capable fleet execution agent working on a remote node. Complete the assigned task by invoking the available tools (bash, read, edit) as many times as needed: plan briefly, execute, observe the real output, and verify. For multi-step work, reason concisely between steps and confirm the result. Paste real command output; never describe a command without executing it. A plan-only or description-only response is a failure."
 
     # A2A auth token
     bearer_token: "lab-fleet-2026"
@@ -210,7 +214,8 @@
               "narrationMaxRetries": {{ bridge_narrationMaxRetries | to_json }},
               "agentExecEnabled": {{ bridge_agentExecEnabled | to_json }},
               "agentExecModel": {{ bridge_agentExecModel | to_json }},
-              "agentExecTimeout": {{ bridge_agentExecTimeout | to_json }}
+              "agentExecTimeout": {{ bridge_agentExecTimeout | to_json }},
+              "agentExecSystemPrompt": {{ bridge_agentExecSystemPrompt | to_json }}
             }
           }
       tags: [deploy, config]

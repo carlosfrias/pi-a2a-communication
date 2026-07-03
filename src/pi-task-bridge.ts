@@ -118,6 +118,13 @@ export interface SubprocessBridgeOptions {
   appendSystemPrompt?: string;
   /** Max concurrent subprocess executions (default: 2; protects CPU/RAM on small nodes). */
   maxConcurrent?: number;
+  /**
+   * Max QUEUED subprocess executions before fast-fail (default 0 = unbounded).
+   * When > 0 and the queue is full, executeTask rejects "Subprocess bridge queue
+   * full" instead of waiting indefinitely. Phase EXEC Tier D: agent-exec sets this
+   * so concurrent hard tasks fast-fail rather than piling up (each holds a 600s slot).
+   */
+  maxQueue?: number;
   /** Max bytes captured per stream before killing the child (default: 10 MB). */
   maxBufferBytes?: number;
   /**
@@ -154,6 +161,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
   private systemPrompt?: string;
   private appendSystemPrompt?: string;
   private maxConcurrent: number;
+  private maxQueue: number;
   private maxBufferBytes: number;
   private narrationGuardEnabled: boolean;
   private narrationMaxRetries: number;
@@ -175,6 +183,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     this.systemPrompt = options.systemPrompt;
     this.appendSystemPrompt = options.appendSystemPrompt;
     this.maxConcurrent = options.maxConcurrent ?? 2;
+    this.maxQueue = options.maxQueue ?? 0;
     this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
     this.narrationGuardEnabled = options.narrationGuardEnabled ?? false;
     this.narrationMaxRetries = options.narrationMaxRetries ?? 1;
@@ -190,6 +199,11 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     // aborted caller fails fast instead of spawning a child it would kill.
     if (this.maxConcurrent > 0 && this.active >= this.maxConcurrent) {
       if (signal?.aborted) throw new Error("Aborted");
+      // Phase EXEC Tier D: opt-in queue-depth cap. When the queue is full, fast-fail
+      // instead of waiting indefinitely (each waiter holds a connection/slot budget).
+      if (this.maxQueue > 0 && this.waiters.length >= this.maxQueue) {
+        throw new Error("Subprocess bridge queue full");
+      }
       await new Promise<void>((resolve, reject) => {
         this.waiters.push(resolve);
         if (signal) {

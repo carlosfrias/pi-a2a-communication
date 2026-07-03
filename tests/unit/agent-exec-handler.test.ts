@@ -137,10 +137,59 @@ describe("Phase EXEC Tier D — agent-exec handler (TDD)", () => {
       agentExecEnabled: true,
       agentExecModel: "qwen3.5:35b-a3b",
       agentExecTimeout: 600000,
+      agentExecSystemPrompt: "capable agent",
     };
     expect(cfg.agentExecEnabled).toBe(true);
     expect(cfg.agentExecModel).toBe("qwen3.5:35b-a3b");
     expect(cfg.agentExecTimeout).toBe(600000);
+    expect(cfg.agentExecSystemPrompt).toBe("capable agent");
+  });
+
+  it("EXEC.D.16gb: enabled=false + exec=agent -> explicit failure (NOT silent 4B downgrade)", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ enabled: false, systemPrompt: "SP" });
+    await expect(handler(makeTask({ exec: "agent", skills: ["agent-exec"] }), () => {}, undefined))
+      .rejects.toThrow(/not available on this node.*32GB/);
+    expect(spawnMock).not.toHaveBeenCalled();
+    // A non-agent task still falls through (PI_SESSION_UNAVAILABLE), not the explicit error.
+    await expect(handler(makeTask({ exec: "shell", command: "x", skills: ["agent-exec"] }), () => {}, undefined))
+      .rejects.toThrow(/PI_SESSION_UNAVAILABLE/);
+  });
+
+  it("EXEC.D.noguard: agent-exec narration guard is OFF — a narration output is returned as-is (no 2nd 35B inference)", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ systemPrompt: "SP" });
+    spawnMock.mockImplementation(() => {
+      const child = makeFakeChild();
+      process.nextTick(() => {
+        child.stdout.emit("data", Buffer.from("I would run echo $((17*23)) to get the answer."));
+        child.emit("close", 0);
+      });
+      return child;
+    });
+    const result = await handler(makeTask({ exec: "agent", skills: ["agent-exec"] }), () => {}, undefined);
+    expect(spawnMock).toHaveBeenCalledTimes(1); // no narration re-run (guard off)
+    expect((result.artifacts?.[0]?.parts?.[0] as any)?.text).toContain("I would run");
+  });
+
+  it("EXEC.D.maxqueue: bridge maxQueue fast-fails when the queue is full", async () => {
+    const { SubprocessPiTaskBridge } = await import("../../src/pi-task-bridge.js");
+    const bridge = new SubprocessPiTaskBridge({ command: "pi", timeout: 30000, maxConcurrent: 1, maxQueue: 1 });
+    // First spawn holds the slot ~30ms, then completes; second task queues; third rejects.
+    spawnMock.mockImplementation(() => {
+      const child = makeFakeChild();
+      setTimeout(() => {
+        child.stdout.emit("data", Buffer.from("ok"));
+        child.emit("close", 0);
+      }, 30);
+      return child;
+    });
+    const p1 = bridge.executeTask("t1");
+    const p2 = bridge.executeTask("t2");
+    await expect(bridge.executeTask("t3")).rejects.toThrow(/queue full/);
+    await p1;
+    await p2;
+    expect(spawnMock).toHaveBeenCalledTimes(2); // t1 + t2 ran; t3 fast-failed (not spawned)
   });
 });
 
