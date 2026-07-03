@@ -12,6 +12,7 @@
  * See wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { EventEmitter } from "node:events";
 import type { A2ATask } from "../../src/types.js";
 import { A2AServer } from "../../src/a2a-server.js";
 
@@ -188,7 +189,7 @@ describe("Phase EXEC Tier C — processTask routing (TDD)", () => {
     expect(result.status.state).toBe("completed");
   });
 
-  it("EXEC.C.3c: break->continue fix — shell-exec reached even though a2a-task-execution throws unavailable first", async () => {
+  it("EXEC.C.3c: reorder — explicit skills take priority; session handler NOT invoked for a tagged shell-exec task", async () => {
     const { createShellExecHandler } = await import("../../src/shell-exec-handler.js");
     const sessionHandler = fakeSessionUnavailableHandler();
     const bridge = fakeBridge();
@@ -198,8 +199,21 @@ describe("Phase EXEC Tier C — processTask routing (TDD)", () => {
 
     await (server as any).processTask(task, undefined);
 
-    expect(sessionHandler).toHaveBeenCalled(); // checked first
-    expect(bridge.executeTask).not.toHaveBeenCalled(); // did NOT fall to bridge
+    // Explicit metadata.skills are checked BEFORE the catch-all session handler,
+    // so the session handler (and its parseMemoryRequest) is never invoked.
+    expect(sessionHandler).not.toHaveBeenCalled();
+    expect(bridge.executeTask).not.toHaveBeenCalled();
+  });
+
+  it("EXEC.C.3e: a real shell-exec command failure FAILS the task (does not fall through to bridge)", async () => {
+    const { createShellExecHandler } = await import("../../src/shell-exec-handler.js");
+    const bridge = fakeBridge();
+    const server = makeServer(bridge, fakeSessionUnavailableHandler(), createShellExecHandler());
+    execFails("boom", 2);
+    const task = makeTask({ exec: "shell", command: "false", skills: ["shell-exec"] });
+
+    await expect((server as any).processTask(task, undefined)).rejects.toThrow(/shell-exec failed/);
+    expect(bridge.executeTask).not.toHaveBeenCalled();
   });
 
   it("EXEC.C.3d: threads the AbortSignal to the handler", async () => {
@@ -214,5 +228,30 @@ describe("Phase EXEC Tier C — processTask routing (TDD)", () => {
 
     const [, opts] = execMock.mock.calls[0] as [string, any, any];
     expect(opts?.signal).toBe(ac.signal);
+  });
+
+  it("EXEC.C.3f: processTaskStreaming routes tagged shell-exec to the handler (streaming path) and wires res close -> abort", async () => {
+    const { createShellExecHandler } = await import("../../src/shell-exec-handler.js");
+    const bridge = fakeBridge();
+    const server = makeServer(bridge, fakeSessionUnavailableHandler(), createShellExecHandler());
+    execSucceedsWith("hello\n");
+    const res = new EventEmitter() as any;
+    res.write = vi.fn(); res.writeHead = vi.fn(); res.end = vi.fn();
+    const onSpy = vi.spyOn(res, "on");
+    const task = makeTask({ exec: "shell", command: "echo hello", skills: ["shell-exec"] });
+
+    await (server as any).processTaskStreaming(task, res);
+
+    // Streaming bridge path NOT taken (handler short-circuited).
+    expect(bridge.executeTaskWithProgress).not.toHaveBeenCalled();
+    // The shell-exec handler actually ran the command (deterministic, no model).
+    expect(execMock).toHaveBeenCalled();
+    const [cmd] = execMock.mock.calls[0] as [string, any, any];
+    expect(cmd).toBe("echo hello");
+    // AbortController wired to res 'close' (Phase EXEC Tier C streaming fix).
+    expect(onSpy).toHaveBeenCalledWith("close", expect.any(Function));
+    // SSE emitted with completed state.
+    const writes = res.write.mock.calls.map((c: any[]) => c[0]).join("");
+    expect(writes).toContain("completed");
   });
 });
