@@ -200,7 +200,7 @@
               "systemPrompt": {{ bridge_systemPrompt | to_json }},
               "appendSystemPrompt": {{ bridge_appendSystemPrompt | to_json }},
               "narrationGuardEnabled": {{ bridge_narrationGuardEnabled | to_json }},
-              "narrationMaxRetries": {{ bridge_narrationMaxRetries }}
+              "narrationMaxRetries": {{ bridge_narrationMaxRetries | to_json }}
             }
           }
       tags: [deploy, config]

@@ -57,10 +57,19 @@ describe("Phase EXEC Tier B — isNarration detector (TDD)", () => {
     expect(isNarration("I'm going to use the bash tool to do this.")).toBe(true);
   });
 
-  it("EXEC.B.1: flags a fenced command block with no output marker", async () => {
+  it("EXEC.B.1: pure fenced-command-block narration is an accepted false negative (conservative)", async () => {
     const { isNarration } = await import("../../src/pi-task-bridge.js");
-    expect(isNarration("Here is the command:\n```bash\necho $((17*23))\n```")).toBe(true);
-    expect(isNarration("```sh\ngit status\n```")).toBe(true);
+    // RULE 23 audit: the standalone fenced-block heuristic was false-positive-prone
+    // on legitimate "result + show the command" outputs, so it was removed. Phrase
+    // detection is the signal; pure fences without a narration phrase are NOT flagged.
+    expect(isNarration("Here is the command:\n```bash\necho $((17*23))\n```")).toBe(false);
+    expect(isNarration("```sh\ngit status\n```")).toBe(false);
+  });
+
+  it("EXEC.B.1: false-positive regression - real result in prose + bare command fence is NOT flagged", async () => {
+    const { isNarration } = await import("../../src/pi-task-bridge.js");
+    expect(isNarration("391\n\n```bash\necho $((17*23))\n```")).toBe(false);
+    expect(isNarration("The answer is **391**\n\n```bash\necho $((17*23))\n```")).toBe(false);
   });
 
   it("EXEC.B.1: does NOT flag clean real output or prose-wrapped real output", async () => {
@@ -182,5 +191,23 @@ describe("Phase EXEC Tier B — narration guard re-run (TDD)", () => {
     expect(opts1.env.PI_A2A_SKIP_SERVER).toBe("1");
     expect(opts2.env.PI_A2A_SKIP_SERVER).toBe("1");
     expect(spawnMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("EXEC.B.2g: if the first run fails/rejects (e.g. aborted or non-zero exit), the guard does NOT retry", async () => {
+    const { SubprocessPiTaskBridge } = await import("../../src/pi-task-bridge.js");
+    const bridge = new SubprocessPiTaskBridge({
+      command: "pi", timeout: 30000, narrationGuardEnabled: true, narrationMaxRetries: 1,
+    });
+    // First spawn -> child closes with a non-zero exit -> runSubprocess rejects.
+    spawnMock.mockImplementation(() => {
+      const child = makeFakeChild();
+      process.nextTick(() => {
+        child.stderr.emit("data", Buffer.from("boom"));
+        child.emit("close", 1);
+      });
+      return child;
+    });
+    await expect(bridge.executeTask("say hi")).rejects.toThrow(/exited with code 1/);
+    expect(spawnMock).toHaveBeenCalledTimes(1); // rejection skips the guard re-run
   });
 });

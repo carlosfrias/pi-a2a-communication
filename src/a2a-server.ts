@@ -1029,7 +1029,8 @@ export class A2AServer {
             },
           };
           this.sendSSE(res, statusUpdate);
-        }
+        },
+        ac.signal
       );
 
       // Mark as completed
@@ -1095,9 +1096,10 @@ export class A2AServer {
    */
   private async executePiTaskWithProgress(
     message: string,
-    onProgress: (progress: string) => void
+    onProgress: (progress: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
-    return this.piTaskBridge.executeTaskWithProgress(message, onProgress);
+    return this.piTaskBridge.executeTaskWithProgress(message, onProgress, signal);
   }
 
   /**

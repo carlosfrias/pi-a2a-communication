@@ -38,7 +38,8 @@ export interface PiTaskBridge {
    */
   executeTaskWithProgress(
     message: string,
-    onProgress: (progress: string) => void
+    onProgress: (progress: string) => void,
+    signal?: AbortSignal
   ): Promise<string>;
 
   /**
@@ -69,11 +70,12 @@ export class NoOpPiTaskBridge implements PiTaskBridge {
 
   async executeTaskWithProgress(
     message: string,
-    onProgress: (progress: string) => void
+    onProgress: (progress: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
     onProgress("Analyzing request...");
     onProgress("Processing task...");
-    return this.executeTask(message);
+    return this.executeTask(message, signal);
   }
 
   async checkpoint(taskId: string, message: string, ledger: TaskLedger): Promise<CheckpointRef> {
@@ -222,9 +224,10 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     let retries = this.narrationGuardEnabled ? this.narrationMaxRetries : 0;
     while (retries > 0 && isNarration(result)) {
       retries--;
+      const prior = result.length > 500 ? result.slice(0, 500) + '\n[...truncated]' : result;
       const followUp =
         message + '\n\n' + NARRATION_FOLLOWUP +
-        '\n\nYour previous (plan-only) response was:\n' + result;
+        '\n\nYour previous (plan-only) response was:\n' + prior;
       result = await this.runSubprocess(followUp, signal);
     }
     return result;
@@ -367,10 +370,11 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
   async executeTaskWithProgress(
     message: string,
-    onProgress: (progress: string) => void
+    onProgress: (progress: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
     onProgress("Analyzing request...");
-    const result = await this.executeTask(message);
+    const result = await this.executeTask(message, signal);
     onProgress("Generating response...");
     return result;
   }
@@ -393,12 +397,18 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // Phase EXEC Tier B — narration detection (belt-and-suspenders guard).
+// Conservative phrase-based detector. RULE 23 audit found the standalone
+// fenced-block heuristic was false-positive-prone on legitimate "result + show
+// the command" outputs, so it was removed; pure-fence narration is an accepted
+// false negative (Tier A's prompt + these phrases cover the common "I would
+// run X" cases).
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** Follow-up directive appended on a narration-guard re-run. */
 const NARRATION_FOLLOWUP =
   "Your previous response only described or planned the command(s) without executing them. " +
-  "You MUST now ACTUALLY invoke the bash tool to run the command(s) and paste the real stdout. " +
+  "You MUST now ACTUALLY invoke the available tools (bash/read/edit) to run the command(s) and paste the real stdout. " +
+  "Output ONLY the raw result — no prose, no code fences, no re-description of the commands. " +
   "A plan-only or description-only response is a failure.";
 
 /** First-person narration phrases: the model describing what it *would* run. */
@@ -407,35 +417,25 @@ const NARRATION_PHRASES: RegExp[] = [
   /\bI'd (run|execute|use|invoke|call)\b/i,
   /\bI will (run|execute|use|invoke)\b/i,
   /\bI'll (run|execute|use|invoke)\b/i,
+  /\bI should (run|execute|use|invoke)\b/i,
+  /\bI need to (run|execute|use)\b/i,
   /\blet me (run|execute|use|try)\b/i,
   /\bI'm going to (run|execute|use)\b/i,
   /\bthe command (I would|to run|would be)\b/i,
 ];
 
-/** Output markers that indicate a fenced block contains the real result. */
-const OUTPUT_MARKERS = /(^|\s)(# Output|# output|# Result|# result|Output:|Result:|output:)\b/i;
-
-/** A fenced bash/sh/shell command block. */
-const FENCED_CMD = /```(?:bash|sh|shell|zsh)\b[\s\S]*?```/i;
-
 /**
  * Detect whether a `pi --print` output is plan-narration rather than real
- * execution. Conservative: flags first-person narration phrases and fenced
- * command blocks with no output marker. Does NOT flag clean real output
- * ("391"), prose-wrapped real output ("The answer is **391**"), or a fenced
- * block that includes an output marker ("# Output: 391").
- *
- * Exported for unit testing.
+ * execution. Conservative + phrase-based: flags first-person narration
+ * ("I would run X", "I'd execute", "I should run", …). Does NOT flag clean
+ * real output ("391"), prose-wrapped real output ("The answer is **391**"),
+ * or fenced blocks (the standalone-fence heuristic was removed as
+ * false-positive-prone — see RULE 23 audit). Exported for unit testing.
  */
 export function isNarration(output: string): boolean {
   if (!output || !output.trim()) return false;
   for (const p of NARRATION_PHRASES) {
     if (p.test(output)) return true;
-  }
-  // A fenced command block with no output marker anywhere in the response
-  // (a real execution surfaces the result via "# Output:" / "Output:").
-  if (FENCED_CMD.test(output) && !OUTPUT_MARKERS.test(output)) {
-    return true;
   }
   return false;
 }
