@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 10 TDD tests (`tests/unit/executor-tier-system-prompt.test.ts`); RULE 23 dual-model review (deepseek VALIDATE + kimi AUDIT) converged; 296/296 green.
   - Deployed + verified on all 7 fleet nodes — regression test `echo $((17*23))` → `391` (real stdout) on every node.
 
+- **Deterministic `shell-exec` short-circuit (Phase EXEC Tier C)** — a task tagged `metadata.exec="shell"` + `metadata.command` + `metadata.skills=["shell-exec"]` runs the command via `child_process` and returns stdout as the artifact — NO model in the loop (78ms vs ~70s for the model path). Honors `AbortSignal` (closes the accepted limitation "custom task handlers don't receive the signal").
+  - `createShellExecHandler()` (`src/shell-exec-handler.ts`); registered as `"shell-exec"` on both start paths.
+  - `processTask`/`processTaskStreaming`: explicit `metadata.skills` are now checked BEFORE the catch-all `a2a-task-execution` session handler (so a tagged deterministic handler takes priority and the session handler's `parseMemoryRequest` can't hijack it); `PI_SESSION_UNAVAILABLE` `continue`s to the next handler; `processTaskStreaming` wires an `AbortController` from `res 'close'`.
+  - `a2a_call` tool gains a `metadata` param (forwarded end-to-end: tool → `sendTask` → client → server → `task.metadata.skills`).
+  - 12 TDD tests (`tests/unit/shell-exec-handler.test.ts`); RULE 23 dual-model review (deepseek + kimi) converged; 308/308 green.
+  - Deployed + verified on all 7 fleet nodes — `metadata.exec=shell, command=echo $((17*23))` → `391` (deterministic, sub-second) on every node; untagged tasks still route to the model (Tier A) unchanged.
+
 ### Changed
 
 - `ansible/deploy-a2a.yml`: fixed stale template (`bridge_type` noop→subprocess, `bridge_timeout` 120000→300000, `a2a_version` 0.4.0→0.5.5) and added the opt-in fleet bridge flags (`provider=ollama`, `model=qwen3.5:4b`, `tools=bash,read,edit`, `noExtensions=true`, `maxConcurrent=2`, `maxBufferBytes=10485760`); JSON values now use `| to_json`.
