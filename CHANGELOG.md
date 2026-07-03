@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 12 TDD tests (`tests/unit/shell-exec-handler.test.ts`); RULE 23 dual-model review (deepseek + kimi) converged; 308/308 green.
   - Deployed + verified on all 7 fleet nodes — `metadata.exec=shell, command=echo $((17*23))` → `391` (deterministic, sub-second) on every node; untagged tasks still route to the model (Tier A) unchanged.
 
+- **Narration-detection guard (Phase EXEC Tier B)** — belt-and-suspenders on Tier A: after `pi --print` returns, if the output looks like plan-narration (first-person "I would run…" phrases), re-run ONCE with a forced "output ONLY the raw result, no prose/fences" follow-up that feeds back the (truncated) prior narration. Opt-in (`narrationGuardEnabled`, default false), capped at `narrationMaxRetries` (default 1) — no infinite loop. Conservative phrase-based detector (the standalone fenced-block heuristic was dropped as false-positive-prone per RULE 23 audit).
+  - `SubprocessPiTaskBridge.executeTask` wraps `runSubprocess` in `runWithNarrationGuard`; exported `isNarration` detector (`src/pi-task-bridge.ts`).
+  - `AbortSignal` threaded through `executeTaskWithProgress` so the streaming guard retry is abortable on client disconnect.
+  - `BridgeConfig` + `buildBridgeOptions` + ansible carry the fields; `bridge_narrationGuardEnabled=true` + `bridge_narrationMaxRetries=1` (fleet default on).
+  - 15 TDD tests (`tests/unit/narration-guard.test.ts`); RULE 23 dual-model review (deepseek PASS + kimi CONDITIONAL → findings applied); 323/323 green.
+  - Deployed + verified on all 7 fleet nodes — config.json `narrationGuardEnabled=true`; regression: normal model-path task → real `391` (guard does not break real output); fnet1 recovered real `391` after a narration.
+
 ### Changed
 
 - `ansible/deploy-a2a.yml`: fixed stale template (`bridge_type` noop→subprocess, `bridge_timeout` 120000→300000, `a2a_version` 0.4.0→0.5.5) and added the opt-in fleet bridge flags (`provider=ollama`, `model=qwen3.5:4b`, `tools=bash,read,edit`, `noExtensions=true`, `maxConcurrent=2`, `maxBufferBytes=10485760`); JSON values now use `| to_json`.
