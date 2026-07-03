@@ -24,10 +24,11 @@ import { TaskManager } from "./task-manager.js";
 import { ConfigManager } from "./config.js";
 import { NoOpPiTaskBridge, SubprocessPiTaskBridge } from "./pi-task-bridge.js";
 import type { PiTaskBridge, SubprocessBridgeOptions } from "./pi-task-bridge.js";
+import { buildBridgeOptions } from "./bridge-options.js";
 import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
 import { createPiSessionHandler } from "./pi-session-handler.js";
 
-export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge };
+export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge, buildBridgeOptions };
 export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge, SubprocessBridgeOptions };
 
 // Global extension state
@@ -96,17 +97,10 @@ export default function (pi: ExtensionAPI) {
       // Create PiTaskBridge from config
       let bridge: PiTaskBridge;
       if (config.bridge?.type === "subprocess") {
-        const bridgeOptions: SubprocessBridgeOptions = {
-          command: config.bridge.command || "pi",
-          timeout: config.bridge.timeout ?? 120000,
-          // Opt-in: pass through only when configured (undefined -> safe default).
-          provider: config.bridge.provider,
-          model: config.bridge.model,
-          tools: config.bridge.tools,
-          noExtensions: config.bridge.noExtensions ?? false,
-          maxConcurrent: config.bridge.maxConcurrent,
-          maxBufferBytes: config.bridge.maxBufferBytes,
-        };
+        // Phase EXEC Tier A: config→bridge wiring lives in buildBridgeOptions()
+        // (src/bridge-options.ts) so it is unit-testable without importing this
+        // side-effectful entry point. Opt-in flags pass through only when set.
+        const bridgeOptions: SubprocessBridgeOptions = buildBridgeOptions(config.bridge);
         bridge = new SubprocessPiTaskBridge(bridgeOptions);
         ctx.ui?.notify?.(`A2A bridge: subprocess (${bridgeOptions.command})`, "info");
       } else {

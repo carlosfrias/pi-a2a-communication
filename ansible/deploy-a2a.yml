@@ -37,12 +37,26 @@
     a2a_repo: "{{ ansible_env.HOME }}/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication"
     a2a_config_dir: "{{ ansible_env.HOME }}/.pi/agent/a2a"
 
-    # Bridge configuration
-    # Fleet nodes use 'noop' because pi is already running in tmux.
-    # The orchestrator (mac) uses 'subprocess' to spawn pi --print.
-    bridge_type: "noop"
+    # Bridge configuration (v0.5.5 fleet reality — subprocess bridge w/ opt-in flags).
+    # The spawned `pi --print` child sets PI_A2A_SKIP_SERVER=1 (see SubprocessPiTaskBridge)
+    # so it does NOT re-bind port 10000 vs the running tmux pi-agent — fleet can use
+    # 'subprocess' safely. Opt-in flags pin provider/model to bypass the model-router's
+    # cloud-via-a2a cross-node loop, drop extensions to avoid --print stdout interference,
+    # and cap concurrency/buffer for CPU/RAM-constrained nodes.
+    bridge_type: "subprocess"
     bridge_command: "pi"
-    bridge_timeout: 120000
+    bridge_timeout: 300000
+    bridge_provider: "ollama"
+    bridge_model: "qwen3.5:4b"
+    bridge_tools: "bash"
+    bridge_noExtensions: true
+    bridge_maxConcurrent: 2
+    bridge_maxBufferBytes: 10485760
+    # Phase EXEC Tier A — executor-role steering (default fleet-executor system prompt).
+    # Forces the weak local model to actually invoke tools + paste real stdout instead
+    # of narrating command plans. Override per-node in config.json to customize or empty-disable.
+    bridge_systemPrompt: "You are a fleet execution agent. Complete the assigned task by invoking the available tools (bash, read, edit). Never describe commands in prose — actually execute them and paste the real stdout/output. A response that only describes or plans commands, without real tool output, is a failure. If a step cannot be completed, report the actual error. Be concise; output the real result."
+    bridge_appendSystemPrompt: ""
 
     # A2A auth token
     bearer_token: "lab-fleet-2026"
@@ -51,13 +65,16 @@
     service_name: "pi-agent@{{ inventory_hostname }}"
 
     # A2A version to set in agent cards
-    a2a_version: "0.4.0"
+    a2a_version: "0.5.5"
 
     # Bridge type for fleet nodes:
-    # 'noop' — returns placeholder (pi already running in tmux, can't spawn subprocess)
-    # 'subprocess' — spawns pi --print (works on orchestrator where pi is not running)
-    # Note: PiSessionTaskHandler is registered automatically but falls back to bridge
-    # when ctx.newSession is not available (pi < 1.0)
+    # 'subprocess' — spawns `pi --print --no-session` with opt-in flags + PI_A2A_SKIP_SERVER
+    #   env gate so the child does not collide with the running tmux pi-agent (EADDRINUSE fix).
+    # 'noop' — returns placeholder (legacy; not used on the v0.5.5 fleet).
+    # Note: PiSessionTaskHandler is registered automatically but is NON-FUNCTIONAL on the
+    # fleet (ctx.newSession is only on ExtensionCommandContext, not the a2a-server
+    # ExtensionContext) -> always throws PI_SESSION_UNAVAILABLE -> falls back to this bridge.
+    # Phase EXEC Tier A: bridge_systemPrompt steers the executor model to act, not narrate.
 
   # ── Phase 1: Update Code ─────────────────────────────────────────────
   tasks:
@@ -168,7 +185,15 @@
             "bridge": {
               "type": "{{ bridge_type }}",
               "command": "{{ bridge_command }}",
-              "timeout": {{ bridge_timeout }}
+              "timeout": {{ bridge_timeout }},
+              "provider": "{{ bridge_provider }}",
+              "model": "{{ bridge_model }}",
+              "tools": "{{ bridge_tools }}",
+              "noExtensions": {{ bridge_noExtensions | lower }},
+              "maxConcurrent": {{ bridge_maxConcurrent }},
+              "maxBufferBytes": {{ bridge_maxBufferBytes }},
+              "systemPrompt": "{{ bridge_systemPrompt }}",
+              "appendSystemPrompt": "{{ bridge_appendSystemPrompt }}"
             }
           }
       tags: [deploy, config]

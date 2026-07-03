@@ -105,6 +105,15 @@ export interface SubprocessBridgeOptions {
   tools?: string;
   /** Disable extension discovery in the subprocess (optional; when true, avoids extension interference with --print stdout). Default: false (safe; opt-in for fleet). */
   noExtensions?: boolean;
+  /**
+   * System prompt for the subprocess (optional; opt-in — passed via --system-prompt when set).
+   * Fleet use: a fleet-executor prompt that steers the weak local model to actually invoke
+   * tools (bash/read/edit) and paste real stdout instead of narrating command plans.
+   * See wiki/.../reference/executor-tier-gap-remediation.md (Phase EXEC Tier A).
+   */
+  systemPrompt?: string;
+  /** Text appended to the subprocess system prompt (optional; opt-in — passed via --append-system-prompt when set). */
+  appendSystemPrompt?: string;
   /** Max concurrent subprocess executions (default: 2; protects CPU/RAM on small nodes). */
   maxConcurrent?: number;
   /** Max bytes captured per stream before killing the child (default: 10 MB). */
@@ -130,6 +139,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
   private model?: string;
   private tools?: string;
   private noExtensions: boolean;
+  private systemPrompt?: string;
+  private appendSystemPrompt?: string;
   private maxConcurrent: number;
   private maxBufferBytes: number;
   // Concurrency cap state
@@ -147,6 +158,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     this.model = options.model;
     this.tools = options.tools;
     this.noExtensions = options.noExtensions ?? false;
+    this.systemPrompt = options.systemPrompt;
+    this.appendSystemPrompt = options.appendSystemPrompt;
     this.maxConcurrent = options.maxConcurrent ?? 2;
     this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
   }
@@ -202,6 +215,12 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
       if (this.provider) args.push("--provider", this.provider);
       if (this.model) args.push("--model", this.model);
       if (this.tools) args.push("--tools", this.tools);
+      // Executor-role steering (Phase EXEC Tier A): a fleet-executor system prompt
+      // so the weak local model (qwen3.5:4b) actually invokes tools and pastes real
+      // stdout instead of narrating command plans. Opt-in: omitted when unset so
+      // non-fleet installs keep the original `pi --print --no-session <msg>` args.
+      if (this.systemPrompt) args.push("--system-prompt", this.systemPrompt);
+      if (this.appendSystemPrompt) args.push("--append-system-prompt", this.appendSystemPrompt);
       args.push(message);
 
       const proc = spawn(this.command, args, {

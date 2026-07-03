@@ -335,6 +335,14 @@ export interface BridgeConfig {
   tools?: string;
   /** Disable extension discovery in the subprocess (optional; opt-in, default false) */
   noExtensions?: boolean;
+  /**
+   * System prompt for the subprocess (optional; opt-in — passed via --system-prompt when set).
+   * Fleet use: a fleet-executor prompt that steers the weak local model to actually invoke
+   * tools and paste real stdout instead of narrating command plans (Phase EXEC Tier A).
+   */
+  systemPrompt?: string;
+  /** Text appended to the subprocess system prompt (optional; opt-in — passed via --append-system-prompt when set) */
+  appendSystemPrompt?: string;
   /** Max concurrent subprocess executions (default 2; protects CPU/RAM on small nodes) */
   maxConcurrent?: number;
   /** Max bytes captured per stream before killing the child (default 10 MB) */
