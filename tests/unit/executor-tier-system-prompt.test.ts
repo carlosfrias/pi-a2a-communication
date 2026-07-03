@@ -219,4 +219,22 @@ describe("Phase EXEC Tier A — executor-role system prompt (TDD)", () => {
     expect(args).toContain("--tools");
     expect(args).toContain("bash");
   });
+
+  it("EXEC.A.3.4b: empty-string systemPrompt/appendSystemPrompt do NOT push the flag (truthiness guard)", async () => {
+    const { SubprocessPiTaskBridge } = await import("../../src/pi-task-bridge.js");
+    const bridge = new SubprocessPiTaskBridge({
+      command: "pi",
+      timeout: 30000,
+      systemPrompt: "",
+      appendSystemPrompt: "",
+    });
+    succeedWith("ok");
+    await bridge.executeTask("do the thing");
+
+    const [, args] = spawnMock.mock.calls[0] as [string, string[]];
+    expect(args).not.toContain("--system-prompt");
+    expect(args).not.toContain("--append-system-prompt");
+    // Args unchanged apart from the message.
+    expect(args).toEqual(["--print", "--no-session", "do the thing"]);
+  });
 });

@@ -48,7 +48,7 @@
     bridge_timeout: 300000
     bridge_provider: "ollama"
     bridge_model: "qwen3.5:4b"
-    bridge_tools: "bash"
+    bridge_tools: "bash,read,edit"
     bridge_noExtensions: true
     bridge_maxConcurrent: 2
     bridge_maxBufferBytes: 10485760
@@ -183,17 +183,17 @@
               "timeout": 10000
             },
             "bridge": {
-              "type": "{{ bridge_type }}",
-              "command": "{{ bridge_command }}",
+              "type": {{ bridge_type | to_json }},
+              "command": {{ bridge_command | to_json }},
               "timeout": {{ bridge_timeout }},
-              "provider": "{{ bridge_provider }}",
-              "model": "{{ bridge_model }}",
-              "tools": "{{ bridge_tools }}",
-              "noExtensions": {{ bridge_noExtensions | lower }},
+              "provider": {{ bridge_provider | to_json }},
+              "model": {{ bridge_model | to_json }},
+              "tools": {{ bridge_tools | to_json }},
+              "noExtensions": {{ bridge_noExtensions | to_json }},
               "maxConcurrent": {{ bridge_maxConcurrent }},
               "maxBufferBytes": {{ bridge_maxBufferBytes }},
-              "systemPrompt": "{{ bridge_systemPrompt }}",
-              "appendSystemPrompt": "{{ bridge_appendSystemPrompt }}"
+              "systemPrompt": {{ bridge_systemPrompt | to_json }},
+              "appendSystemPrompt": {{ bridge_appendSystemPrompt | to_json }}
             }
           }
       tags: [deploy, config]

@@ -452,19 +452,12 @@ export default function (pi: ExtensionAPI) {
         const port = parts[1] ? parseInt(parts[1], 10) : 10000;
         const config = configManager!.getConfig();
         
-        // Create PiTaskBridge from config
+        // Create PiTaskBridge from config (Phase EXEC Tier A: reuse the same
+        // pure mapping as session_start so /a2a-server start also applies the
+        // executor-role systemPrompt/appendSystemPrompt + opt-in flags).
         let bridge: PiTaskBridge;
         if (config.bridge?.type === "subprocess") {
-          bridge = new SubprocessPiTaskBridge({
-            command: config.bridge.command || "pi",
-            timeout: config.bridge.timeout ?? 120000,
-            provider: config.bridge.provider,
-            model: config.bridge.model,
-            tools: config.bridge.tools,
-            noExtensions: config.bridge.noExtensions ?? false,
-            maxConcurrent: config.bridge.maxConcurrent,
-            maxBufferBytes: config.bridge.maxBufferBytes,
-          });
+          bridge = new SubprocessPiTaskBridge(buildBridgeOptions(config.bridge));
         } else {
           bridge = new NoOpPiTaskBridge();
         }
