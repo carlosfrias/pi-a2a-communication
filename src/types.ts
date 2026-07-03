@@ -347,6 +347,10 @@ export interface BridgeConfig {
   maxConcurrent?: number;
   /** Max bytes captured per stream before killing the child (default 10 MB) */
   maxBufferBytes?: number;
+  /** Narration-detection guard (Phase EXEC Tier B; opt-in, default false). */
+  narrationGuardEnabled?: boolean;
+  /** Max narration-guard re-runs (default 1; 0 disables even when guard enabled). */
+  narrationMaxRetries?: number;
 }
 
 export interface A2AConfig {

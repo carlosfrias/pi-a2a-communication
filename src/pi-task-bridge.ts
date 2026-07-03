@@ -118,6 +118,16 @@ export interface SubprocessBridgeOptions {
   maxConcurrent?: number;
   /** Max bytes captured per stream before killing the child (default: 10 MB). */
   maxBufferBytes?: number;
+  /**
+   * Narration-detection guard (Phase EXEC Tier B; opt-in, default false). When true,
+   * if the `pi --print` output looks like plan-narration (the model described
+   * commands instead of executing them), re-run once with a forced "actually
+   * execute, paste stdout" follow-up that feeds back the model's own plan.
+   * Belt-and-suspenders on top of the executor-role system prompt (Tier A).
+   */
+  narrationGuardEnabled?: boolean;
+  /** Max narration-guard re-runs (default 1; 0 disables even when guard enabled). */
+  narrationMaxRetries?: number;
 }
 
 /**
@@ -143,6 +153,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
   private appendSystemPrompt?: string;
   private maxConcurrent: number;
   private maxBufferBytes: number;
+  private narrationGuardEnabled: boolean;
+  private narrationMaxRetries: number;
   // Concurrency cap state
   private active = 0;
   private waiters: Array<() => void> = [];
@@ -162,6 +174,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     this.appendSystemPrompt = options.appendSystemPrompt;
     this.maxConcurrent = options.maxConcurrent ?? 2;
     this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
+    this.narrationGuardEnabled = options.narrationGuardEnabled ?? false;
+    this.narrationMaxRetries = options.narrationMaxRetries ?? 1;
   }
 
   async executeTask(message: string, signal?: AbortSignal): Promise<string> {
@@ -188,12 +202,32 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     }
     this.active++;
     try {
-      return await this.runSubprocess(message, signal);
+      return await this.runWithNarrationGuard(message, signal);
     } finally {
       this.active--;
       const next = this.waiters.shift();
       if (next) next();
     }
+  }
+
+  /**
+   * Phase EXEC Tier B - narration-detection guard. Runs the subprocess; if the
+   * output looks like plan-narration and the guard is enabled with retries left,
+   * re-runs ONCE with a forced execute-and-paste-stdout follow-up that feeds the
+   * model own plan back to it. The re-run uses the same signal. Capped at
+   * narrationMaxRetries so it can never loop forever.
+   */
+  private async runWithNarrationGuard(message: string, signal?: AbortSignal): Promise<string> {
+    let result = await this.runSubprocess(message, signal);
+    let retries = this.narrationGuardEnabled ? this.narrationMaxRetries : 0;
+    while (retries > 0 && isNarration(result)) {
+      retries--;
+      const followUp =
+        message + '\n\n' + NARRATION_FOLLOWUP +
+        '\n\nYour previous (plan-only) response was:\n' + result;
+      result = await this.runSubprocess(followUp, signal);
+    }
+    return result;
   }
 
   private runSubprocess(message: string, signal?: AbortSignal): Promise<string> {
@@ -356,4 +390,52 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     // Re-invoke pi with the captured message (6A2 migration to this node).
     return this.executeTask(t.checkpointRef);
   }
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase EXEC Tier B — narration detection (belt-and-suspenders guard).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Follow-up directive appended on a narration-guard re-run. */
+const NARRATION_FOLLOWUP =
+  "Your previous response only described or planned the command(s) without executing them. " +
+  "You MUST now ACTUALLY invoke the bash tool to run the command(s) and paste the real stdout. " +
+  "A plan-only or description-only response is a failure.";
+
+/** First-person narration phrases: the model describing what it *would* run. */
+const NARRATION_PHRASES: RegExp[] = [
+  /\bI would (run|execute|use|invoke|call)\b/i,
+  /\bI'd (run|execute|use|invoke|call)\b/i,
+  /\bI will (run|execute|use|invoke)\b/i,
+  /\bI'll (run|execute|use|invoke)\b/i,
+  /\blet me (run|execute|use|try)\b/i,
+  /\bI'm going to (run|execute|use)\b/i,
+  /\bthe command (I would|to run|would be)\b/i,
+];
+
+/** Output markers that indicate a fenced block contains the real result. */
+const OUTPUT_MARKERS = /(^|\s)(# Output|# output|# Result|# result|Output:|Result:|output:)\b/i;
+
+/** A fenced bash/sh/shell command block. */
+const FENCED_CMD = /```(?:bash|sh|shell|zsh)\b[\s\S]*?```/i;
+
+/**
+ * Detect whether a `pi --print` output is plan-narration rather than real
+ * execution. Conservative: flags first-person narration phrases and fenced
+ * command blocks with no output marker. Does NOT flag clean real output
+ * ("391"), prose-wrapped real output ("The answer is **391**"), or a fenced
+ * block that includes an output marker ("# Output: 391").
+ *
+ * Exported for unit testing.
+ */
+export function isNarration(output: string): boolean {
+  if (!output || !output.trim()) return false;
+  for (const p of NARRATION_PHRASES) {
+    if (p.test(output)) return true;
+  }
+  // A fenced command block with no output marker anywhere in the response
+  // (a real execution surfaces the result via "# Output:" / "Output:").
+  if (FENCED_CMD.test(output) && !OUTPUT_MARKERS.test(output)) {
+    return true;
+  }
+  return false;
 }

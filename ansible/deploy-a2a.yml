@@ -57,6 +57,11 @@
     # of narrating command plans. Override per-node in config.json to customize or empty-disable.
     bridge_systemPrompt: "You are a fleet execution agent. Complete the assigned task by invoking the available tools (bash, read, edit). Never describe commands in prose — actually execute them and paste the real stdout/output. A response that only describes or plans commands, without real tool output, is a failure. If a step cannot be completed, report the actual error. Be concise; output the real result."
     bridge_appendSystemPrompt: ""
+    # Phase EXEC Tier B — narration-detection guard. If the model narrates
+    # commands instead of executing them, re-run once with a forced execute-and-
+    # paste-stdout follow-up. Opt-in; default on for the fleet.
+    bridge_narrationGuardEnabled: true
+    bridge_narrationMaxRetries: 1
 
     # A2A auth token
     bearer_token: "lab-fleet-2026"
@@ -193,7 +198,9 @@
               "maxConcurrent": {{ bridge_maxConcurrent }},
               "maxBufferBytes": {{ bridge_maxBufferBytes }},
               "systemPrompt": {{ bridge_systemPrompt | to_json }},
-              "appendSystemPrompt": {{ bridge_appendSystemPrompt | to_json }}
+              "appendSystemPrompt": {{ bridge_appendSystemPrompt | to_json }},
+              "narrationGuardEnabled": {{ bridge_narrationGuardEnabled | to_json }},
+              "narrationMaxRetries": {{ bridge_narrationMaxRetries }}
             }
           }
       tags: [deploy, config]

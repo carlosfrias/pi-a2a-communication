@@ -34,5 +34,8 @@ export function buildBridgeOptions(config: BridgeConfig): SubprocessBridgeOption
     appendSystemPrompt: config.appendSystemPrompt,
     maxConcurrent: config.maxConcurrent,
     maxBufferBytes: config.maxBufferBytes,
+    // Phase EXEC Tier B — narration-detection guard (opt-in).
+    narrationGuardEnabled: config.narrationGuardEnabled,
+    narrationMaxRetries: config.narrationMaxRetries,
   };
 }
