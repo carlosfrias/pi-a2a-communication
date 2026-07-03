@@ -28,6 +28,7 @@ import { buildBridgeOptions } from "./bridge-options.js";
 import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
 import { createPiSessionHandler } from "./pi-session-handler.js";
 import { createShellExecHandler } from "./shell-exec-handler.js";
+import { createAgentExecHandler } from "./agent-exec-handler.js";
 
 export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge, buildBridgeOptions };
 export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge, SubprocessBridgeOptions };
@@ -116,6 +117,22 @@ export default function (pi: ExtensionAPI) {
       a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
       // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
       a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
+      // Phase EXEC Tier D: agent-exec strong-model escalation (opt-in; 32GB nodes).
+      if (config.bridge?.agentExecEnabled) {
+        a2aServer.registerTaskHandler("agent-exec", createAgentExecHandler({
+          model: config.bridge.agentExecModel,
+          provider: config.bridge.provider,
+          tools: config.bridge.tools,
+          systemPrompt: config.bridge.systemPrompt,
+          timeout: config.bridge.agentExecTimeout ?? 600000,
+          noExtensions: config.bridge.noExtensions,
+          maxConcurrent: 1,
+          maxBufferBytes: config.bridge.maxBufferBytes,
+          narrationGuardEnabled: config.bridge.narrationGuardEnabled,
+          narrationMaxRetries: config.bridge.narrationMaxRetries,
+        }));
+        ctx.ui?.notify?.("A2A: registered agent-exec handler (Tier D strong-model escalation)", "info");
+      }
       ctx.ui?.notify?.("A2A: registered session task handler", "info");
 
       await a2aServer.start();
@@ -477,6 +494,22 @@ export default function (pi: ExtensionAPI) {
         a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
         // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
         a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
+        // Phase EXEC Tier D: agent-exec strong-model escalation (opt-in; 32GB nodes).
+        if (config.bridge?.agentExecEnabled) {
+          a2aServer.registerTaskHandler("agent-exec", createAgentExecHandler({
+            model: config.bridge.agentExecModel,
+            provider: config.bridge.provider,
+            tools: config.bridge.tools,
+            systemPrompt: config.bridge.systemPrompt,
+            timeout: config.bridge.agentExecTimeout ?? 600000,
+            noExtensions: config.bridge.noExtensions,
+            maxConcurrent: 1,
+            maxBufferBytes: config.bridge.maxBufferBytes,
+            narrationGuardEnabled: config.bridge.narrationGuardEnabled,
+            narrationMaxRetries: config.bridge.narrationMaxRetries,
+          }));
+          ctx.ui?.notify?.("A2A: registered agent-exec handler (Tier D)", "info");
+        }
 
         try {
           await a2aServer.start();

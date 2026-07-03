@@ -62,6 +62,13 @@
     # paste-stdout follow-up. Opt-in; default on for the fleet.
     bridge_narrationGuardEnabled: true
     bridge_narrationMaxRetries: 1
+    # Phase EXEC Tier D — agent-exec strong-model escalation (32GB nodes only).
+    # Auto-enabled where the node has >= 30GB RAM (qwen3.5:35b-a3b only fits there).
+    # A task tagged metadata.exec="agent" + skills=["agent-exec"] then runs a real
+    # agentic decision loop with the 35B flagship LOCALLY (execution stays on node).
+    bridge_agentExecEnabled: "{{ (ansible_memtotal_mb | default(0) | int) >= 30000 }}"
+    bridge_agentExecModel: "qwen3.5:35b-a3b"
+    bridge_agentExecTimeout: 600000
 
     # A2A auth token
     bearer_token: "lab-fleet-2026"
@@ -200,7 +207,10 @@
               "systemPrompt": {{ bridge_systemPrompt | to_json }},
               "appendSystemPrompt": {{ bridge_appendSystemPrompt | to_json }},
               "narrationGuardEnabled": {{ bridge_narrationGuardEnabled | to_json }},
-              "narrationMaxRetries": {{ bridge_narrationMaxRetries | to_json }}
+              "narrationMaxRetries": {{ bridge_narrationMaxRetries | to_json }},
+              "agentExecEnabled": {{ bridge_agentExecEnabled | to_json }},
+              "agentExecModel": {{ bridge_agentExecModel | to_json }},
+              "agentExecTimeout": {{ bridge_agentExecTimeout | to_json }}
             }
           }
       tags: [deploy, config]

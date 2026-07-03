@@ -351,6 +351,18 @@ export interface BridgeConfig {
   narrationGuardEnabled?: boolean;
   /** Max narration-guard re-runs (default 1; 0 disables even when guard enabled). */
   narrationMaxRetries?: number;
+  /**
+   * Phase EXEC Tier D — agent-exec strong-model escalation (opt-in, default false).
+   * When true, a task tagged metadata.exec="agent" + skills=["agent-exec"] runs
+   * `pi --print` with the strong local model (agentExecModel) + full tools, so a
+   * capable model runs the agentic decision loop locally. Auto-enabled on 32GB
+   * nodes by the ansible deploy (where agentExecModel fits).
+   */
+  agentExecEnabled?: boolean;
+  /** Strong local model for agent-exec decision loop (default "qwen3.5:35b-a3b"). */
+  agentExecModel?: string;
+  /** Max execution time for agent-exec in ms (default 600000 = 10 min; agentic loops on CPU are slow). */
+  agentExecTimeout?: number;
 }
 
 export interface A2AConfig {
