@@ -52,6 +52,7 @@ A2A (Agent-to-Agent) protocol extension for pi. Enables multi-node fleet communi
 | [Conformance Audit](./reference/A2A-v1-Conformance-Audit.md) | Raw audit findings with deepseek/kimi validation |
 | [Agent Card Schema](./reference/agent-card-schema.md) | A2A Agent Card schema reference and fleet card |
 | [M7.2 Upstream PR Assessment](./reference/M7.2-upstream-pr-assessment.md) | Analysis of whether to offer PR to DrOlu/pi-a2a-communication |
+| [Executor-Tier Gap Remediation](./reference/executor-tier-gap-remediation.md) | Fleet nodes echo command plans instead of executing — finding promoted to Phase EXEC plan (2026-07-03) |
 
 ## Related Projects
 
