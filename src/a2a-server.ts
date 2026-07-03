@@ -31,7 +31,7 @@ import { A2A_METHODS, AGENT_CARD_PATH } from "./types.js";
 /**
  * Task handler function type
  */
-type TaskHandler = (task: A2ATask, onUpdate: (update: Partial<A2ATask>) => void) => Promise<A2ATask>;
+type TaskHandler = (task: A2ATask, onUpdate: (update: Partial<A2ATask>) => void, signal?: AbortSignal) => Promise<A2ATask>;
 
 /**
  * A2A Server class
@@ -860,7 +860,9 @@ export class A2AServer {
     try {
       // Check for a registered task handler first
       // Handlers are keyed by skill ID; we check "a2a-task-execution" (default skill)
-      // and any skill IDs from the task's metadata
+      // and any skill IDs from the task's metadata. Phase EXEC Tier C: a handler
+      // that throws PI_SESSION_UNAVAILABLE CONTINUES to the next handler (e.g. the
+      // deterministic "shell-exec" short-circuit) instead of jumping to the bridge.
       const skillIds = ["a2a-task-execution", ...(task.metadata?.skills as string[] || [])];
       for (const skillId of skillIds) {
         const handler = this.taskHandlers.get(skillId);
@@ -869,13 +871,13 @@ export class A2AServer {
             const result = await handler(task, (update: Partial<A2ATask>) => {
               Object.assign(task, update);
               this.notifySubscribers(task);
-            });
+            }, signal);
             return result;
           } catch (handlerError) {
             // If the handler signals that the session is unavailable,
-            // fall through to the PiTaskBridge
+            // continue to the next handler; if none match, fall through to bridge.
             if (handlerError instanceof Error && handlerError.message.startsWith("PI_SESSION_UNAVAILABLE")) {
-              break; // Fall through to bridge
+              continue; // Fall through to next handler / bridge
             }
             throw handlerError;
           }
@@ -943,6 +945,8 @@ export class A2AServer {
 
     try {
       // Check for a registered task handler first (same as processTask)
+      // Phase EXEC Tier C: continue (not break) on PI_SESSION_UNAVAILABLE so a
+      // deterministic "shell-exec" handler is reached; thread the signal.
       const skillIds = ["a2a-task-execution", ...(task.metadata?.skills as string[] || [])];
       for (const skillId of skillIds) {
         const handler = this.taskHandlers.get(skillId);
@@ -957,7 +961,7 @@ export class A2AServer {
                 contextId: task.contextId || "",
                 status: task.status,
               });
-            });
+            }, undefined);
             // Handler completed — send final result via SSE
             task.status.state = "completed";
             task.status.timestamp = new Date().toISOString();
@@ -975,9 +979,9 @@ export class A2AServer {
             });
             return;
           } catch (handlerError) {
-            // If the handler signals session unavailable, fall through to PiTaskBridge
+            // If the handler signals session unavailable, continue to next handler / bridge.
             if (handlerError instanceof Error && handlerError.message.startsWith("PI_SESSION_UNAVAILABLE")) {
-              break; // Fall through to bridge
+              continue; // Fall through to next handler / bridge
             }
             throw handlerError;
           }

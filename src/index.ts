@@ -27,6 +27,7 @@ import type { PiTaskBridge, SubprocessBridgeOptions } from "./pi-task-bridge.js"
 import { buildBridgeOptions } from "./bridge-options.js";
 import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
 import { createPiSessionHandler } from "./pi-session-handler.js";
+import { createShellExecHandler } from "./shell-exec-handler.js";
 
 export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge, buildBridgeOptions };
 export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge, SubprocessBridgeOptions };
@@ -113,6 +114,8 @@ export default function (pi: ExtensionAPI) {
       // Register pi session task handler (uses the running pi session for task execution)
       const sessionHandler = createPiSessionHandler(ctx);
       a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
+      // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
+      a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
       ctx.ui?.notify?.("A2A: registered session task handler", "info");
 
       await a2aServer.start();
@@ -472,6 +475,8 @@ export default function (pi: ExtensionAPI) {
         // Register pi session task handler
         const sessionHandler = createPiSessionHandler(ctx);
         a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
+        // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
+        a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
 
         try {
           await a2aServer.start();
@@ -690,6 +695,10 @@ Examples:
           description: "Timeout in milliseconds (default 300000 — A2A tasks run a local-model subprocess that can take minutes on CPU nodes)",
           default: 300000,
         },
+        metadata: {
+          type: "object",
+          description: "Optional A2A task metadata. Set {\"exec\":\"shell\",\"command\":\"<cmd>\",\"skills\":[\"shell-exec\"]} to deterministically execute a shell command on the node (no model in the loop — Phase EXEC Tier C). Other fields are passed through to the agent.",
+        },
       },
       required: ["agent_url", "message"],
     },
@@ -709,6 +718,7 @@ Examples:
         const result = await taskManager.sendTask(agent, message, {
           streaming: (params.streaming as boolean) ?? false,
           timeout: (params.timeout as number) ?? 300000,
+          metadata: params.metadata as Record<string, unknown> | undefined,
           signal,
         }, onUpdate ? (update) => {
           if (update.status?.state) {
