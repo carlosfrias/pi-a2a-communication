@@ -89,8 +89,10 @@ export function createAgentExecHandler(options: AgentExecHandlerOptions = {}) {
       // rather than silently degrading to the 4B bridge (RULE 23 audit: silent
       // footgun). The caller should target a 32GB node for hard agentic tasks.
       throw new Error(
-        "agent-exec not available on this node (insufficient RAM for the strong model); " +
-          "target a 32GB node (fnet3-6) for hard agentic tasks"
+        "agent-exec not available on this node (the configured strong model " +
+          "(qwen3.5:35b-a3b) is too heavy for safe A2A agent loops on 32GB — ~6GB " +
+          "headroom + OLLAMA_KEEP_ALIVE=0 reload churn OOMs the node on multi-step " +
+          "tasks; configure a lighter capable model (e.g. qwen3.5:14b) or more RAM"
       );
     }
     const message =

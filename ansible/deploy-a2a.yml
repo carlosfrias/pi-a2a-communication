@@ -62,11 +62,13 @@
     # paste-stdout follow-up. Opt-in; default on for the fleet.
     bridge_narrationGuardEnabled: true
     bridge_narrationMaxRetries: 1
-    # Phase EXEC Tier D — agent-exec strong-model escalation (32GB nodes only).
-    # Auto-enabled where the node has >= 30GB RAM (qwen3.5:35b-a3b only fits there).
-    # A task tagged metadata.exec="agent" + skills=["agent-exec"] then runs a real
-    # agentic decision loop with the 35B flagship LOCALLY (execution stays on node).
-    bridge_agentExecEnabled: "{{ (ansible_memtotal_mb | default(0) | int) >= 30000 }}"
+    # Phase EXEC Tier D — agent-exec strong-model escalation. DISABLED fleet-wide:
+    # the configured strong model qwen3.5:35b-a3b is too heavy for A2A agent loops on
+    # 32GB nodes (~6GB headroom + OLLAMA_KEEP_ALIVE=0 reload churn OOMs the node on
+    # multi-step hard tasks; verified 2026-07-03 — a minimal task worked but a
+    # multi-step task rebooted fnet4). Re-enable after pulling a lighter capable
+    # model (e.g. qwen3.5:14b) and pointing bridge_agentExecModel at it, or more RAM.
+    bridge_agentExecEnabled: false
     bridge_agentExecModel: "qwen3.5:35b-a3b"
     bridge_agentExecTimeout: 600000
     # Phase EXEC Tier D — dedicated capable-agent prompt for the strong model (the
