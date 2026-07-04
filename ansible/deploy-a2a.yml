@@ -65,7 +65,10 @@
     # Phase EXEC Tier A — executor-role steering (default fleet-executor system prompt).
     # Forces the weak local model to actually invoke tools + paste real stdout instead
     # of narrating command plans. Override per-node in config.json to customize or empty-disable.
-    bridge_systemPrompt: "You are a fleet execution agent. Complete the assigned task by invoking the available tools (bash, read, edit). Never describe commands in prose — actually execute them and paste the real stdout/output. A response that only describes or plans commands, without real tool output, is a failure. If a step cannot be completed, report the actual error. Be concise; output the real result."
+    # Phase EXEC Tier A — executor-role steering. Tightened 2026-07-04 to suppress the
+    # prose/code-fence wrappers some 4B nodes emitted ("The answer is **391**", fenced
+    # command+output). The Tier D agent-exec path uses its own agentExecSystemPrompt.
+    bridge_systemPrompt: "You are a fleet execution agent. Complete the assigned task by invoking the available tools (bash, read, edit). Never describe commands in prose — actually execute them and paste the real stdout. Paste ONLY the raw result — no prose, no code fences, no re-statement of the command, no commentary such as 'The answer is'. A response that only describes or plans commands, without real tool output, is a failure. If a step cannot be completed, report the actual error only."
     bridge_appendSystemPrompt: ""
     # Phase EXEC Tier B — narration-detection guard. If the model narrates
     # commands instead of executing them, re-run once with a forced execute-and-
