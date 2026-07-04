@@ -3,20 +3,28 @@
  *
  * A task tagged `metadata.exec="agent"` + `metadata.skills=["agent-exec"]` is
  * routed to this handler, which spawns `pi --print` with a STRONGER local model
- * (qwen3.5:35b-a3b, the 32GB flagship) + full tools (bash,read,edit) + a
+ * (default qwen3.5:35b-a3b, the 32GB flagship) + full tools (bash,read,edit) + a
  * dedicated capable-agent system prompt, so a capable model runs the agentic
  * decision loop LOCALLY on the node while tool execution stays there (code/data
  * never leave the node). This UNLOCKS hard agentic tasks on the fleet. Mirrors
  * the Tier C shell-exec handler (which runs a command with NO model); agent-exec
  * runs a real agent loop with a BIGGER model. Explicit-tag (caller opts in).
  *
+ * Per-task model override: `task.metadata.model` (string) overrides the configured
+ * strong model for that task — e.g. send `metadata.model="qwen3.5:9b"` to use a
+ * lighter model for a task that needs more RAM headroom. Each distinct model gets
+ * its own SubprocessPiTaskBridge (and its own maxConcurrent semaphore) via a cache.
+ *
  * Scoped to 32GB nodes: the handler is registered everywhere, but on nodes where
- * `enabled` is false (16GB — the strong model does not fit) an `exec="agent"`
- * task FAILS EXPLICITLY (rather than silently degrading to the 4B bridge), so the
- * caller knows to target a 32GB node.
+ * `enabled` is false (16GB — the strong model does not fit) an `exec="agent"` task
+ * FAILS EXPLICITLY (rather than silently degrading to the 4B bridge), so the
+ * caller knows to target a 32GB node (or pass a metadata.model that fits).
  *
  * Reuses SubprocessPiTaskBridge for all transport hardening (concurrency cap +
- * opt-in queue-depth cap, byte-accurate maxBuffer, timeout, AbortSignal).
+ * opt-in queue-depth cap, byte-accurate maxBuffer, timeout, AbortSignal) and sets
+ * OLLAMA_KEEP_ALIVE on the subprocess so the model loads once and stays resident
+ * across a multi-step loop (avoids the per-turn reload churn that OOMs 32GB nodes
+ * under the fleet default OLLAMA_KEEP_ALIVE=0).
  *
  * See wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md.
  */
@@ -27,7 +35,7 @@ import type { A2ATask } from "./types.js";
 export interface AgentExecHandlerOptions {
   /** Whether the strong model is available on this node (default true). When false, exec="agent" tasks fail explicitly. */
   enabled?: boolean;
-  /** Strong local model for the decision loop (default "qwen3.5:35b-a3b"). */
+  /** Strong local model for the decision loop (default "qwen3.5:35b-a3b"); overridable per task via metadata.model. */
   model?: string;
   /** Provider (default "ollama" — bypasses the model-router's cloud-via-a2a loop). */
   provider?: string;
@@ -57,17 +65,19 @@ export interface AgentExecHandlerOptions {
 /**
  * Create an agent-exec task handler. The handler builds a dedicated
  * SubprocessPiTaskBridge pinned to the strong model + full tools + a capable-agent
- * prompt, and delegates execution to it.
+ * prompt, and delegates execution to it. A per-model bridge cache lets
+ * `task.metadata.model` override the configured model per task.
  *
  * @returns a TaskHandler-shaped `(task, onUpdate, signal) => Promise<A2ATask>`.
  */
 export function createAgentExecHandler(options: AgentExecHandlerOptions = {}) {
   const enabled = options.enabled ?? true;
-  const bridge = new SubprocessPiTaskBridge({
+  const configuredModel = options.model ?? "qwen3.5:35b-a3b";
+  const baseOptions: SubprocessBridgeOptions = {
     command: "pi",
     timeout: options.timeout ?? 600000,
     provider: options.provider ?? "ollama",
-    model: options.model ?? "qwen3.5:35b-a3b",
+    model: configuredModel,
     tools: options.tools ?? "bash,read,edit",
     noExtensions: options.noExtensions ?? true,
     maxConcurrent: options.maxConcurrent ?? 1,
@@ -80,7 +90,18 @@ export function createAgentExecHandler(options: AgentExecHandlerOptions = {}) {
     // and the capable model rarely narrates. Enable via the bridge config if desired.
     narrationGuardEnabled: false,
     narrationMaxRetries: 0,
-  });
+  };
+  // Per-model bridge cache: each model gets its own SubprocessPiTaskBridge (and its
+  // own maxConcurrent semaphore). metadata.model overrides the configured model.
+  const bridges = new Map<string, SubprocessPiTaskBridge>();
+  const bridgeFor = (model: string): SubprocessPiTaskBridge => {
+    let b = bridges.get(model);
+    if (!b) {
+      b = new SubprocessPiTaskBridge({ ...baseOptions, model });
+      bridges.set(model, b);
+    }
+    return b;
+  };
 
   return async function agentExecHandler(
     task: A2ATask,
@@ -95,12 +116,14 @@ export function createAgentExecHandler(options: AgentExecHandlerOptions = {}) {
     if (!enabled) {
       // The strong model does not fit on this node (e.g. 16GB). Fail explicitly
       // rather than silently degrading to the 4B bridge (RULE 23 audit: silent
-      // footgun). The caller should target a 32GB node for hard agentic tasks.
+      // footgun). The caller should target a 32GB node, or pass a metadata.model
+      // that fits this node, for hard agentic tasks.
       throw new Error(
         "agent-exec not available on this node (the configured strong model " +
           "(qwen3.5:35b-a3b) is too heavy for safe A2A agent loops on 32GB — ~6GB " +
           "headroom + OLLAMA_KEEP_ALIVE=0 reload churn OOMs the node on multi-step " +
-          "tasks; configure a lighter capable model (e.g. qwen3.5:14b) or more RAM"
+          "tasks; configure a lighter capable model (e.g. qwen3.5:14b) or more RAM, " +
+          "or pass metadata.model with a model that fits this node)"
       );
     }
     const message =
@@ -111,6 +134,11 @@ export function createAgentExecHandler(options: AgentExecHandlerOptions = {}) {
     if (!message) {
       throw new Error("agent-exec: no message text in task");
     }
+
+    // Per-task model override (metadata.model); fall back to the configured model.
+    const model =
+      typeof md.model === "string" && md.model.trim() ? md.model.trim() : configuredModel;
+    const bridge = bridgeFor(model);
 
     const result = await bridge.executeTask(message, signal);
 

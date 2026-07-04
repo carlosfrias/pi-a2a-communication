@@ -111,6 +111,14 @@
 
   # ── Phase 1: Update Code ─────────────────────────────────────────────
   tasks:
+    - name: Assert ansible_memtotal_mb fact is available (agent-exec 32GB gating depends on it)
+      ansible.builtin.assert:
+        that:
+          - ansible_memtotal_mb is defined
+          - ansible_memtotal_mb | int > 0
+        fail_msg: "ansible_memtotal_mb fact is missing/zero — the agent-exec 32GB gating (bridge_agentExecEnabled) would silently disable agent-exec on every node. Ensure gather_facts is enabled."
+      tags: [deploy, config]
+
     - name: Check if A2A repo exists
       ansible.builtin.stat:
         path: "{{ a2a_repo }}"

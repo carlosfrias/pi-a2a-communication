@@ -222,6 +222,42 @@ describe("Phase EXEC Tier D — agent-exec handler (TDD)", () => {
     expect(opts.env.CUSTOM).toBe("x");
     expect(opts.env.PI_A2A_SKIP_SERVER).toBe("1");
   });
+
+  it("EXEC.D.modelOverride: task.metadata.model overrides the configured strong model", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ systemPrompt: "SP" }); // default model 35b-a3b
+    succeedWith("ok");
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"], model: "qwen3.5:9b" }), () => {}, undefined);
+    const args = spawnMock.mock.calls[0][1] as string[];
+    expect(args[args.indexOf("--model") + 1]).toBe("qwen3.5:9b");
+  });
+
+  it("EXEC.D.modelOverrideFallback: empty/non-string metadata.model falls back to the configured model", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ systemPrompt: "SP" });
+    succeedWith("ok");
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"], model: "" }), () => {}, undefined);
+    let args = spawnMock.mock.calls[0][1] as string[];
+    expect(args[args.indexOf("--model") + 1]).toBe("qwen3.5:35b-a3b");
+    spawnMock.mockReset();
+    succeedWith("ok");
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"], model: 42 }), () => {}, undefined);
+    args = spawnMock.mock.calls[0][1] as string[];
+    expect(args[args.indexOf("--model") + 1]).toBe("qwen3.5:35b-a3b");
+  });
+
+  it("EXEC.D.modelCache: two tasks with the same metadata.model reuse one bridge (spawn called per task, same model)", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ systemPrompt: "SP" });
+    succeedWith("a"); succeedWith("b");
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"], model: "qwen3.5:9b" }), () => {}, undefined);
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"], model: "qwen3.5:9b" }), () => {}, undefined);
+    expect(spawnMock).toHaveBeenCalledTimes(2);
+    const m1 = (spawnMock.mock.calls[0][1] as string[])[/*--model idx*/ (spawnMock.mock.calls[0][1] as string[]).indexOf("--model") + 1];
+    const m2 = (spawnMock.mock.calls[1][1] as string[])[(spawnMock.mock.calls[1][1] as string[]).indexOf("--model") + 1];
+    expect(m1).toBe("qwen3.5:9b");
+    expect(m2).toBe("qwen3.5:9b");
+  });
 });
 
 // --- processTask routing ---
