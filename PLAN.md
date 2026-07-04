@@ -1,14 +1,91 @@
 ---
 name: pi-a2a-communication
-phase: "Post-v0.4.0: A2A-to-fnet execution gap closed; follow-ups filed"
-progress: 100
+phase: "Phase EXEC: Executor-Tier Gap Remediation"
+progress: 5
 status: active
-last_updated: 2026-07-01
+last_updated: 2026-07-04
 ---
 
 # PLAN — pi-a2a-communication
 
-## Current: M8 — Stable Release ✅
+## Current: Phase EXEC — Executor-Tier Gap Remediation 🟡
+
+**HIGH PRIORITY (2026-07-03, short on time).** The v0.4.1→v0.5.5 fleet A2A re-enable + hardening arc (repo tip `2619da0`, STABLE) built + hardened ONLY the TRANSPORT tier. An **unbuilt EXECUTOR-ROLE tier** causes fleet nodes to *echo command plans instead of executing*. Finding + evidence: [wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md](./wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md). **Approach: TDD (RULE 2 / CA-5) + RULE 23 dual-model (deepseek VALIDATE + kimi AUDIT).**
+
+> ⚠ Vault was stale at v0.4.0 (2026-06-24) while the repo reached v0.5.5. This PLAN update adds the EXEC phase only; the full v0.5.5 vault sync is a follow-up (RULE 26). See FOCUS.md Handoff Notes.
+
+### Root Cause (one paragraph)
+
+`SubprocessPiTaskBridge.runSubprocess` builds `pi --print --no-session [--no-extensions] [--provider] [--model] [--tools] <message>` with **no `--system-prompt`** (`SubprocessBridgeOptions` has no `systemPrompt` field). The fleet executor therefore runs qwen3.5:4b under pi's *default generic "coding assistant"* system prompt with the task verbatim. The 4B model emits plan-narration as its turn; in the `--print` agent loop a no-tool-call turn is the final answer, so narration is returned verbatim. Both deterministic bypasses are dead: `PiSessionTaskHandler` throws `PI_SESSION_UNAVAILABLE` (GAP-2 NON-FUNCTIONAL), and no `shell-exec` handler is registered.
+
+### Resolution Tiers
+
+| Tier | Description | Priority |
+|------|-------------|----------|
+| **A** | Executor-role system prompt — add `systemPrompt`/`appendSystemPrompt` to `SubprocessBridgeOptions`; push `--system-prompt`/`--append-system-prompt`; ship default fleet-executor prompt; wire via per-node `config.json`. | 🔴 DO FIRST (fixes the observed symptom) |
+| **C** | Deterministic `shell-exec` short-circuit — register a `shell-exec` task handler (`registerTaskHandler`) that runs commands via `child_process` for tasks tagged `metadata.exec=shell`; wire `AbortSignal` (closes the accepted limitation). | 🟡 next |
+| **B** | Narration-detection guard — post-run heuristic re-steers if output has "I would run"/fenced commands with no real tool output. | 🟢 belt-and-suspenders |
+| **D** | Model-escalation tier — escalate the *decision* to a stronger/cloud model while keeping execution local (reverses the "no cloud/hard-task escalation" limitation). | ⏸ gated (only if hard tasks misbehave after A–C) |
+
+## Phase EXEC: Executor-Tier Gap Remediation 🟡
+
+### Tier A — Executor-Role System Prompt (DO FIRST)
+
+- [x] EXEC.A.0 Finding documented + dual-cause assessed (transport OK; executor-role tier unbuilt)
+- [x] EXEC.A.1 Operator approved converting finding → PLAN/FOCUS (2026-07-03)
+- [x] EXEC.A.2 PLAN/FOCUS written in vault (this phase)
+- [ ] EXEC.A.3 **TDD — write failing tests first** (RULE 2/CA-5):
+  - [x] EXEC.A.3.1 Test — `SubprocessBridgeOptions` accepts `systemPrompt?: string` and `appendSystemPrompt?: string`
+  - [x] EXEC.A.3.2 Test — when `systemPrompt` set, `runSubprocess` pushes `--system-prompt <value>` onto args
+  - [x] EXEC.A.3.3 Test — when `appendSystemPrompt` set, `runSubprocess` pushes `--append-system-prompt <value>` onto args
+  - [x] EXEC.A.3.4 Test — neither set → args unchanged (no regression; non-fleet safe)
+  - [x] EXEC.A.3.4b Test — empty-string systemPrompt/appendSystemPrompt do NOT push the flag (truthiness guard) [kimi Low]
+  - [x] EXEC.A.3.5 Test — `BridgeConfig` in `types.ts` carries optional `systemPrompt`/`appendSystemPrompt`; `config.ts` DEFAULTS leave them unset (opt-in)
+  - [x] EXEC.A.3.6 Test — `buildBridgeOptions(config)` maps `bridge.systemPrompt`/`appendSystemPrompt` → `SubprocessBridgeOptions` + end-to-end spawned `--system-prompt`
+- [x] EXEC.A.4 **Implement** (`src/pi-task-bridge.ts`, `src/types.ts`, `src/bridge-options.ts` NEW, `src/index.ts`). Commit `5fa9f14`.
+- [x] EXEC.A.5 Ship default fleet-executor system prompt in `ansible/deploy-a2a.yml` (`bridge_systemPrompt`); also fixed stale template to v0.5.5 fleet reality + `bridge_tools: bash,read,edit` (align with prompt).
+- [x] EXEC.A.6 **RULE 23 dual-model review** — deepseek VALIDATE (CONDITIONAL) + kimi AUDIT (CONDITIONAL); converged → all findings applied in commit `e68bded` (`/a2a-server start` handler refactored; ansible `to_json` JSON-safety; tools/prompt alignment; negative test; trailing newlines). Non-fleet safety confirmed by both.
+- [x] EXEC.A.7 Build `dist/` (`npm run build` clean); **RULE 29** restart pending deploy (A.8). Suite **296/296 green**.
+- [x] EXEC.A.8 Deploy to fnet3 via `deploy-a2a.yml` (RULE 28 playbook); verify fnet3 actually invokes `bash` and returns real stdout for an open-ended task (regression test for the gap). Then deploy to all 7 nodes.
+  - [x] EXEC.A.8.1 **fnet3 canary deployed + VERIFIED (2026-07-03)** — repo tip `e68bded`, `dist/bridge-options.js` built on-node, `config.json` has `bridge.systemPrompt` (fleet-executor prompt) + `tools=bash,read,edit`. Service restarted (`ActiveEnterTimestamp` 16:54 UTC, port 10000 LISTEN). **Gap regression test PASSED:** `hostname`→`fnet3` and `echo $((17*23))`→`391` (real stdout, not narration).
+  - [x] EXEC.A.8.2 **All-7 deploy + verified (2026-07-03)** — `deploy-a2a.yml -e ansible_become=false --skip-tags restart` shipped code+build+config to fnet1–7 (failed=0); `systemctl restart --no-block pi-agent@<node>` on all 7; all active + port 10000 LISTEN (~17:10 UTC). **Full-fleet regression test PASSED:** `echo $((17*23))`→`391` on all 7 (fnet2/fnet3/fnet5/fnet7 clean; fnet1/fnet4/fnet6 prose-wrapped but all executed real commands). **Executor-tier gap CLOSED fleet-wide.**
+  - **Playbook become gotcha (follow-up):** `deploy-a2a.yml` + inventory `ansible_become=true` makes tasks run as root → `ansible_env.HOME=/root` → wrong repo path + no nvm (`npm: command not found`). Workaround: `-e ansible_become=false` (code/build/config as friasc; restart task's `become: yes` still escalates). systemd module restart timed out → `systemctl restart --no-block`. **Harden playbook**: become-independent `a2a_repo` (`/home/{{ ansible_user }}/.pi/...`), `become: false` on code/build/config, `--no-block`/raised timeout for restart.
+  - **Prompt-quality follow-up (non-blocking):** some nodes (fnet1/fnet4/fnet6) wrap real stdout in prose/code-fences. The core gap (narrate-without-executing) is closed; chattiness could be tightened by adding "Paste ONLY the raw stdout — no prose, no code fences" to the default `bridge_systemPrompt`.
+- [x] EXEC.A.9 Update CHANGELOG (0.6.0 entry) + version bump (`package.json` + `pi-package.json` 0.5.5/0.4.0 → 0.6.0); vault FOCUS/PLAN/WORKBENCH synced. Repo-side FOCUS/PLAN/WORKBENCH full Phase EXEC sync = follow-up (vault is doc-authoritative per RULE 26). Build clean, 296/296 green.
+
+### Tier C — Deterministic `shell-exec` Short-Circuit ✅
+
+- [x] EXEC.C.1 TDD — handler runs `metadata.command` via `child_process` and returns stdout as artifact (no model). Commit `4ef8c76`.
+- [x] EXEC.C.2 TDD — handler honors `AbortSignal` (forwards to `exec`; rejects `Aborted` on abort).
+- [x] EXEC.C.3 TDD — `processTask` routes tagged `shell-exec` tasks to the handler BEFORE the bridge; untagged tasks unaffected (still → model). Review fix: explicit `metadata.skills` checked BEFORE the catch-all `a2a-task-execution` session handler (reorder).
+- [x] EXEC.C.4 Implement `shell-exec` handler (`src/shell-exec-handler.ts`) + register it (`index.ts` both start paths); thread `signal` to custom handlers in `processTask`/`processTaskStreaming` (`processTaskStreaming` wires an `AbortController` from `res 'close'`). `a2a_call` tool gains a `metadata` param forwarded end-to-end.
+- [x] EXEC.C.5 RULE 23 dual-model review (deepseek VALIDATE + kimi AUDIT, both CONDITIONAL → findings applied: reorder `skillIds`, streaming `AbortSignal`, negative tests; commit `770f0da`); build clean; **deployed + verified on all 7 nodes** — `metadata.exec=shell, command=echo $((17*23))` → `391` (deterministic, 78ms) on every node; untagged control still → model (`391`, 73s). 308/308 green.
+
+### Tier B — Narration-Detection Guard (belt-and-suspenders) ✅
+
+- [x] EXEC.B.1 TDD — `isNarration` detector. **RULE 23 audit-driven change:** the standalone fenced-command-block heuristic was dropped as false-positive-prone on legitimate "result + show the command" outputs; the detector is now conservative + phrase-based (first-person "I would run / I'd execute / I should run / I need to run / let me run / I'm going to run / the command …" ). Pure-fence narration is an accepted false negative (Tier A prompt + phrases cover the common cases). Tests: 5 detector + 2 false-positive regression.
+- [x] EXEC.B.2 Implement `runWithNarrationGuard` in `SubprocessPiTaskBridge.executeTask` — re-runs ONCE with a forced "output ONLY the raw result, no prose/fences" follow-up that feeds back the (truncated to 500 chars) prior narration. Opt-in (`narrationGuardEnabled`, default false), capped at `narrationMaxRetries` (default 1) — no infinite loop. Signal threaded through `executeTaskWithProgress` (streaming guard retry is abortable on client disconnect). Commit `e219c3e`.
+- [x] EXEC.B.3 RULE 23 dual-model review (deepseek VALIDATE PASS + kimi AUDIT CONDITIONAL → findings applied: drop fence heuristic, strengthen follow-up + truncate, thread signal, ansible `to_json`, false-positive + abort tests; commit `a589e69`); build clean; **deployed + verified on all 7 nodes** — config.json `narrationGuardEnabled=true` + `narrationMaxRetries=1`, dist has `isNarration`; regression: normal model-path task → real `391` (guard does not break real output / no wasteful re-run); fnet1 recovered real `391` (guard re-ran after a narration). 323/323 green.
+
+### Tier D — Model-Escalation (agent-exec strong-model escalation) ✅ — deployed + verified on 32GB
+
+- [x] EXEC.D.1 Gated decision — the operator confirmed the condition is met: *they currently avoid dispatching hard agentic tasks to the fleet because of the no-escalation limit.* So Tier D was built (not closed).
+- [x] EXEC.D.2 TDD + RULE 23 dual-model review (deepseek PASS + kimi CONDITIONAL → findings applied: dedicated `agentExecSystemPrompt`, narration guard OFF for the strong model, 16GB explicit-fail, opt-in `maxQueue`) + build. Commits `b40bf53` + `9e72315`.
+- [x] EXEC.D.3 Initial verification: minimal task PASSED (fnet4, 35B ran bash + real output); multi-step task CRASHED fnet4 — root cause was **reload churn** (fleet `OLLAMA_KEEP_ALIVE=0` reloaded the 23GB 35B every turn → OOM on a multi-step loop), NOT steady-state RAM (~24GB resident / ~7GB free is survivable).
+- [x] EXEC.D.4 **Unblock fix (commit `34d3277`):** gave the agent-exec subprocess its OWN `OLLAMA_KEEP_ALIVE` (default 10m) via a new bridge `env` option → the 35B loads ONCE and stays resident across the multi-step loop (no per-turn reload spike). Keeps the 36B capability; no new model needed. `BridgeConfig.agentExecKeepAlive`; ansible `bridge_agentExecKeepAlive=10m`.
+- [x] EXEC.D.5 **Re-enabled on 32GB + deployed + verified fleet-wide.** 32GB nodes (fnet3-6): `agentExecEnabled=true` + `agentExecKeepAlive=10m`; 16GB nodes (fnet1/2/7): `agentExecEnabled=false` → agent-exec tasks explicitly fail (clear message, no silent 4B downgrade). Verification: multi-step hard task (read `/etc/os-release` + `bash uptime -p` + synthesize) → `state=completed`, real answer on fnet4 (135s) AND fnet3 (143s, reproducibility), nodes stayed up; 16GB explicit-fail re-confirmed on fnet1. 339/339 green.
+- [x] EXEC.D.6 **UNLOCKS hard agentic tasks on the fleet** (the operator previously avoided them). The agent-exec path uses the strong local model for the decision loop with execution staying on the node (code/data never leave). Caveat: ~7GB free during a 35B agent loop on 32GB — fine for one task at a time (maxConcurrent=1 + maxQueue=2); don't pile many concurrent hard tasks on one node. For even more headroom a lighter capable model (e.g. qwen3.5:14b) could be pulled later.
+
+### Phase EXIT Criteria
+
+- [ ] Fleet nodes (all 7) return **real stdout** (not plan-narration) for open-ended execution tasks, verified end-to-end via A2A dispatch.
+- [ ] Tier A deployed + verified; Tier C deployed + verified (trivial commands bypass the model); Tier B in place.
+- [ ] RULE 23 dual-model review converged (deepseek PASS / kimi no HIGH/MED) for A and C.
+- [ ] FOCUS/PLAN/WORKBENCH synced vault ↔ repo; CHANGELOG + version bumped; journal entry + cost tracking at session close.
+
+---
+
+## Prior: M8 — Stable Release (v0.2.0) — ✅ (vault stale at v0.4.0; see repo for v0.5.5 arc)
 
 **v0.2.0 released.** All 7 spec gaps fixed, 19/19 conformance tests passing, alpha suffix dropped.
 
@@ -22,6 +99,18 @@ last_updated: 2026-07-01
 | **v0.2.0 (fork)** | **2026-06-19** | **Stable release — alpha dropped, CHANGELOG.md created** |
 
 ---
+
+## Follow-ups (2026-07-04) ✅
+
+Post-Phase-EXEC hardening — all deployed to all 7 via the hardened playbook (no `-e ansible_become=false` workaround):
+
+- [x] **#1 — deploy-a2a.yml hardened** (commit `5497b7a`): play var `ansible_become: false` overrides the inventory `ansible_become=true` (code/build/config run as friasc — correct HOME/nvm/ownership); `/home/{{ ansible_user }}` paths (become-independent); restart task uses `systemctl restart --no-block` (shell) + escalates via a TASK VAR `ansible_become: true` (the play var is a magic var that overrides a task `become: yes` keyword); `a2a_version` 0.5.5→0.6.0. A plain `ansible-playbook -i inventory.ini deploy-a2a.yml` now works.
+- [x] **#2 — Tier A fleet-executor prompt tightened** (commit `9e93bf6`): "Paste ONLY the raw result — no prose, no code fences, no re-statement of the command, no commentary such as 'The answer is'". Verified fnet4 + fnet1 (previously chatty) now return clean raw `391`. (Tier D `agentExecSystemPrompt` unchanged.)
+- [x] **#3 — per-task `metadata.model` override for agent-exec** (commit `6780b6f`): agent-exec honors `task.metadata.model` (string) to override the configured strong model; per-model `SubprocessPiTaskBridge` cache (each model its own `maxConcurrent` semaphore). Empty/non-string falls back to the configured model (backward compatible).
+- [x] **#4 — assert `ansible_memtotal_mb`** (commit `6780b6f`): `deploy-a2a.yml` asserts the fact is defined/>0 as the first task — a missing/zero fact (gather_facts failure) fails the deploy loudly instead of silently disabling agent-exec 32GB gating on every node.
+- [x] **#5 — orchestrator pi session restart** (2026-07-04): exposed the `a2a_call` `metadata` param; Tier C/D now dispatchable from the orchestrator (verified: shell-exec via `a2a_call` returned `HELLO_FROM_FNET4_VIA_METADATA`).
+
+Remaining non-blocking: **#6 — full v0.6.0 vault↔repo FOCUS/PLAN/WORKBENCH sync** (vault is doc-authoritative + current for Phase EXEC + follow-ups; repo-side FOCUS/PLAN still reflect v0.5.5 and need the Phase EXEC + follow-up content merged in — the repo retains some historical sections the vault lacks, so it's a merge, not a copy).
 
 ## M6: Spec Compliance Implementation ✅
 
@@ -278,22 +367,20 @@ Replaced `openbmb/minicpm-o2.6:8b` with `qwen3.5:35b-a3b` as flagship model on 3
 
 ## Post-v0.4.0: A2A-to-fnet execution (2026-07-01) ✅
 
-The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks returned a NoOp placeholder, never executing. This workstream closed that gap.
+The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks returned a NoOp placeholder, never executing. This workstream closed that gap (later superseded by the v0.4.1→v0.5.5 transport-hardening arc + Phase EXEC).
 
 - [x] Extension builds in the pi install location — `prepare` script (9a7fcf0) + ambient `node:sqlite`/`better-sqlite3` decls (6a39222). Without this, `a2a_call`/`a2a_parallel` never loaded.
 - [x] `a2a_call` authenticates against auth-protected fleet agent cards — bearer header in `fetchAgentCard` + 2 conformance tests (e2c7e6b).
 - [x] fnet3 pi upgrade 0.79.4→0.80.3 — `upgrade-pi.yml` playbook, RULE 28, `become_user: friasc` for nvm (00277a7, f0db9fe). Good housekeeping; NOT the execution fix.
 - [x] fnet3 executes real A2A tasks — `PI_A2A_SKIP_SERVER` env gate in `index.ts` + `SubprocessPiTaskBridge` env-on-spawn + `stdio:['ignore','pipe','pipe']` + SIGTERM→SIGKILL (2c4db15). TDD (5 new tests; 111/111 unit + 39/39 conformance). Dual-model audit (deepseek-v4-pro validate + kimi-k2.7 audit). fnet3 returned `391` for `17×23` (qwen3.5:35b-a3b).
-- [~] GAP-2 (`PiSessionTaskHandler`) reclassified NON-FUNCTIONAL — design flaw: `ctx.newSession` is only on `ExtensionCommandContext`, not the `session_start` event's `ExtensionContext`. Always threw `PI_SESSION_UNAVAILABLE` → always fell back to the bridge. Filed for cleanup.
+- [~] GAP-2 (`PiSessionTaskHandler`) reclassified NON-FUNCTIONAL — design flaw: `ctx.newSession` is only on `ExtensionCommandContext`, not the `session_start` event's `ExtensionContext`. Always threw `PI_SESSION_UNAVAILABLE` → always fell back to the bridge. (Phase EXEC Tier C now routes explicit `metadata.skills` before this dead handler.)
 
-### Follow-ups filed (not done)
-- [ ] a2a_call tool output-extraction quirk (returns `status.message.parts` input echo instead of `artifacts[0].parts` real answer)
-- [x] Dead `PiSessionTaskHandler` cleanup (remove or own the bridge explicitly) — SUPERSEDED 2026-07-02: SubprocessPiTaskBridge owns real execution (opt-in flags + AbortSignal); a2a-server threads the signal. Dead handler is harmless fallback; optional future removal.
-- [ ] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`)
-- [ ] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart
-- [ ] M7.2: Upstream PR (unchanged — awaits user decision)
-
----
+### Follow-ups filed (status as of 2026-07-04)
+- [x] a2a_call tool output-extraction quirk — RESOLVED 2026-07-02 (v0.5.0+: `streaming=false` + 300s timeout so the synchronous wait returns the completed task; extraction prefers `artifacts[0]`).
+- [x] Dead `PiSessionTaskHandler` cleanup — SUPERSEDED 2026-07-02: `SubprocessPiTaskBridge` owns real execution (opt-in flags + AbortSignal); a2a-server threads the signal. Harmless fallback; optional future removal.
+- [ ] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`). Long-term. (Phase EXEC Tier D's `OLLAMA_KEEP_ALIVE=10m` mitigates the reload churn for agent-exec; Option B remains a broader optimization.)
+- [ ] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart (RULE 29).
+- [ ] M7.2: Upstream PR — awaits user decision.
 
 ## Decisions
 
@@ -309,4 +396,4 @@ The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks ret
 
 > 📋 **Checkbox states:** `[ ]` To Do | `[/]` In Progress | `[~]` Good Enough | `[x]` Done | `[>]` Deferred | `[!]` Blocked | `[-]` Cancelled
 
-*Last updated: 2026-07-01*
+*Last updated: 2026-07-04*
