@@ -31,11 +31,21 @@
   hosts: lab_nodes
   gather_facts: yes
   strategy: linear
+  # Run code/build/config tasks as the SSH user (friasc) by default: the repo, nvm, and
+  # ~/.pi config all live in /home/<ansible_user>. Only the systemd restart below sets
+  # become: yes (root) to manage the system unit. NOTE: the inventory sets ansible_become=true
+  # group-var, so we override it with a PLAY VAR here (a play-level `become: false` keyword
+  # does NOT override an inventory ansible_become var). The restart task's `become: yes`
+  # keyword (task-level) outranks this var -> root for restart only.
 
   vars:
-    # Source paths
-    a2a_repo: "{{ ansible_env.HOME }}/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication"
-    a2a_config_dir: "{{ ansible_env.HOME }}/.pi/agent/a2a"
+    # Override the inventory ansible_become=true group-var so code/build/config tasks run
+    # as the SSH user (friasc). The restart task re-enables become via its `become: yes` keyword.
+    ansible_become: false
+    # Source paths — become-independent (use ansible_user, NOT ansible_env.HOME which
+    # flips to /root under become=true). Resolves to /home/friasc/... regardless of become.
+    a2a_repo: "/home/{{ ansible_user }}/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication"
+    a2a_config_dir: "/home/{{ ansible_user }}/.pi/agent/a2a"
 
     # Bridge configuration (v0.5.5 fleet reality — subprocess bridge w/ opt-in flags).
     # The spawned `pi --print` child sets PI_A2A_SKIP_SERVER=1 (see SubprocessPiTaskBridge)
@@ -84,8 +94,8 @@
     # Service name pattern
     service_name: "pi-agent@{{ inventory_hostname }}"
 
-    # A2A version to set in agent cards
-    a2a_version: "0.5.5"
+    # A2A version to set in agent cards (matches package.json; bumped 0.5.5 -> 0.6.0 for Phase EXEC)
+    a2a_version: "0.6.0"
 
     # Bridge type for fleet nodes:
     # 'subprocess' — spawns `pi --print --no-session` with opt-in flags + PI_A2A_SKIP_SERVER
@@ -248,11 +258,16 @@
       tags: [deploy, config]
 
   # ── Phase 4: Restart Service ─────────────────────────────────────────
-    - name: Restart pi-agent service
-      ansible.builtin.systemd:
-        name: "{{ service_name }}"
-        state: restarted
-      become: yes
+    - name: "Restart pi-agent service (--no-block: does not wait for slow activation; the wait_for task below checks readiness)"
+      ansible.builtin.shell: systemctl restart --no-block {{ service_name }}
+      # The play var `ansible_become: false` (which overrides the inventory ansible_become=true
+      # so code/build/config run as friasc) is a magic var that also overrides a task-level
+      # `become: yes` KEYWORD. So to escalate ONLY this task to root (system service control),
+      # set ansible_become: true as a TASK VAR (task var > play var).
+      vars:
+        ansible_become: true
+      retries: 3
+      delay: 5
       tags: [deploy, restart]
 
     - name: Wait for A2A server to respond
