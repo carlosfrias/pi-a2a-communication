@@ -1,12 +1,13 @@
 ---
-version: 1
+version: 2
 created: 2026-07-01
-session: journal/2026-07-01-1430.md
+session: .frias/journal/2026-07-01-1430.md
 thread: .frias/threads/a2a-to-fnet-execution/0-THREAD.md
 unified_prompt: .frias/threads/a2a-to-fnet-execution/prompts/013-go-immediate-fix-file-followups.md
+supersedes: .frias/refined-agents/AGENTS-REFINED-v1.md
 ---
 
-# AGENTS-REFINED v1 — pi-a2a-communication
+# AGENTS-REFINED v2 — pi-a2a-communication
 
 Battle-tested rules from the 2026-07-01 a2a-to-fnet-execution session (the "parked" A2A-to-fnet gap closure).
 

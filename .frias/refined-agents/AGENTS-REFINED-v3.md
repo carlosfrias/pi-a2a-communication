@@ -1,11 +1,12 @@
 ---
-version: 2
+version: 3
 created: 2026-07-01
-session: journal/2026-07-01-1645.md
+session: .frias/journal/2026-07-01-1645.md
 thread: .frias/threads/workshop-submodule-structure-cleanup/0-THREAD.md
+supersedes: .frias/refined-agents/AGENTS-REFINED-v2.md
 ---
 
-# AGENTS-REFINED v2 — pi-a2a-communication
+# AGENTS-REFINED v3 — pi-a2a-communication
 
 Battle-tested rules from the 2026-07-01 workshop-submodule-structure-cleanup phase (the orphan-gitlink cleanup + open-notebook consolidation, after the A2A-to-fnet close). Extends v1.
 
