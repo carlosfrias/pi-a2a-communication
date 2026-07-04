@@ -45,6 +45,13 @@ export interface AgentExecHandlerOptions {
   maxQueue?: number;
   /** Max bytes captured per stream (default 10 MB). */
   maxBufferBytes?: number;
+  /**
+   * Ollama keep-alive for the strong model (default "10m"). Sets OLLAMA_KEEP_ALIVE
+   * on the subprocess so the model loads once and stays resident across a multi-step
+   * agent loop (avoids the per-turn reload churn that OOMs 32GB nodes under the fleet
+   * default OLLAMA_KEEP_ALIVE=0). "0" disables (unload after each turn).
+   */
+  ollamaKeepAlive?: string;
 }
 
 /**
@@ -66,6 +73,7 @@ export function createAgentExecHandler(options: AgentExecHandlerOptions = {}) {
     maxConcurrent: options.maxConcurrent ?? 1,
     maxQueue: options.maxQueue ?? 2,
     maxBufferBytes: options.maxBufferBytes,
+    env: { OLLAMA_KEEP_ALIVE: options.ollamaKeepAlive ?? "10m" },
     systemPrompt: options.systemPrompt,
     // RULE 23 audit (Tier D): the narration guard defaults to OFF for the strong
     // model — a 2nd 35B inference risks blowing the 600s budget on a hard loop,

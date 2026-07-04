@@ -62,15 +62,17 @@
     # paste-stdout follow-up. Opt-in; default on for the fleet.
     bridge_narrationGuardEnabled: true
     bridge_narrationMaxRetries: 1
-    # Phase EXEC Tier D — agent-exec strong-model escalation. DISABLED fleet-wide:
-    # the configured strong model qwen3.5:35b-a3b is too heavy for A2A agent loops on
-    # 32GB nodes (~6GB headroom + OLLAMA_KEEP_ALIVE=0 reload churn OOMs the node on
-    # multi-step hard tasks; verified 2026-07-03 — a minimal task worked but a
-    # multi-step task rebooted fnet4). Re-enable after pulling a lighter capable
-    # model (e.g. qwen3.5:14b) and pointing bridge_agentExecModel at it, or more RAM.
-    bridge_agentExecEnabled: false
+    # Phase EXEC Tier D — agent-exec strong-model escalation. Re-enabled on 32GB
+    # nodes (where qwen3.5:35b-a3b fits) with the keep-alive mitigation: the
+    # agent-exec subprocess sets OLLAMA_KEEP_ALIVE={{ bridge_agentExecKeepAlive }}
+    # so the 35B model loads ONCE and stays resident across a multi-step agent loop
+    # (avoids the per-turn 23GB reload churn that OOMed 32GB nodes under the fleet
+    # default OLLAMA_KEEP_ALIVE=0; verified 2026-07-03). On 16GB nodes the handler
+    # is registered with enabled=false -> agent-exec tasks fail explicitly.
+    bridge_agentExecEnabled: "{{ (ansible_memtotal_mb | default(0) | int) >= 30000 }}"
     bridge_agentExecModel: "qwen3.5:35b-a3b"
     bridge_agentExecTimeout: 600000
+    bridge_agentExecKeepAlive: "10m" 
     # Phase EXEC Tier D — dedicated capable-agent prompt for the strong model (the
     # Tier A fleet-executor prompt is tuned for the weak 4B; this one lets the 35B
     # plan / self-check / verify across multi-step agentic work).
@@ -217,7 +219,8 @@
               "agentExecEnabled": {{ bridge_agentExecEnabled | to_json }},
               "agentExecModel": {{ bridge_agentExecModel | to_json }},
               "agentExecTimeout": {{ bridge_agentExecTimeout | to_json }},
-              "agentExecSystemPrompt": {{ bridge_agentExecSystemPrompt | to_json }}
+              "agentExecSystemPrompt": {{ bridge_agentExecSystemPrompt | to_json }},
+              "agentExecKeepAlive": {{ bridge_agentExecKeepAlive | to_json }}
             }
           }
       tags: [deploy, config]

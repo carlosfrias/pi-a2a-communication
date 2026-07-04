@@ -369,6 +369,8 @@ export interface BridgeConfig {
    * model; agent-exec uses a planning/self-check/verify prompt for the capable model.
    */
   agentExecSystemPrompt?: string;
+  /** Ollama keep-alive for the agent-exec strong model (default "10m"; "0" = unload each turn). Avoids the per-turn reload churn that OOMs 32GB nodes under the fleet default OLLAMA_KEEP_ALIVE=0. */
+  agentExecKeepAlive?: string;
 }
 
 export interface A2AConfig {

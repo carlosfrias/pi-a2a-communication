@@ -191,6 +191,37 @@ describe("Phase EXEC Tier D — agent-exec handler (TDD)", () => {
     await p2;
     expect(spawnMock).toHaveBeenCalledTimes(2); // t1 + t2 ran; t3 fast-failed (not spawned)
   });
+
+  it("EXEC.D.keepalive: agent-exec sets OLLAMA_KEEP_ALIVE=10m in the subprocess env by default (stops reload churn)", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ systemPrompt: "SP" });
+    succeedWith("ok");
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"] }), () => {}, undefined);
+    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], any];
+    expect(opts.env.OLLAMA_KEEP_ALIVE).toBe("10m");
+    expect(opts.env.PI_A2A_SKIP_SERVER).toBe("1"); // still gated
+    expect(opts.env.PATH).toBe(process.env.PATH); // still inherits parent env
+  });
+
+  it("EXEC.D.keepalive2: options.ollamaKeepAlive overrides (e.g. 5m / 0)", async () => {
+    const { createAgentExecHandler } = await import("../../src/agent-exec-handler.js");
+    const handler = createAgentExecHandler({ systemPrompt: "SP", ollamaKeepAlive: "5m" });
+    succeedWith("ok");
+    await handler(makeTask({ exec: "agent", skills: ["agent-exec"] }), () => {}, undefined);
+    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], any];
+    expect(opts.env.OLLAMA_KEEP_ALIVE).toBe("5m");
+  });
+
+  it("EXEC.D.bridgeEnv: SubprocessBridgeOptions.env is merged over the parent env in spawn", async () => {
+    const { SubprocessPiTaskBridge } = await import("../../src/pi-task-bridge.js");
+    const bridge = new SubprocessPiTaskBridge({ command: "pi", timeout: 30000, env: { OLLAMA_KEEP_ALIVE: "10m", CUSTOM: "x" } });
+    succeedWith("ok");
+    await bridge.executeTask("hi");
+    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], any];
+    expect(opts.env.OLLAMA_KEEP_ALIVE).toBe("10m");
+    expect(opts.env.CUSTOM).toBe("x");
+    expect(opts.env.PI_A2A_SKIP_SERVER).toBe("1");
+  });
 });
 
 // --- processTask routing ---

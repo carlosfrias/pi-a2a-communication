@@ -131,6 +131,7 @@ export default function (pi: ExtensionAPI) {
         maxConcurrent: 1,
         maxQueue: 2,
         maxBufferBytes: config.bridge?.maxBufferBytes,
+        ollamaKeepAlive: config.bridge?.agentExecKeepAlive,
       }));
       ctx.ui?.notify?.("A2A: registered session task handler", "info");
 
@@ -506,6 +507,7 @@ export default function (pi: ExtensionAPI) {
           maxConcurrent: 1,
           maxQueue: 2,
           maxBufferBytes: config.bridge?.maxBufferBytes,
+          ollamaKeepAlive: config.bridge?.agentExecKeepAlive,
         }));
 
         try {

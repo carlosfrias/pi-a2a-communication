@@ -125,6 +125,14 @@ export interface SubprocessBridgeOptions {
    * so concurrent hard tasks fast-fail rather than piling up (each holds a 600s slot).
    */
   maxQueue?: number;
+  /**
+   * Extra environment variables for the spawned `pi --print` subprocess (merged over
+   * the parent env + PI_A2A_SKIP_SERVER=1). Phase EXEC Tier D: agent-exec sets
+   * OLLAMA_KEEP_ALIVE here so the strong model loads once and stays resident across
+   * a multi-step agent loop (avoids the per-turn 23GB reload churn that OOMs 32GB
+   * nodes when the fleet default is OLLAMA_KEEP_ALIVE=0).
+   */
+  env?: Record<string, string>;
   /** Max bytes captured per stream before killing the child (default: 10 MB). */
   maxBufferBytes?: number;
   /**
@@ -163,6 +171,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
   private maxConcurrent: number;
   private maxQueue: number;
   private maxBufferBytes: number;
+  private extraEnv: Record<string, string>;
   private narrationGuardEnabled: boolean;
   private narrationMaxRetries: number;
   // Concurrency cap state
@@ -185,6 +194,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     this.maxConcurrent = options.maxConcurrent ?? 2;
     this.maxQueue = options.maxQueue ?? 0;
     this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
+    this.extraEnv = options.env ?? {};
     this.narrationGuardEnabled = options.narrationGuardEnabled ?? false;
     this.narrationMaxRetries = options.narrationMaxRetries ?? 1;
   }
@@ -276,7 +286,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
       const proc = spawn(this.command, args, {
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, PI_A2A_SKIP_SERVER: "1" },
+        env: { ...process.env, PI_A2A_SKIP_SERVER: "1", ...this.extraEnv },
       });
 
       let settled = false;
