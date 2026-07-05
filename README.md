@@ -2,10 +2,17 @@
 
 > **A production-grade, spec-conformant implementation of the Google A2A (Agent2Agent) v1.0 protocol** — the protocol layer that lets heterogeneous agents (pi and non-pi) collaborate via JSON-RPC + Server-Sent Events, with agent-card discovery, full task lifecycle, and disconnect-resilient task ledgering. **19/19 A2A v1.0 conformance tests passing.**
 
-> [!NOTE]
-> Engineering portfolio note — this project demonstrates spec-compliance engineering and multi-agent protocol implementation. See the [skills assessment →](SKILLS-ASSESSMENT.md) for the expertise applied.
-
 This is the most spec-rigorous piece of the pi-orchestration ecosystem: ~5,746 lines of TypeScript implementing an external standard to the letter, verified by a conformance suite — not a "A2A-like" interface. Forked from `DrOlu/pi-a2a-communication` and hardened with spec-compliance fixes, it is the contract layer every other multi-agent component in the fleet builds on.
+
+---
+
+## Why this project is notable
+
+- **Spec compliance, proven.** 19/19 A2A v1.0 conformance tests pass — implementation correctness is verified against the standard, not asserted. ([Spec Compliance Report](wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md))
+- **Production-grade transport.** Both `message/send` (request/response) and `message/stream` (SSE for long-running agent output) — the real A2A wire shapes, not a single toy channel.
+- **Disconnect-resilient task ledgering.** Tasks are durable (`task-ledger.ts`, `replicated-ledger.ts`), so a client that drops can `tasks/resubscribe` and recover its stream. State survives the connection — the hard part of agent orchestration.
+- **RFC 8615 agent-card discovery.** Capability advertisement at the spec-compliant `/.well-known/agent-card.json`, with a legacy fork path retained for back-compat.
+- **Fork-and-maintain discipline.** Carries spec-compliance fixes on top of upstream; the conformance suite guards against drift.
 
 ---
 
@@ -38,6 +45,19 @@ Implemented JSON-RPC methods: `message/send`, `message/stream` (SSE), `tasks/get
 - **Disconnect recovery.** Ledgered task state means a dropped client can `tasks/resubscribe` and recover its stream — the task outlives the connection that started it.
 - **Agent-card discovery.** Served at the RFC 8615 `/.well-known/agent-card.json`; a legacy fork path is retained for clients that haven't migrated.
 - **Fork-and-maintain posture.** Spec-compliance fixes layered over `DrOlu/pi-a2a-communication`; the conformance suite prevents drift.
+
+---
+
+## Capabilities — what this credentials
+
+> TypeScript is the medium. The engineering below is the evidence of the expertise applied.
+
+- **Spec-compliance engineering** — implementing an external standard with a conformance suite that proves it.
+- **JSON-RPC + SSE streaming** — both wire shapes for agent messaging.
+- **Multi-agent task lifecycle** — the full `queued/working/completed/failed/canceled` state machine with subscribe / resubscribe / push-notification config.
+- **Disconnect-resilient task ledgering** — durable task streams, not ephemeral requests.
+- **RFC 8615 well-known discovery** — agent-card capability advertisement done to spec.
+- **Fork-and-fix upstream maintenance** — maintaining conformance against an evolving upstream.
 
 ---
 
