@@ -29,6 +29,7 @@ import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
 import { createPiSessionHandler } from "./pi-session-handler.js";
 import { createShellExecHandler } from "./shell-exec-handler.js";
 import { createAgentExecHandler } from "./agent-exec-handler.js";
+import { resolveFleetTarget, resolveFleetTargets, isTierHint } from "./auto-route.js";
 
 export { A2AClient, A2AServer, AgentDiscovery, TaskManager, ConfigManager, NoOpPiTaskBridge, SubprocessPiTaskBridge, buildBridgeOptions };
 export type { A2AConfig, RemoteAgent, TaskOptions, A2ATask, PiTaskBridge, SubprocessBridgeOptions };
@@ -711,7 +712,7 @@ Examples:
       properties: {
         agent_url: {
           type: "string",
-          description: "URL of the A2A agent",
+          description: "URL of the A2A agent, or a tier hint for automatic routing. Tier hints: 'auto' or 'any' (best available), 'executor' or 'strong' (64GB+ RAM, big GPU), 'medium' (32GB RAM), 'weak' or 'light' (small GPU). Explicit URLs like 'http://fnet1:10000' also accepted.",
         },
         message: {
           type: "string",
@@ -743,7 +744,12 @@ Examples:
       }
 
       try {
-        const agent_url = params.agent_url as string;
+        // Resolve tier hints ("auto", "executor", "weak", etc.) to concrete fleet node URLs
+        const resolved = resolveFleetTarget(
+          (params.agent_url as string),
+          configManager!
+        );
+        const agent_url = resolved.url;
         const message = params.message as string;
         const agent = await agentDiscovery.discoverAgent(agent_url);
         
@@ -796,11 +802,11 @@ Examples:
       properties: {
         tasks: {
           type: "array",
-          description: "Array of tasks to send",
+          description: "Array of tasks to send. Each task's agent_url can be a tier hint ('auto', 'executor', 'strong', 'medium', 'weak') for automatic fleet routing, or an explicit URL like 'http://fnet1:10000'.",
           items: {
             type: "object",
             properties: {
-              agent_url: { type: "string" },
+              agent_url: { type: "string", description: "URL or tier hint for the A2A agent" },
               message: { type: "string" },
             },
             required: ["agent_url", "message"],
@@ -823,8 +829,11 @@ Examples:
       }
 
       try {
-        // Discover all agents
-        const tasks = params.tasks as Array<{ agent_url: string; message: string }>;
+        // Resolve tier hints to concrete fleet node URLs
+        const tasks = (params.tasks as Array<{ agent_url: string; message: string }>).map((t) => {
+          const resolved = resolveFleetTarget(t.agent_url, configManager!);
+          return { ...t, agent_url: resolved.url };
+        });
         const agents = await Promise.all(
           tasks.map((t: { agent_url: string }) => agentDiscovery!.discoverAgent(t.agent_url))
         );
@@ -874,7 +883,7 @@ Examples:
           items: {
             type: "object",
             properties: {
-              agent_url: { type: "string", description: "URL of the A2A agent" },
+              agent_url: { type: "string", description: "URL of the A2A agent, or a tier hint ('auto', 'executor', 'strong', 'medium', 'weak') for automatic routing" },
               message: { type: "string", description: "Task message to send (use {previous} for prior output)" },
             },
             required: ["agent_url", "message"],
@@ -902,7 +911,10 @@ Examples:
       }
 
       try {
-        const steps = params.steps as Array<{ agent_url: string; message: string }>;
+        const steps = (params.steps as Array<{ agent_url: string; message: string }>).map((s) => {
+          const resolved = resolveFleetTarget(s.agent_url, configManager!);
+          return { ...s, agent_url: resolved.url };
+        });
         const continueOnError = (params.continueOnError as boolean) ?? false;
 
         // Discover all agents
