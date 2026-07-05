@@ -3,7 +3,7 @@ name: pi-a2a-communication
 phase: "Phase EXEC: Executor-Tier Gap Remediation"
 progress: 5
 status: active
-last_updated: 2026-07-04
+last_updated: 2026-07-05
 ---
 
 # PLAN — pi-a2a-communication
@@ -396,4 +396,4 @@ The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks ret
 
 > 📋 **Checkbox states:** `[ ]` To Do | `[/]` In Progress | `[~]` Good Enough | `[x]` Done | `[>]` Deferred | `[!]` Blocked | `[-]` Cancelled
 
-*Last updated: 2026-07-04*
+*Last updated: 2026-07-05*
