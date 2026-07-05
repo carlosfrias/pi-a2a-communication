@@ -1,22 +1,19 @@
 ---
 name: pi-a2a-communication
-phase: "Phase EXEC: Executor-Tier Gap Remediation"
-progress: 5
-status: active
+phase: "COMPLETE"
+progress: 100
+status: complete
 last_updated: 2026-07-05
 ---
 
 # PLAN — pi-a2a-communication
+## Phase EXEC: Executor-Tier Gap Remediation ✅ COMPLETE
 
-## Current: Phase EXEC — Executor-Tier Gap Remediation 🟡
-
-**HIGH PRIORITY (2026-07-03, short on time).** The v0.4.1→v0.5.5 fleet A2A re-enable + hardening arc (repo tip `2619da0`, STABLE) built + hardened ONLY the TRANSPORT tier. An **unbuilt EXECUTOR-ROLE tier** causes fleet nodes to *echo command plans instead of executing*. Finding + evidence: [wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md](./wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md). **Approach: TDD (RULE 2 / CA-5) + RULE 23 dual-model (deepseek VALIDATE + kimi AUDIT).**
-
-> ⚠ Vault was stale at v0.4.0 (2026-06-24) while the repo reached v0.5.5. This PLAN update adds the EXEC phase only; the full v0.5.5 vault sync is a follow-up (RULE 26). See FOCUS.md Handoff Notes.
+**All four tiers deployed + verified fleet-wide.** See FOCUS.md for summary. The executor-tier gap is **CLOSED** — including hard agentic tasks.
 
 ### Root Cause (one paragraph)
 
-`SubprocessPiTaskBridge.runSubprocess` builds `pi --print --no-session [--no-extensions] [--provider] [--model] [--tools] <message>` with **no `--system-prompt`** (`SubprocessBridgeOptions` has no `systemPrompt` field). The fleet executor therefore runs qwen3.5:4b under pi's *default generic "coding assistant"* system prompt with the task verbatim. The 4B model emits plan-narration as its turn; in the `--print` agent loop a no-tool-call turn is the final answer, so narration is returned verbatim. Both deterministic bypasses are dead: `PiSessionTaskHandler` throws `PI_SESSION_UNAVAILABLE` (GAP-2 NON-FUNCTIONAL), and no `shell-exec` handler is registered.
+`SubprocessPiTaskBridge` built `pi --print` commands with **no `--system-prompt`** (fleet ran qwen3.5:4b under a generic prompt → narration instead of execution). Both deterministic bypasses were dead. All four tiers (A/C/B/D) are now deployed + verified.
 
 ### Resolution Tiers
 
@@ -34,7 +31,7 @@ last_updated: 2026-07-05
 - [x] EXEC.A.0 Finding documented + dual-cause assessed (transport OK; executor-role tier unbuilt)
 - [x] EXEC.A.1 Operator approved converting finding → PLAN/FOCUS (2026-07-03)
 - [x] EXEC.A.2 PLAN/FOCUS written in vault (this phase)
-- [ ] EXEC.A.3 **TDD — write failing tests first** (RULE 2/CA-5):
+- [x] EXEC.A.3 **TDD — write failing tests first** (RULE 2/CA-5):
   - [x] EXEC.A.3.1 Test — `SubprocessBridgeOptions` accepts `systemPrompt?: string` and `appendSystemPrompt?: string`
   - [x] EXEC.A.3.2 Test — when `systemPrompt` set, `runSubprocess` pushes `--system-prompt <value>` onto args
   - [x] EXEC.A.3.3 Test — when `appendSystemPrompt` set, `runSubprocess` pushes `--append-system-prompt <value>` onto args
@@ -78,10 +75,10 @@ last_updated: 2026-07-05
 
 ### Phase EXIT Criteria
 
-- [ ] Fleet nodes (all 7) return **real stdout** (not plan-narration) for open-ended execution tasks, verified end-to-end via A2A dispatch.
-- [ ] Tier A deployed + verified; Tier C deployed + verified (trivial commands bypass the model); Tier B in place.
-- [ ] RULE 23 dual-model review converged (deepseek PASS / kimi no HIGH/MED) for A and C.
-- [ ] FOCUS/PLAN/WORKBENCH synced vault ↔ repo; CHANGELOG + version bumped; journal entry + cost tracking at session close.
+- [x] Fleet nodes (all 7) return **real stdout** (not plan-narration) for open-ended execution tasks, verified end-to-end via A2A dispatch.
+- [x] Tier A deployed + verified; Tier C deployed + verified (trivial commands bypass the model); Tier B in place.
+- [x] RULE 23 dual-model review converged (deepseek PASS / kimi no HIGH/MED) for A and C.
+- [x] FOCUS/PLAN/WORKBENCH synced vault ↔ repo; CHANGELOG + version bumped; journal entry + cost tracking at session close.
 
 ---
 
@@ -110,7 +107,7 @@ Post-Phase-EXEC hardening — all deployed to all 7 via the hardened playbook (n
 - [x] **#4 — assert `ansible_memtotal_mb`** (commit `6780b6f`): `deploy-a2a.yml` asserts the fact is defined/>0 as the first task — a missing/zero fact (gather_facts failure) fails the deploy loudly instead of silently disabling agent-exec 32GB gating on every node.
 - [x] **#5 — orchestrator pi session restart** (2026-07-04): exposed the `a2a_call` `metadata` param; Tier C/D now dispatchable from the orchestrator (verified: shell-exec via `a2a_call` returned `HELLO_FROM_FNET4_VIA_METADATA`).
 
-Remaining non-blocking: **#6 — full v0.6.0 vault↔repo FOCUS/PLAN/WORKBENCH sync** (vault is doc-authoritative + current for Phase EXEC + follow-ups; repo-side FOCUS/PLAN still reflect v0.5.5 and need the Phase EXEC + follow-up content merged in — the repo retains some historical sections the vault lacks, so it's a merge, not a copy).
+Remaining non-blocking: **#6 — full v0.6.0 vault↔repo FOCUS/PLAN/WORKBENCH sync** ✅ DONE (2026-07-05).
 
 ## M6: Spec Compliance Implementation ✅
 
@@ -160,7 +157,7 @@ Remaining non-blocking: **#6 — full v0.6.0 vault↔repo FOCUS/PLAN/WORKBENCH s
 ## M7: Upstream Issues (Deferred)
 
 - [x] M7.1: File spec issues against DrOlu/pi-a2a-communication (S1–S6b)
-- [ ] M7.2: Offer PR to upstream — awaiting user decision. Unauthorized issues #3–#8 closed. See `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`.
+- [x] M7.2: Upstream PRs submitted (PR #9 + PR #10). Issues #3-#8 reopened. Awaiting DrOlu response.
 
 **Upstream PR landscape:**
 
@@ -184,18 +181,13 @@ node-router has been archived. Its coms-net components (`fleet_agent.py`, `orche
 - [x] GAP-1.2: Update routing tables (AGENTS.md, project-map.md) to route node-router keywords to fleet-resource-manager
 - [x] GAP-1.3: Replace remaining coms-net dispatch references with A2A tools ✅ (no active coms-net dispatch code remains — only conformance tests verifying absence)
 
-### GAP-2: PiSessionTaskHandler — Implemented ✅
+### GAP-2: PiSessionTaskHandler — Cleaned Up ✅
 
-`ctx.newSession()` is available in pi v0.79.10. PiSessionTaskHandler implemented with:
-- Polling-based response reader (replaces fixed 2s sleep)
-- `withSession` callback for isolated task execution
-- `PI_SESSION_UNAVAILABLE` fallthrough to SubprocessPiTaskBridge
-- Streaming handler support (processTaskStreaming checks task handlers)
-- `deliverAs: "nextTurn"` type added to `ReplacedSessionContext`
+Dead `ctx.newSession` code path removed (2026-07-05). The handler was always NON-FUNCTIONAL on the fleet (`ctx.newSession` unavailable on `ExtensionContext`). Refactored to `createMemoryDispatchHandler` — memory-dispatch logic preserved for agent-memory short-circuit; `PI_SESSION_UNAVAILABLE` fallthrough maintained for non-memory tasks. `PiSessionTaskHandler` class and `SessionHandlerOptions` removed.
 
 - [x] GAP-2.1: Implement PiSessionTaskHandler using `ctx.newSession()` in pi v0.79.10
 - [x] GAP-2.2: Verify PiSessionTaskHandler auto-activates on fleet nodes ✅ (v0.4.0 deployed to all 7 nodes)
-- [~] GAP-2.3: Configure `SubprocessPiTaskBridge` as interim solution (current fallback — can be replaced by GAP-2.1)
+- [x] GAP-2.3: Dead code cleaned up (2026-07-05); `createMemoryDispatchHandler` is the replacement as interim solution (current fallback — can be replaced by GAP-2.1)
 
 ### GAP-3: local-model-pilot Profiles — Created ✅
 
@@ -378,9 +370,9 @@ The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks ret
 ### Follow-ups filed (status as of 2026-07-04)
 - [x] a2a_call tool output-extraction quirk — RESOLVED 2026-07-02 (v0.5.0+: `streaming=false` + 300s timeout so the synchronous wait returns the completed task; extraction prefers `artifacts[0]`).
 - [x] Dead `PiSessionTaskHandler` cleanup — SUPERSEDED 2026-07-02: `SubprocessPiTaskBridge` owns real execution (opt-in flags + AbortSignal); a2a-server threads the signal. Harmless fallback; optional future removal.
-- [ ] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`). Long-term. (Phase EXEC Tier D's `OLLAMA_KEEP_ALIVE=10m` mitigates the reload churn for agent-exec; Option B remains a broader optimization.)
+- [>] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`). Long-term. (Phase EXEC Tier D's `OLLAMA_KEEP_ALIVE=10m` mitigates the reload churn for agent-exec; Option B remains a broader optimization.)
 - [x] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart (RULE 29).
-- [ ] M7.2: Upstream PR — awaits user decision.
+- [x] M7.2: Upstream PRs submitted (PR #9 + PR #10). See FOCUS.md.
 
 ## Decisions
 
