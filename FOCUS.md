@@ -6,7 +6,7 @@ phase: "Phase EXEC: Executor-Tier Gap Remediation"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-07-04
+updated: 2026-07-05
 ---
 
 # FOCUS — pi-a2a-communication
@@ -63,7 +63,7 @@ updated: 2026-07-04
 
 ## Awaiting User Decision
 
-- [ ] **M7.2: Upstream PR** — PR bundle at `wiki/pi-a2a-communication/reference/upstream-pr/` (7 per-issue folders with README.md + PR-body.md). Unauthorized issues #3–#8 closed. Upstream has 2 existing PRs: PR #1 (5queezer) overlaps S2+S3 partially; PR #2 (cavos-io) no overlap. Our S1, S4, S5, S6/S6b fixes are unique.
+- [x] **M7.2: Upstream PR** — Option C (submit + maintain fork). PR 1 (S2+S3+S5) + PR 2 (S1+S4+S6+S6b) submitted to DrOlu/pi-a2a-communication via GitHub comparison URLs. Repo is not a fork of upstream so cross-fork API PR creation not available. Issues #3–#8 closed.
 - [~] minicpm-o2.6:8b: Kept as fallback on 32GB nodes (5.5GB each, superseded by 35b-a3b)
 
 ### Handoff Notes
@@ -122,4 +122,4 @@ updated: 2026-07-04
 
 ---
 
-*Last updated: 2026-07-04*
+*Last updated: 2026-07-05*

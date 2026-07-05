@@ -1,6 +1,6 @@
 ---
 workbench: true
-updated: 2026-07-04
+updated: 2026-07-05
 project: pi-a2a-communication
 ---
 
@@ -14,10 +14,18 @@ project: pi-a2a-communication
 - **Follow-ups #1–#5 done (2026-07-04)** — deploy-playbook hardened (no `-e ansible_become=false` workaround), Tier A prompt tightened (clean raw output), per-task `metadata.model` override, `ansible_memtotal_mb` assert, orchestrator restart (exposed the `a2a_call` `metadata` param). See [PLAN.md § Follow-ups](./PLAN.md).
 - **Earlier** (M6–M10, GAP-1–5, A2A-to-fnet execution, v0.5.5 hardening arc): see [PLAN.md](./PLAN.md) history + the git log.
 
+## ✅ Recently done (this session)
+
+- **M7.2: Upstream PRs submitted (2026-07-05)** — Option C (submit + maintain fork). Two PRs created on branches off `upstream/main` with clean patches applied to the upstream's flat file structure:
+  - **PR 1** (`fix/spec-auth-discovery-crash`): S2 (WWW-Authenticate header) + S3 (agent-card.json discovery path) + S5 (parse error crash fix). Closes #3, #4, #6.
+  - **PR 2** (`fix/spec-protocol-compliance`): S1 (JSON-RPC error HTTP 200) + S4 (transport binding routes) + S6 (PascalCase method mapping) + S6b (null id in errors). Builds on PR 1. Closes #5, #7, #8.
+  - PRs submitted via GitHub comparison URLs (repo not a fork of upstream, so cross-fork API PR creation doesn't work). Browser opened for manual submission.
+- **#6 vault↔repo sync** — completed in prior session (commits `418c734` + `31286df`).
+- **Git rebase conflict resolution** — completed the gemma4:12b-mlx crashed session's remaining work (conflict in `.frias/costs/AI-MODEL-COSTS.md` during FDP relocation rebase). Pushed as `5dda549`.
+
 ## 📋 Emergent
 
-- ⏳ **M7.2: Upstream PR decision** — assessment at `wiki/pi-a2a-communication/reference/M7.2-upstream-pr-assessment.md`; unauthorized issues #3–#8 closed. Upstream has 2 existing PRs (see PLAN for overlap). **Decision needed.**
-- ⏳ **#6 — full v0.6.0 vault↔repo FOCUS/PLAN sync** — vault is doc-authoritative + current for Phase EXEC + follow-ups; the repo-side FOCUS/PLAN still reflect v0.5.5 and need Phase EXEC + the follow-ups merged in (the repo retains some historical sections the vault lacks, so it's a merge, not a copy).
+- *(none — workbench is clean)*
 
 ---
 
