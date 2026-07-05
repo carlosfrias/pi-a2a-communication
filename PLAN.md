@@ -1,12 +1,52 @@
 ---
 name: pi-a2a-communication
-phase: "COMPLETE"
+phase: "Phase AUTO-ROUTE: Tier Hints for Fleet Routing — COMPLETE"
 progress: 100
-status: complete
+status: active
 last_updated: 2026-07-05
 ---
 
 # PLAN — pi-a2a-communication
+
+## Phase AUTO-ROUTE: Tier Hints for Fleet Routing ✅ COMPLETE
+
+**Eliminates ~15K tokens of "check fleet resources" reads per fleet request.** The model passes `agent_url="auto"` or a tier hint; the tool resolves it internally via fleet-resource-manager CLI → agents.json registry → fnet3 fallback.
+
+### Implementation
+
+- [x] AUTO.1 Identified token waste problem (~15K tokens per fleet request from re-reading skill files)
+- [x] AUTO.2 Designed auto-routing solution (tier hints in `agent_url` parameter)
+- [x] AUTO.3 Implemented `src/auto-route.ts` (312 lines)
+  - [x] Tier classification from agent descriptions (RAM + GPU heuristics)
+  - [x] Tier hints: `auto`, `any`, `executor`, `strong`, `medium`, `weak`, `light`
+  - [x] Resolution order: fleet-resource-manager CLI → ConfigManager registry → fnet3 fallback
+  - [x] Node name resolution (e.g. `fnet3` → `http://fnet3:10000`)
+  - [x] Explicit URL pass-through (backward compatible)
+- [x] AUTO.4 Updated `a2a_call` tool handler + parameter description
+- [x] AUTO.5 Updated `a2a_parallel` tool handler + parameter description
+- [x] AUTO.6 Updated `a2a_chain` tool handler + parameter description
+- [x] AUTO.7 TDD — 18 unit tests (all passing, 197 total)
+- [x] AUTO.8 Added RULE 34 to universal-rules (v1.13.0)
+- [x] AUTO.9 Seeded semantic memory for future session recall
+- [x] AUTO.10 Fleet-wide deployment (all 6 nodes via A2A `shell-exec`)
+  - [x] `pi update` on each node (pulled commit `20fe997`, rebuilt clean)
+  - [x] Delayed background `kill -9 MainPID` → systemd `Restart=on-failure`
+  - [x] Verified all nodes back online with `auto-route.js` present
+- [x] AUTO.11 Operator restarted pi on operator machine (RULE 29)
+- [x] AUTO.12 FOCUS/PLAN/WORKBENCH refreshed on both sides (vault + workshop)
+
+### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Where to inject routing | Inside the `a2a_call` tool handler | Zero context cost — model never needs fleet topology |
+| Fallback node | fnet3 | Avoids fnet1 which runs Nextcloud |
+| Tier classification | RAM + GPU heuristics from agent descriptions | No new config needed — uses existing agents.json |
+| Hint format | Short strings (`auto`, `executor`, `weak`) | ~10 characters vs ~15K tokens of skill file reads |
+| Explicit URLs | Pass through unchanged | Backward compatible |
+
+---
+
 ## Phase EXEC: Executor-Tier Gap Remediation ✅ COMPLETE
 
 **All four tiers deployed + verified fleet-wide.** See FOCUS.md for summary. The executor-tier gap is **CLOSED** — including hard agentic tasks.

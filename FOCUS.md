@@ -1,8 +1,8 @@
 ---
 name: pi-a2a-communication
-summary: "COMPLETE: A2A v1.0 spec compliance + fleet executor-tier remediation. v0.6.0 stable on all 7 nodes. Upstream PRs submitted."
-status: complete
-phase: "Phase EXEC: Executor-Tier Gap Remediation — COMPLETE"
+summary: "ACTIVE: Auto-Route feature implemented + deployed fleet-wide. v0.6.0+ with tier hints (RULE 34) eliminates ~15K tokens of topology discovery reads. EXEC-TIER gap CLOSED. Upstream PRs submitted."
+status: active
+phase: "Phase AUTO-ROUTE: Tier Hints for Fleet Routing — COMPLETE"
 progress: 100
 tracked: true
 created: 2026-06-18
@@ -13,9 +13,28 @@ updated: 2026-07-05
 
 ## [S-TIGHT]
 
-**PROJECT COMPLETE.** All milestones delivered, all gaps closed, fleet deployed + verified, upstream PRs submitted. Remaining items are low-priority optimizations or depend on upstream maintainer response.
+**Auto-Route Feature LIVE (2026-07-05).** The model no longer needs to read skill files to discover fleet topology. New `src/auto-route.ts` resolves tier hints (`auto`, `executor`, `strong`, `medium`, `weak`) to concrete fleet node URLs inside the tool itself. Resolution: fleet-resource-manager CLI → agents.json registry → fnet3 fallback (avoids fnet1 which runs Nextcloud). All 3 A2A tools (`a2a_call`, `a2a_parallel`, `a2a_chain`) updated. 18 unit tests, 197 total passing. Deployed to all 6 fleet nodes via A2A `shell-exec` from the operator machine. RULE 34 added to universal-rules.
+
+**Phase EXEC COMPLETE (2026-07-03/04).** The executor-tier gap is CLOSED — all four tiers (A/B/C/D) deployed + verified fleet-wide. Fleet nodes execute real commands, not narration.
 
 ## Completed Work
+
+### Phase AUTO-ROUTE — Tier Hints for Fleet Routing ✅
+
+Eliminates ~15K tokens of "check fleet resources" reads per fleet request. The model passes `agent_url="auto"` or a tier hint; the tool resolves it internally.
+
+| Step | Status |
+|------|--------|
+| Identified token waste problem (~15K tokens per fleet request) | ✅ 2026-07-05 |
+| Designed auto-routing solution (tier hints in `agent_url`) | ✅ 2026-07-05 |
+| Implemented `src/auto-route.ts` (312 lines, tier classification + resolution) | ✅ Commit `20fe997` |
+| Updated `a2a_call`, `a2a_parallel`, `a2a_chain` tool handlers + descriptions | ✅ Commit `20fe997` |
+| 18 unit tests (197 total, all passing) | ✅ 2026-07-05 |
+| Added RULE 34 to universal-rules (v1.13.0) | ✅ 2026-07-05 |
+| Seeded semantic memory for future recall | ✅ 2026-07-05 |
+| Fleet-wide deployment (all 6 nodes via A2A shell-exec) | ✅ 2026-07-05 |
+| Verified all nodes back online with `auto-route.js` | ✅ 2026-07-05 |
+| Operator restarted pi on operator machine | ✅ 2026-07-05 |
 
 ### Phase EXEC — Executor-Tier Gap Remediation ✅
 
@@ -48,16 +67,18 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 ### Session 2026-07-05 ✅
 
+- ✅ **Auto-Route Feature re-implemented + deployed** — `src/auto-route.ts` (312 lines), tier hints in `agent_url`, 18 tests (197 total), commit `20fe997`. Deployed to all 6 fleet nodes via A2A `shell-exec`. RULE 34 added to universal-rules.
+- ✅ **Fleet-wide A2A deployment** — All 6 nodes (fnet1-5, fnet7) updated + restarted via A2A from operator machine. ~3 minutes total.
 - ✅ Git rebase conflict resolution (gemma4 crash cleanup)
 - ✅ M7.2 upstream PRs (PR #9 + PR #10 submitted, issues #3–#8 reopened)
 - ✅ Document `/reload` ESM limitation (RULE 29)
 - ✅ Vault↔repo doc sync
 - ✅ PiSessionTaskHandler dead code cleanup (GAP-2 — `createMemoryDispatchHandler` replaces `createPiSessionHandler`; dead `ctx.newSession` path removed)
-- ✅ Unsolicited auto-route + docs-split commits reverted
+- ✅ Unsolicited auto-route + docs-split commits reverted (prior session — this session re-implemented auto-route properly with operator approval)
 
 ## Fleet Status
 
-> A2A server v0.6.0 on all nodes (Phase EXEC). 32GB nodes also serve `agent-exec` (Tier D, qwen3.5:35b-a3b); 16GB nodes explicitly fail agent-exec.
+> A2A server v0.6.0+ with auto-route on all nodes (Phase AUTO-ROUTE + Phase EXEC). 32GB nodes also serve `agent-exec` (Tier D, qwen3.5:35b-a3b); 16GB nodes explicitly fail agent-exec. Fleet at commit `20fe997`.
 
 | Node | RAM | Profile | Flagship Model | Routes | A2A |
 |------|-----|---------|---------------|--------|-----|
@@ -80,6 +101,7 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 | ID | Severity | Gap | Status |
 |----|----------|-----|--------|
 | EXEC-TIER | 🔴 High | Executor-role tier — fleet nodes echo command plans | ✅ **CLOSED** (Phase EXEC) |
+| AUTO-ROUTE | 🟡 Medium | Model reads ~15K tokens of skill files to discover fleet topology per request | ✅ **CLOSED** (Phase AUTO-ROUTE, RULE 34) |
 | GAP-1 | 🔴 High | node-router archived | ✅ |
 | GAP-2 | 🟡 Medium | PiSessionTaskHandler NON-FUNCTIONAL | ✅ Cleaned up (dead `ctx.newSession` path removed; memory-dispatch handler preserved) |
 | GAP-3 | 🟡 Medium | Fleet model profiles | ✅ |
@@ -105,4 +127,4 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 ---
 
-*Last updated: 2026-07-05*
+*Last updated: 2026-07-05 (auto-route + fleet deployment)*
