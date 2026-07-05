@@ -1,4 +1,21 @@
 /**
+ * A2A v1.0 PascalCase method name mapping (A2A v1.0 §5.3)
+ * Maps spec PascalCase method names to internal slash-separated names.
+ */
+const PASCAL_CASE_MAP: Record<string, string> = {
+  'SendMessage': 'message/send',
+  'SendStreamingMessage': 'message/stream',
+  'GetTask': 'tasks/get',
+  'CancelTask': 'tasks/cancel',
+  'SubscribeToTask': 'tasks/subscribe',
+  'ResubscribeToTask': 'tasks/resubscribe',
+  'SetPushNotificationConfig': 'tasks/push-notification-config/set',
+  'GetPushNotificationConfig': 'tasks/push-notification-config/get',
+  'DeletePushNotificationConfig': 'tasks/push-notification-config/delete',
+  'GetAuthenticatedExtendedCard': 'agent/authenticated-extended-card',
+};
+
+/**
  * A2A Server Implementation
  * 
  * Exposes pi as an A2A-compliant agent server.
@@ -166,6 +183,18 @@ export class A2AServer {
       // Route requests
       if (path === "/.well-known/agent-card.json" || path === "/.well-known/agent.json" || path === "/.well-known/agent-card") {
         await this.handleAgentCard(req, res);
+      } else if (path === "/" || path === "") {
+        // A2A v1.0 spec: root endpoint with JSON-RPC method dispatch
+        await this.handleJsonRPCRequest(req, res);
+      } else if (path === "/rpc") {
+        // A2A v1.0 §9.2: JSON-RPC binding endpoint
+        await this.handleJsonRPCRequest(req, res);
+      } else if (path === "/message:send") {
+        // A2A v1.0 §11.3.1: HTTP/REST binding for sending messages
+        await this.handleJsonRPCRequest(req, res);
+      } else if (path === "/message:stream") {
+        // A2A v1.0 §11.3.1: HTTP/REST binding for streaming messages
+        await this.handleJsonRPCRequest(req, res);
       } else if (path === "/sendMessage" || path === "/sendStreamingMessage") {
         await this.handleSendMessage(req, res, path === "/sendStreamingMessage");
       } else if (path.startsWith("/tasks/")) {
@@ -178,6 +207,43 @@ export class A2AServer {
     } catch (error) {
       console.error("A2A server error:", error);
       this.sendError(res, 500, "Internal Server Error");
+    }
+  }
+
+  /**
+   * Handle JSON-RPC request at root, /rpc, /message:send, /message:stream
+   * (A2A v1.0 §9.2, §11.3.1)
+   * Routes PascalCase method names to internal slash-separated names.
+   */
+  private async handleJsonRPCRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    if (req.method !== "POST") {
+      this.sendError(res, 405, "Method Not Allowed");
+      return;
+    }
+
+    const body = await this.readBody(req);
+    let request: JSONRPCRequest;
+    try {
+      request = JSON.parse(body);
+    } catch {
+      this.sendJSONRPCError(res, null, -32700, "Parse error");
+      return;
+    }
+
+    // Map PascalCase method names (A2A v1.0 §5.3) to internal slash-separated names
+    const rawMethod = request.method;
+    const method = PASCAL_CASE_MAP[rawMethod] ?? rawMethod;
+    request = { ...request, method };
+
+    // Route to appropriate handler based on method name
+    if (method === "message/send" || method === "message/stream") {
+      await this.handleSendMessage(req, res, method === "message/stream");
+    } else if (method === "tasks/get" || method.startsWith("tasks/")) {
+      await this.handleTaskRequest(req, res, `/tasks/${(request.params as any)?.id || ''}`);
+    } else if (method === "agent/authenticated-extended-card") {
+      await this.handleAgentCard(req, res);
+    } else {
+      this.sendJSONRPCError(res, request.id, -32601, `Method not found: ${rawMethod}`);
     }
   }
 
@@ -222,6 +288,11 @@ export class A2AServer {
       this.sendJSONRPCError(res, request.id, -32600, "Invalid Request");
       return;
     }
+
+    // Map PascalCase method names (A2A v1.0 §5.3) to internal slash-separated names
+    const rawMethod = request.method;
+    const method = PASCAL_CASE_MAP[rawMethod] ?? rawMethod;
+    request = { ...request, method };
 
     const { message, configuration, metadata } = request.params as { message?: Message; configuration?: { returnImmediately?: boolean }; metadata?: Record<string, unknown> } || {};
     
@@ -635,7 +706,7 @@ export class A2AServer {
   private sendJSONRPCResponse(res: http.ServerResponse, id: string | number | null, result: unknown): void {
     const response: JSONRPCResponse = {
       jsonrpc: "2.0",
-      id: id ?? 0,
+      id: id ?? null,
       result,
     };
     
@@ -656,12 +727,12 @@ export class A2AServer {
   ): void {
     const response: JSONRPCResponse = {
       jsonrpc: "2.0",
-      id: id ?? 0,
+      id: id ?? null,
       error: { code, message, data },
     };
     
     res.setHeader("Content-Type", "application/json");
-    res.writeHead(400);
+    res.writeHead(200);
     res.end(JSON.stringify(response));
   }
 
