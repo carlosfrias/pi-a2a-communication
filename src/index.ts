@@ -26,7 +26,7 @@ import { NoOpPiTaskBridge, SubprocessPiTaskBridge } from "./pi-task-bridge.js";
 import type { PiTaskBridge, SubprocessBridgeOptions } from "./pi-task-bridge.js";
 import { buildBridgeOptions } from "./bridge-options.js";
 import type { A2AConfig, RemoteAgent, TaskOptions, A2ATask } from "./types.js";
-import { createPiSessionHandler } from "./pi-session-handler.js";
+import { createMemoryDispatchHandler } from "./pi-session-handler.js";
 import { createShellExecHandler } from "./shell-exec-handler.js";
 import { createAgentExecHandler } from "./agent-exec-handler.js";
 import { resolveFleetTarget, resolveFleetTargets, isTierHint } from "./auto-route.js";
@@ -113,9 +113,11 @@ export default function (pi: ExtensionAPI) {
 
       a2aServer = new A2AServer(config.server, config.security, ctx, bridge);
 
-      // Register pi session task handler (uses the running pi session for task execution)
-      const sessionHandler = createPiSessionHandler(ctx);
-      a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
+      // Register memory-dispatch handler (processes agent-memory requests; falls through
+      // to PiTaskBridge for non-memory tasks). Formerly PiSessionTaskHandler (always threw
+      // PI_SESSION_UNAVAILABLE on the fleet; dead newSession code removed GAP-2 cleanup).
+      const memoryHandler = createMemoryDispatchHandler(ctx);
+      a2aServer.registerTaskHandler("a2a-task-execution", memoryHandler);
       // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
       a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
       // Phase EXEC Tier D: agent-exec strong-model escalation. Registered everywhere;
@@ -490,9 +492,9 @@ export default function (pi: ExtensionAPI) {
           bridge
         );
 
-        // Register pi session task handler
-        const sessionHandler = createPiSessionHandler(ctx);
-        a2aServer.registerTaskHandler("a2a-task-execution", sessionHandler);
+        // Register memory-dispatch handler (agent-memory requests; falls through for others)
+        const memoryHandler = createMemoryDispatchHandler(ctx);
+        a2aServer.registerTaskHandler("a2a-task-execution", memoryHandler);
         // Phase EXEC Tier C: deterministic shell-exec short-circuit (no model in the loop).
         a2aServer.registerTaskHandler("shell-exec", createShellExecHandler());
         // Phase EXEC Tier D: agent-exec strong-model escalation (registered everywhere;

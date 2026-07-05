@@ -1,38 +1,27 @@
 /**
- * PiSessionTaskHandler — Task handler that uses the running pi session
+ * Memory-dispatch task handler — agent-memory short-circuit for A2A tasks
  *
- * When the A2A extension is loaded inside a pi session, this handler
- * executes incoming A2A tasks by sending them to the model via
- * ctx.newSession({ withSession }) — the pi v0.79.10+ API for
- * isolated session-based task execution.
+ * When an A2A task message is an `agent-memory:` request (or bare JSON with a
+ * `memory_*` tool), this handler executes it directly against the deployed
+ * Python MCP bridge via subprocess and returns the result as a task artifact.
+ * This bypasses the pi-session / PiTaskBridge path so memory_* tools work
+ * over A2A on fleet nodes where the bridge is noop and `ctx.newSession` is
+ * unavailable.
  *
- * Flow:
- * 1. ctx.newSession({ withSession }) opens a new isolated session
- * 2. Inside withSession, sendUserMessage sends the A2A task text
- * 3. The model processes it and writes a response to the session JSONL
- * 4. We read the last assistant message from the JSONL as the result
+ * Non-memory tasks throw PI_SESSION_UNAVAILABLE so that A2AServer.processTask
+ * falls through to the next handler or the PiTaskBridge (subprocess/noop).
  *
- * Fallback: if ctx.newSession is not available (older pi versions),
- * the handler throws PI_SESSION_UNAVAILABLE so that A2AServer.processTask
- * falls through to the PiTaskBridge (subprocess or noop).
+ * Formerly this file contained PiSessionTaskHandler, which used ctx.newSession()
+ * to execute tasks inside the running pi session. That handler was always
+ * non-functional on the fleet (ctx.newSession is only on ExtensionCommandContext,
+ * not the session_start ExtensionContext) and always threw PI_SESSION_UNAVAILABLE,
+ * falling back to SubprocessPiTaskBridge. The dead newSession code path was
+ * removed in the GAP-2 cleanup (2026-07-05). The memory-dispatch logic was
+ * preserved because it runs before the fallthrough and works correctly.
  */
 
-import * as fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import type { A2ATask } from "./types.js";
-
-/**
- * Configuration options for PiSessionTaskHandler polling behavior.
- * Exposed for testing — production defaults are sensible.
- */
-export interface SessionHandlerOptions {
-  /** Milliseconds between poll attempts (default: 500) */
-  pollIntervalMs?: number;
-  /** Maximum milliseconds to wait for a response (default: 120000) */
-  maxPollMs?: number;
-  /** agent-memory dispatch options (synchronous Python MCP bridge short-circuit). */
-  memory?: MemoryDispatchOptions;
-}
 
 /**
  * Options for the agent-memory dispatch short-circuit.
@@ -55,9 +44,17 @@ export interface MemoryDispatchOptions {
 }
 
 /**
+ * Configuration options for the memory-dispatch handler.
+ */
+export interface MemoryDispatchHandlerOptions {
+  /** agent-memory dispatch options (synchronous Python MCP bridge short-circuit). */
+  memory?: MemoryDispatchOptions;
+}
+
+/**
  * Detect whether a task message is an agent-memory request, and if so parse
  * the `{tool, arguments}` op. Returns `null` for non-memory requests so the
- * handler falls through to the existing pi-session / bridge flow unchanged.
+ * handler falls through to the existing bridge flow unchanged.
  *
  * Recognized shapes:
  *   - `agent-memory: {"tool":"memory_*","arguments":{...}}`
@@ -139,10 +136,7 @@ export async function runMemoryBridge(
   return exec(python, ["-c", script], env, timeoutMs);
 }
 
-/**
- * Error signal thrown when ctx.newSession is unavailable.
- * A2AServer.processTask catches this and falls back to PiTaskBridge.
- */
+/** Error signal thrown when no handler can process a task; A2AServer.processTask catches this and falls through to PiTaskBridge. */
 export const PI_SESSION_UNAVAILABLE = "PI_SESSION_UNAVAILABLE";
 
 /**
@@ -151,55 +145,21 @@ export const PI_SESSION_UNAVAILABLE = "PI_SESSION_UNAVAILABLE";
 export type TaskHandler = (task: A2ATask, onUpdate: (update: Partial<A2ATask>) => void) => Promise<A2ATask>;
 
 /**
- * Read the last assistant message from a pi session JSONL file.
+ * Creates a task handler that processes agent-memory requests directly
+ * via the Python MCP bridge subprocess, and throws PI_SESSION_UNAVAILABLE
+ * for all other tasks so A2AServer.processTask falls through to the next
+ * handler or the PiTaskBridge (subprocess/noop).
  *
- * Parses the JSONL, walks entries in reverse order, and returns the
- * text content of the last assistant message (handles both string
- * content and structured content arrays).
- */
-async function readLastAssistantMessage(sessionFile: string): Promise<string | null> {
-  try {
-    const content = await fs.readFile(sessionFile, "utf-8");
-    const lines = content.trim().split("\n").filter((l: string) => l.trim());
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const entry = JSON.parse(lines[i]);
-        if (entry.role === "assistant" && entry.content) {
-          if (typeof entry.content === "string") {
-            return entry.content;
-          }
-          if (Array.isArray(entry.content)) {
-            return entry.content
-              .filter((c: unknown) => typeof c === "object" && c !== null && (c as Record<string, unknown>).type === "text")
-              .map((c: Record<string, unknown>) => (c as { text: string }).text)
-              .join("\n");
-          }
-        }
-      } catch {
-        // Skip unparseable lines
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Creates a task handler that processes A2A tasks using ctx.newSession().
+ * This replaces the former PiSessionTaskHandler, which always threw
+ * PI_SESSION_UNAVAILABLE because ctx.newSession was unavailable on the fleet.
+ * The memory-dispatch path is preserved because it works correctly (it
+ * doesn't depend on ctx.newSession).
  *
- * The handler attempts to use ctx.newSession({ withSession }) for isolated
- * task execution. If newSession is not available (older pi versions),
- * the handler throws PI_SESSION_UNAVAILABLE so that processTask falls
- * back to the PiTaskBridge.
- *
- * @param ctx The pi ExtensionContext for the running session (any-shape
- *   because older pi versions won't have newSession at all)
+ * @param _ctx The pi ExtensionContext (unused — kept for API compatibility).
+ *   Formerly used for ctx.newSession, which was never available on the fleet.
  * @returns A TaskHandler function suitable for A2AServer.registerTaskHandler()
  */
-export function createPiSessionHandler(ctx: any, options?: SessionHandlerOptions): TaskHandler {
-  const POLL_INTERVAL_MS = options?.pollIntervalMs ?? 500;
-  const MAX_POLL_MS = options?.maxPollMs ?? 120_000;
+export function createMemoryDispatchHandler(_ctx: any, options?: MemoryDispatchHandlerOptions): TaskHandler {
   return async (task: A2ATask, onUpdate: (update: Partial<A2ATask>) => void): Promise<A2ATask> => {
     // Extract text content from the A2A message
     const parts = task.status.message?.parts || [];
@@ -219,9 +179,7 @@ export function createPiSessionHandler(ctx: any, options?: SessionHandlerOptions
     // agent-memory dispatch short-circuit: if the task message is an
     // `agent-memory:` request (or bare JSON with a `memory_*` tool), execute it
     // directly against the deployed Python MCP bridge via subprocess and return
-    // the result. This bypasses the pi-session / PiTaskBridge path so memory_*
-    // tools work over A2A on fleet nodes where the bridge is noop and
-    // `ctx.newSession` may be unavailable. Non-memory requests fall through.
+    // the result. Non-memory requests fall through.
     const memOp = parseMemoryRequest(textContent);
     if (memOp) {
       let memText: string;
@@ -243,125 +201,16 @@ export function createPiSessionHandler(ctx: any, options?: SessionHandlerOptions
       return task;
     }
 
-    // Report progress
-    onUpdate({
-      status: { ...task.status, state: "working" as const },
-    });
-
-    // Check if newSession is available
-    if (typeof ctx?.newSession !== "function") {
-      // Fall through — let processTask use the PiTaskBridge instead
-      throw new Error(PI_SESSION_UNAVAILABLE);
-    }
-
-    let resultText = "";
-
-    try {
-      onUpdate({
-        status: {
-          ...task.status,
-          state: "working" as const,
-          message: {
-            messageId: task.status.message?.messageId || `msg-${Date.now()}`,
-            role: "agent" as const,
-            parts: [{ type: "text" as const, text: "Opening pi session..." }],
-          },
-        },
-      });
-
-      const sessionResult = await ctx.newSession({
-        parentSession: ctx.sessionManager?.getSessionFile?.(),
-        withSession: async (newCtx: any) => {
-          onUpdate({
-            status: {
-              ...task.status,
-              state: "working" as const,
-              message: {
-                messageId: task.status.message?.messageId || `msg-${Date.now()}`,
-                role: "agent" as const,
-                parts: [{ type: "text" as const, text: "Sending task to pi session..." }],
-              },
-            },
-          });
-
-          // Send the A2A task as a user message with nextTurn delivery
-          await newCtx.sendUserMessage(textContent, { deliverAs: "nextTurn" });
-
-          onUpdate({
-            status: {
-              ...task.status,
-              state: "working" as const,
-              message: {
-                messageId: task.status.message?.messageId || `msg-${Date.now()}`,
-                role: "agent" as const,
-                parts: [{ type: "text" as const, text: "Waiting for pi response..." }],
-              },
-            },
-          });
-
-          // Poll for the model's response in the session JSONL file.
-          // Adaptive polling loop that exits as soon as an assistant response appears.
-          const pollInterval = POLL_INTERVAL_MS;
-          const maxPoll = MAX_POLL_MS;
-          const startTime = Date.now();
-          let polledResponse: string | null = null;
-
-          const sessionFile = newCtx.sessionManager?.getSessionFile?.();
-
-          while (Date.now() - startTime < maxPoll) {
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-
-            if (sessionFile) {
-              polledResponse = await readLastAssistantMessage(sessionFile);
-              if (polledResponse) break;
-            }
-          }
-
-          if (polledResponse) {
-            resultText = polledResponse;
-          }
-        },
-      });
-
-      if (sessionResult.cancelled) {
-        task.status.state = "failed";
-        task.isError = true;
-        task.error = "Session was cancelled";
-        task.status.timestamp = new Date().toISOString();
-        return task;
-      }
-    } catch (error) {
-      // If the error is our fallback signal, re-throw it
-      if (error instanceof Error && error.message === PI_SESSION_UNAVAILABLE) {
-        throw error;
-      }
-      // For other errors, mark the task as failed
-      task.status.state = "failed";
-      task.isError = true;
-      task.error = error instanceof Error ? error.message : String(error);
-      task.status.timestamp = new Date().toISOString();
-      return task;
-    }
-
-    // Use result from session, or fallback message
-    if (!resultText) {
-      resultText = `Task processed by pi session on ${new Date().toISOString()}. ` +
-        `Message: "${textContent.substring(0, 200)}${textContent.length > 200 ? "..." : ""}"`;
-    }
-
-    task.status.state = "completed";
-    task.status.timestamp = new Date().toISOString();
-
-    if (!task.artifacts) {
-      task.artifacts = [];
-    }
-
-    task.artifacts.push({
-      artifactId: task.id + "-result",
-      name: "result",
-      parts: [{ type: "text" as const, text: resultText }],
-    });
-
-    return task;
+    // Non-memory task — fall through to the next handler or PiTaskBridge.
+    throw new Error(PI_SESSION_UNAVAILABLE);
   };
 }
+
+/**
+ * @deprecated Use createMemoryDispatchHandler instead. The former
+ * PiSessionTaskHandler always threw PI_SESSION_UNAVAILABLE because
+ * ctx.newSession was unavailable on the fleet; the memory-dispatch path
+ * has been extracted into createMemoryDispatchHandler. This alias is
+ * provided for backward compatibility with existing registration code.
+ */
+export const createPiSessionHandler = createMemoryDispatchHandler;

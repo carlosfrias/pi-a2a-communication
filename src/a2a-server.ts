@@ -860,10 +860,10 @@ export class A2AServer {
     try {
       // Check for a registered task handler first.
       // Phase EXEC Tier C: explicit metadata.skills are checked BEFORE the catch-all
-      // "a2a-task-execution" session handler, so a tagged deterministic handler
-      // (shell-exec) takes priority and the session handler's parseMemoryRequest
-      // cannot hijack it. A handler that throws PI_SESSION_UNAVAILABLE CONTINUES to
-      // the next handler instead of jumping to the bridge.
+      // "a2a-task-execution" memory-dispatch handler, so a tagged deterministic handler
+      // (shell-exec) takes priority and the memory-dispatch handler cannot hijack it.
+      // A handler that throws PI_SESSION_UNAVAILABLE CONTINUES to the next handler
+      // instead of jumping to the bridge.
       const skillIds = [...(task.metadata?.skills as string[] || []), "a2a-task-execution"];
       for (const skillId of skillIds) {
         const handler = this.taskHandlers.get(skillId);
@@ -954,9 +954,9 @@ export class A2AServer {
     try {
       // Check for a registered task handler first (same as processTask).
       // Phase EXEC Tier C: explicit metadata.skills are checked BEFORE the catch-all
-      // "a2a-task-execution" session handler, so a tagged deterministic handler
-      // (shell-exec) takes priority and the session handler's parseMemoryRequest
-      // cannot hijack it. continue (not break) on PI_SESSION_UNAVAILABLE.
+      // "a2a-task-execution" memory-dispatch handler, so a tagged deterministic handler
+      // (shell-exec) takes priority and the memory-dispatch handler cannot hijack it.
+      // continue (not break) on PI_SESSION_UNAVAILABLE.
       const skillIds = [...(task.metadata?.skills as string[] || []), "a2a-task-execution"];
       for (const skillId of skillIds) {
         const handler = this.taskHandlers.get(skillId);
