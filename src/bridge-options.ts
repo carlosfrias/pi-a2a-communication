@@ -37,5 +37,9 @@ export function buildBridgeOptions(config: BridgeConfig): SubprocessBridgeOption
     // Phase EXEC Tier B — narration-detection guard (opt-in).
     narrationGuardEnabled: config.narrationGuardEnabled,
     narrationMaxRetries: config.narrationMaxRetries,
+    // Option B — OLLAMA_KEEP_ALIVE for the regular bridge (opt-in). When set,
+    // the spawned `pi --print` keeps the model resident across tasks (avoids
+    // ~89s cold-start per task under the fleet default OLLAMA_KEEP_ALIVE=0).
+    env: config.ollamaKeepAlive ? { OLLAMA_KEEP_ALIVE: config.ollamaKeepAlive } : undefined,
   };
 }
