@@ -379,7 +379,7 @@ The v0.4.0 "all gaps resolved" claim was overstated — dispatched A2A tasks ret
 - [x] a2a_call tool output-extraction quirk — RESOLVED 2026-07-02 (v0.5.0+: `streaming=false` + 300s timeout so the synchronous wait returns the completed task; extraction prefers `artifacts[0]`).
 - [x] Dead `PiSessionTaskHandler` cleanup — SUPERSEDED 2026-07-02: `SubprocessPiTaskBridge` owns real execution (opt-in flags + AbortSignal); a2a-server threads the signal. Harmless fallback; optional future removal.
 - [ ] Option B: command-context task execution to reuse the running tmux pi's loaded model (avoid ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0`). Long-term. (Phase EXEC Tier D's `OLLAMA_KEEP_ALIVE=10m` mitigates the reload churn for agent-exec; Option B remains a broader optimization.)
-- [ ] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart (RULE 29).
+- [x] Document/file upstream: pi `/reload` does not re-evaluate extension ESM modules — a rebuilt `dist/` requires a full process restart (RULE 29).
 - [ ] M7.2: Upstream PR — awaits user decision.
 
 ## Decisions

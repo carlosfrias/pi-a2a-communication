@@ -109,6 +109,7 @@ updated: 2026-07-05
 | GAP-3.5 | 🟡 Medium | 35b-a3b flagship upgrade | ✅ |
 | GAP-4 | 🟡 Medium | capacity_score fix | ✅ |
 | GAP-5 | 🟢 Low | Stale playbook references | ✅ |
+| GAP-6 | 🟢 Low | pi `/reload` does not re-evaluate extension ESM modules — rebuilt `dist/` requires full process restart | ✅ Accepted (RULE 29) |
 
 ## Cross-References
 
