@@ -2,6 +2,9 @@
  * Type definitions for pi-a2a-communication extension
  * 
  * Based on A2A Protocol Specification (a2a-protocol.org)
+ * 
+ * A2A v1.0 spec compliance fixes: S1–S6b
+ * See: https://github.com/DrOlu/pi-a2a-communication/issues/3-8
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -9,9 +12,33 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Agent Card - Self-describing manifest for an A2A agent
+ * A2A v1.0 Agent Card discovery path
+ * Per A2A v1.0 §8.2 and RFC 8615, the spec-compliant path is
+ * /.well-known/agent-card.json (with .json suffix).
  */
-export interface AgentCard {
+export const AGENT_CARD_PATH = '/.well-known/agent-card.json';
+
+/**
+ * @deprecated Use AGENT_CARD_PATH instead. Kept for backward compat.
+ * This was the npm v1.0.1 path, not spec-compliant.
+ */
+export const LEGACY_AGENT_CARD_PATH = '/.well-known/agent-card';
+
+/**
+ * @deprecated Use AGENT_CARD_PATH instead. Kept for backward compat.
+ * This was the local fork path, not the spec path.
+ */
+export const LEGACY_AGENT_CARD_PATH_LOCAL = '/.well-known/agent.json';
+
+/**
+ * Discovery fallback paths — tried in order when the primary path fails.
+ * Includes the spec path and both legacy paths for maximum compatibility.
+ */
+export const AGENT_CARD_DISCOVERY_PATHS = [
+  AGENT_CARD_PATH,
+  LEGACY_AGENT_CARD_PATH_LOCAL,
+  LEGACY_AGENT_CARD_PATH,
+] as const;
   name: string;
   description: string;
   url: string;
