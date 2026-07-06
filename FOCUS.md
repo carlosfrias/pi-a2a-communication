@@ -19,22 +19,27 @@ updated: 2026-07-05
 
 ## Completed Work
 
-### Phase AUTO-ROUTE — Tier Hints for Fleet Routing ✅
+### Phase AUTO-ROUTE + Option B — Tier Hints + OLLAMA_KEEP_ALIVE ✅
 
-Eliminates ~15K tokens of "check fleet resources" reads per fleet request. The model passes `agent_url="auto"` or a tier hint; the tool resolves it internally.
+**Auto-Route:** Eliminates ~15K tokens of "check fleet resources" reads per fleet request. The model passes `agent_url="auto"` or a tier hint; the tool resolves it internally.
+
+**Option B:** `OLLAMA_KEEP_ALIVE=10m` for the regular subprocess bridge (not just agent-exec). Eliminates ~89s per-task cold start. Added `ollamaKeepAlive` to `BridgeConfig`, mapped to `env.OLLAMA_KEEP_ALIVE` in `buildBridgeOptions`.
+
+> **Note:** The auto-route commit (`20fe997`) was reverted by a prior session (`45b475c`). This session re-applied it on top of Option B (commit `a647557`). All 7 nodes deployed + verified.
 
 | Step | Status |
 |------|--------|
-| Identified token waste problem (~15K tokens per fleet request) | ✅ 2026-07-05 |
-| Designed auto-routing solution (tier hints in `agent_url`) | ✅ 2026-07-05 |
-| Implemented `src/auto-route.ts` (312 lines, tier classification + resolution) | ✅ Commit `20fe997` |
-| Updated `a2a_call`, `a2a_parallel`, `a2a_chain` tool handlers + descriptions | ✅ Commit `20fe997` |
-| 18 unit tests (197 total, all passing) | ✅ 2026-07-05 |
-| Added RULE 34 to universal-rules (v1.13.0) | ✅ 2026-07-05 |
-| Seeded semantic memory for future recall | ✅ 2026-07-05 |
-| Fleet-wide deployment (all 6 nodes via A2A shell-exec) | ✅ 2026-07-05 |
-| Verified all nodes back online with `auto-route.js` | ✅ 2026-07-05 |
-| Operator restarted pi on operator machine | ✅ 2026-07-05 |
+| Auto-route: `src/auto-route.ts` (312 lines, tier classification + resolution) | ✅ Commit `a647557` |
+| Auto-route: Updated `a2a_call`, `a2a_parallel`, `a2a_chain` tool handlers | ✅ Commit `a647557` |
+| Auto-route: 18 unit tests (all passing) | ✅ |
+| Auto-route: RULE 34 added to universal-rules (v1.13.0) | ✅ |
+| Option B: `ollamaKeepAlive` added to `BridgeConfig` (`types.ts`) | ✅ Commit `08bb6a7` |
+| Option B: `buildBridgeOptions` maps to `env.OLLAMA_KEEP_ALIVE` | ✅ |
+| Option B: 4 unit tests (TDD: RED → GREEN) | ✅ |
+| Option B: All 7 nodes configured with `ollamaKeepAlive: "10m"` | ✅ |
+| Fleet-wide deployment (all 7 nodes via A2A shell-exec) | ✅ Commit `a647557` |
+| Verified all 7 nodes: active + auto-route.js + keepalive 10m | ✅ 2026-07-05 |
+| Universal-rules mirrors synced (vault + workshop) | ✅ |
 
 ### Phase EXEC — Executor-Tier Gap Remediation ✅
 
@@ -67,8 +72,8 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 ### Session 2026-07-05 ✅
 
-- ✅ **Auto-Route Feature re-implemented + deployed** — `src/auto-route.ts` (312 lines), tier hints in `agent_url`, 18 tests (197 total), commit `20fe997`. Deployed to all 6 fleet nodes via A2A `shell-exec`. RULE 34 added to universal-rules.
-- ✅ **Fleet-wide A2A deployment** — All 6 nodes (fnet1-5, fnet7) updated + restarted via A2A from operator machine. ~3 minutes total.
+- ✅ **Auto-Route + Option B (2026-07-05)** — `src/auto-route.ts` (tier hints) + `ollamaKeepAlive` for regular bridge. 22 tests. Commit `a647557`. Deployed to all 7 fleet nodes. RULE 34 added.
+- ✅ **Fleet-wide A2A deployment (2026-07-05)** — All 7 nodes (fnet1-7) updated + restarted via A2A from operator machine. All verified with auto-route.js + keepalive 10m.
 - ✅ Git rebase conflict resolution (gemma4 crash cleanup)
 - ✅ M7.2 upstream PRs (PR #9 + PR #10 submitted, issues #3–#8 reopened)
 - ✅ Document `/reload` ESM limitation (RULE 29)
@@ -78,7 +83,7 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 ## Fleet Status
 
-> A2A server v0.6.0+ with auto-route on all nodes (Phase AUTO-ROUTE + Phase EXEC). 32GB nodes also serve `agent-exec` (Tier D, qwen3.5:35b-a3b); 16GB nodes explicitly fail agent-exec. Fleet at commit `20fe997`.
+> A2A server v0.6.0+ with auto-route + Option B on all 7 nodes. 32GB nodes also serve `agent-exec` (Tier D, qwen3.5:35b-a3b); 16GB nodes explicitly fail agent-exec. Fleet at commit `a647557`. All nodes configured with `ollamaKeepAlive: "10m"` (Option B).
 
 | Node | RAM | Profile | Flagship Model | Routes | A2A |
 |------|-----|---------|---------------|--------|-----|
@@ -102,6 +107,7 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 |----|----------|-----|--------|
 | EXEC-TIER | 🔴 High | Executor-role tier — fleet nodes echo command plans | ✅ **CLOSED** (Phase EXEC) |
 | AUTO-ROUTE | 🟡 Medium | Model reads ~15K tokens of skill files to discover fleet topology per request | ✅ **CLOSED** (Phase AUTO-ROUTE, RULE 34) |
+| OPTION-B | 🟡 Medium | ~89s per-task cold start from `OLLAMA_KEEP_ALIVE=0` on regular bridge | ✅ **CLOSED** (Option B, `ollamaKeepAlive: "10m"`) |
 | GAP-1 | 🔴 High | node-router archived | ✅ |
 | GAP-2 | 🟡 Medium | PiSessionTaskHandler NON-FUNCTIONAL | ✅ Cleaned up (dead `ctx.newSession` path removed; memory-dispatch handler preserved) |
 | GAP-3 | 🟡 Medium | Fleet model profiles | ✅ |
