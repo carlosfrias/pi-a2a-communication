@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Executor-role system prompt (Phase EXEC Tier A)** — `SubprocessPiTaskBridge` now steers the spawned `pi --print` with an opt-in `--system-prompt` / `--append-system-prompt` so the fleet's qwen3.5:4b actually invokes tools + pastes real stdout instead of narrating command plans. Closes the executor-tier gap (fleet nodes echoed command plans rather than executing). See `wiki/pi-a2a-communication/reference/executor-tier-gap-remediation.md`.
+- **Executor-role system prompt (Phase EXEC Tier A)** — `SubprocessPiTaskBridge` now steers the spawned `pi --print` with an opt-in `--system-prompt` / `--append-system-prompt` so the fleet's qwen3.5:4b actually invokes tools + pastes real stdout instead of narrating command plans. Closes the executor-tier gap (fleet nodes echoed command plans rather than executing). See `wiki/reference/executor-tier-gap-remediation.md`.
   - `systemPrompt` / `appendSystemPrompt` on `SubprocessBridgeOptions` + `BridgeConfig` (opt-in; non-fleet safe — flags omitted when unset).
   - `buildBridgeOptions()` pure helper (`src/bridge-options.ts`) extracted from `index.ts`; both start paths (`session_start` + `/a2a-server start`) now use it.
   - Default fleet-executor prompt shipped in `ansible/deploy-a2a.yml` (`bridge_systemPrompt`).
@@ -123,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Improved agent card discovery: filesystem-sourced cards preserve their configured URL; only `0.0.0.0` or missing URLs get overridden with hostname
-- Wiki restructured per Rule 25 (recursive wiki/ convention): reference docs moved to `wiki/pi-a2a-communication/reference/`
+- Wiki restructured per Rule 25 (recursive wiki/ convention): reference docs moved to `wiki/reference/`
 - README.md trimmed to pointer per Rule 27 (project root clean)
 - FPB/FDP compliance: added Two Locations declaration, updated refined agents, cleaned empty directories
 

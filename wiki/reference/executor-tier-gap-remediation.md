@@ -220,8 +220,8 @@ discipline.
 - `src/index.ts:121` — session handler registration
 - FOCUS.md — GAP-2 (PiSessionTaskHandler NON-FUNCTIONAL), accepted limitations
 - **PLAN.md § Phase EXEC — Executor-Tier Gap Remediation** (implementation steps; this doc is the evidence record)
-- `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md` — prior audit
-- `wiki/pi-a2a-communication/reference/architecture-and-executive-report.md` — architecture
+- `wiki/reference/A2A-v1-Conformance-Audit.md` — prior audit
+- `wiki/reference/architecture-and-executive-report.md` — architecture
 
 ---
 

@@ -92,9 +92,9 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 | Add protocol type definitions | `types.ts` → then run spec-compliance tests |
 | Configure A2A client | `config.ts` |
 | Understand A2A v1.0 spec | `tests/a2a-v1-conformance.test.ts` — conformance suite (source of truth) |
-| Read architecture docs | `wiki/pi-a2a-communication/Home.md` — start here |
-| Read conformance report | `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md` — full audit with Mermaid diagrams |
-| Read audit findings | `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md` — detailed code-level findings |
+| Read architecture docs | `wiki/Home.md` — start here |
+| Read conformance report | `wiki/reference/A2A-v1-Conformance-Report.md` — full audit with Mermaid diagrams |
+| Read audit findings | `wiki/reference/A2A-v1-Conformance-Audit.md` — detailed code-level findings |
 
 ## Discovery Path
 
@@ -108,7 +108,7 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 7. pi-a2a-communication/WORKBENCH.md                  ← Working notes + triage
 8. pi-a2a-communication/.frias/refined-agents/        ← Battle-tested rules
 9. pi-a2a-communication/.frias/journal/              ← Session journals
-10. pi-a2a-communication/wiki/pi-a2a-communication/   ← Architecture, protocol, guides
+10. pi-a2a-communication/wiki/                     ← Architecture, protocol, guides
 11. pi-a2a-communication/tests/                       ← TDD test suites
 12. pi-a2a-communication/config/                     ← Gateway configuration (archived sibling project)
 ```
@@ -161,7 +161,7 @@ Per [FDP LIFECYCLE.md](https://github.com/carlosfrias/frias-documentation-protoc
 
 1. WORKBENCH triage — completed items moved to ✅ Recently Done
 2. Per-prompt capture — `.frias/threads/`
-3. Thread update — `.frias/threads/0-THREAD.md`
+3. Thread update — `.frias/threads/THREAD-v1.md`
 4. FOCUS.md update — frontmatter, active work, handoff
 5. Journal entry — `.frias/journal/`
 6. PLAN.md update — progress, checkboxes, next steps
@@ -194,7 +194,7 @@ Per [FDP LIFECYCLE.md](https://github.com/carlosfrias/frias-documentation-protoc
 | RULE 19 | ✅ | Properly classified in `02-Areas` |
 | RULE 21 | ✅ | Hyphenated name |
 | RULE 22 | ✅ FIXED | Removed 3 duplicate `Activity Log.md` (space) files, kept kebab-case |
-| RULE 25 | ✅ FIXED | Moved wiki files under `wiki/pi-a2a-communication/` with `reference/` and `guides/` subdirs |
+| RULE 25 | ✅ FIXED | Wiki flattened from `wiki/pi-a2a-communication/` to `wiki/` per Rule 27 (project folder IS the namespace) |
 | RULE 26 | ✅ FIXED | Aligned workshop wiki with vault structure; removed `_meta/` redirects; created `reference/` |
 | RULE 27 | ✅ FIXED | Slimmed README.md to ≤30 line pointer; removed empty root dirs; added vitest artifacts to `.gitignore` |
 | Version sync | ✅ FIXED | `pi-package.json` version updated from `0.1.0-alpha.1` → `0.2.0-alpha.3` |

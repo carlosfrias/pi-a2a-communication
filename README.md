@@ -8,7 +8,7 @@ This is the most spec-rigorous piece of the pi-orchestration ecosystem: ~5,746 l
 
 ## Why this project is notable
 
-- **Spec compliance, proven.** 19/19 A2A v1.0 conformance tests pass — implementation correctness is verified against the standard, not asserted. ([Spec Compliance Report](wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md))
+- **Spec compliance, proven.** 19/19 A2A v1.0 conformance tests pass — implementation correctness is verified against the standard, not asserted. ([Spec Compliance Report](wiki/reference/A2A-v1-Conformance-Report.md))
 - **Production-grade transport.** Both `message/send` (request/response) and `message/stream` (SSE for long-running agent output) — the real A2A wire shapes, not a single toy channel.
 - **Disconnect-resilient task ledgering.** Tasks are durable (`task-ledger.ts`, `replicated-ledger.ts`), so a client that drops can `tasks/resubscribe` and recover its stream. State survives the connection — the hard part of agent orchestration.
 - **RFC 8615 agent-card discovery.** Capability advertisement at the spec-compliant `/.well-known/agent-card.json`, with a legacy fork path retained for back-compat.
@@ -99,8 +99,8 @@ npm test          # full suite: conformance, unit, integration, spec-compliance,
 
 ## Documentation
 
-- **Wiki:** [wiki/pi-a2a-communication/Home.md](wiki/pi-a2a-communication/Home.md)
-- **Conformance:** [A2A v1.0 Spec Compliance Report](wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Report.md)
+- **Wiki:** [wiki/Home.md](wiki/Home.md)
+- **Conformance:** [A2A v1.0 Spec Compliance Report](wiki/reference/A2A-v1-Conformance-Report.md)
 - **Focus:** [FOCUS.md](FOCUS.md) — current state and session handoff
 - **Workbench:** [WORKBENCH.md](WORKBENCH.md) — active tasks and working notes
 

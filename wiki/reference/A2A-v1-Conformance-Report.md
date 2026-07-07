@@ -254,7 +254,7 @@ npx vitest run a2a-v1-conformance
 | Server source | `a2a-server.ts` |
 | Types & constants | `types.ts` |
 | Deepseek validation report | Inline (see validation section above) |
-| Kimi audit report | `wiki/pi-a2a-communication/reference/A2A-v1-Conformance-Audit.md` |
+| Kimi audit report | `wiki/reference/A2A-v1-Conformance-Audit.md` |
 
 ---
 
