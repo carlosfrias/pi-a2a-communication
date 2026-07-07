@@ -1,11 +1,12 @@
 /**
  * Unit tests for auto-route.ts — fleet routing tier hints and resolution
  *
- * Hardware reality (audited 2026-07-06):
- * - All nodes are Intel NUC10i7FNH (no discrete GPUs, CPU-only inference)
- * - fnet1, fnet2: 16GB RAM, qwen3.5:4b (fnet1 also runs Nextcloud)
- * - fnet3, fnet4, fnet5, fnet6: 32GB RAM, qwen3.5:35b-a3b
- * - fnet7: 16GB single-channel RAM, qwen3.5:4b
+ * Hardware reality (audited 2026-07-06/07):
+ * - fnet1: Intel i5-6400 (desktop), 16GB RAM, no GPU (Nextcloud host)
+ * - fnet2: Intel i7-8700 (desktop), 16GB RAM, GTX 660 (driver broken, CPU-only)
+ * - fnet3-fnet6: Intel i7-10710U (NUC10), 32GB RAM, Intel UHD 620 (CPU-only)
+ * - fnet7: Intel i7-10710U (NUC10), 16GB RAM single-channel, Intel UHD 620 (CPU-only)
+ * - No discrete GPUs exist in the fleet — all inference is CPU-only
  * - Tailscale hostnames resolve on LAN and remotely
  */
 
@@ -158,7 +159,7 @@ describe("resolveFleetTarget", () => {
   it("passes through explicit URLs unchanged", () => {
     const result = resolveFleetTarget("http://fnet3:10000", configManager);
     expect(result.url).toBe("http://fnet3:10000");
-    expect(result.source).toBe("registry");
+    expect(result.source).toBe("fallback");
     expect(result.hint).toBe("explicit");
   });
 

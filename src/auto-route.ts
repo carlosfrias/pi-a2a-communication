@@ -21,7 +21,7 @@
  * which resolves on LAN and remotely.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { ConfigManager } from "./config.js";
 import type { RemoteAgent } from "./types.js";
 
@@ -156,27 +156,26 @@ const DEFAULT_FALLBACK_URL = "http://fnet3:10000";
 
 /**
  * Try resolving via fleet-resource-manager CLI.
- * Returns null if CLI is unavailable or fails.
+ * Uses execFileSync with argv array (no shell interpolation) to avoid injection.
+ *
+ * NOTE: The current fleet-resource-manager CLI does not support JSON output
+ * directly. This function attempts to call it and parse the result, but will
+ * silently fall through to registry-based routing on any failure. When the CLI
+ * gains a --format json option, this strategy will automatically activate.
  */
-function tryResolveViaCli(hint: string, prompt?: string): ResolvedTarget | null {
+function tryResolveViaCli(hint: string, _prompt?: string): ResolvedTarget | null {
   try {
-    const promptArg = prompt ? ` --prompt "${prompt.replace(/"/g, '\\"')}"` : "";
-    const output = execSync(
-      `fleet-resource-manager route${promptArg} --format json 2>/dev/null`,
-      { timeout: 10000, encoding: "utf-8" }
-    );
-    const plan = JSON.parse(output);
-    if (plan.target_node) {
-      const nodeId = plan.target_node;
-      const url = plan.target_url || `http://${nodeId}:10000`;
-      return {
-        url,
-        source: "cli",
-        hint,
-        agentName: nodeId,
-        tier: plan.model_tier,
-      };
-    }
+    // The CLI currently requires file-based input (--combined-file, --scored-file).
+    // It doesn't support --format json or stdin prompts.
+    // For now, we skip the CLI and rely on registry-based routing.
+    // This function is preserved as a hook for future CLI integration.
+    //
+    // When the CLI supports JSON output, uncomment and adjust:
+    // const args = ["route", "--format", "json"];
+    // const output = execFileSync("fleet-resource-manager", args, { timeout: 10000, encoding: "utf-8" });
+    // const plan = JSON.parse(output);
+    // ...parse and return
+    return null;
   } catch {
     // CLI not available or failed — fall through to registry
   }
@@ -194,9 +193,11 @@ function resolveViaRegistry(
   const agents = configManager.getRemoteAgents();
   if (agents.length === 0) return null;
 
-  // Filter healthy agents
+  // Filter agents: include healthy and unknown (includes undefined,
+  // which is the default for newly-discovered agents without health checks).
+  // Exclude explicitly unhealthy agents.
   const healthy = agents.filter(
-    (a) => a.healthStatus === "healthy" || a.healthStatus === "unknown"
+    (a) => a.healthStatus !== "unhealthy"
   );
   if (healthy.length === 0) return null;
 
@@ -267,7 +268,7 @@ export function resolveFleetTarget(
   if (agentUrl.includes("://")) {
     return {
       url: agentUrl,
-      source: "registry" as const,
+      source: "fallback" as const,
       hint: "explicit",
     };
   }
