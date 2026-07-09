@@ -1,0 +1,16 @@
+[Unit]
+Description=Fleet Self-Healing Health Check
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=friasc
+Group=friasc
+ExecStart=/home/friasc/fleet-scripts/fleet-health-check.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fleet-health-check
+
+# Ensure nvm is available for pi
+Environment=PATH=/home/friasc/.nvm/versions/node/v24.15.0/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NVM_DIR=/home/friasc/.nvm

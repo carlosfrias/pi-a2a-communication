@@ -1,0 +1,10 @@
+[Unit]
+Description=Ollama Idle Model Unload Timer
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

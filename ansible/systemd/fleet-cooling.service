@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply fleet cooling settings (fans + CPU governor)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/friasc/fleet-scripts/fleet-cooling-setup.sh
+User=root
+
+[Install]
+WantedBy=multi-user.target
