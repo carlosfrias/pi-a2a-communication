@@ -341,7 +341,7 @@ check_ollama_service() {
             fi
         fi
     fi
-} ─────────────────────────────────────────
+}
 # Ollama bug #7645: pi's SSE/streaming connection prevents model unloading
 # even with OLLAMA_KEEP_ALIVE=0. Models get stuck in "Stopping..." state at
 # 100% CPU, causing thermal throttling on Intel NUCs.
