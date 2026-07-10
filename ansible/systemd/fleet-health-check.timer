@@ -1,0 +1,11 @@
+[Unit]
+Description=Fleet Self-Healing Health Check
+After=network-online.target
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
