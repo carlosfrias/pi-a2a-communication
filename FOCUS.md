@@ -6,7 +6,7 @@ phase: "Phase AUTO-ROUTE: Tier Hints for Fleet Routing — COMPLETE"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-07-05
+updated: 2026-07-10
 ---
 
 # FOCUS — pi-a2a-communication
@@ -116,10 +116,40 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 | GAP-5 | 🟢 Low | Stale playbook references | ✅ |
 | GAP-6 | 🟢 Low | pi `/reload` ESM limitation | ✅ Accepted (RULE 29) |
 
+## Open Issue: Fleet Discovery Partial Failure (2026-07-10)
+
+**Symptom:** A2A health check (`a2a_call(agent_url="auto", message="health check", timeout=15s)`) timed out. `a2a_parallel` dispatched to 3 executor nodes, all routed to fnet1 only. Meanwhile, SSH to all 7 nodes (fnet1-fnet7) succeeded -- all powered on, all idle. Only 3 nodes (fnet1, fnet2, fnet3) were reachable via NFS/A2A surface.
+
+**Impact:** Fleet dispatch degrades to 3/7 nodes when this occurs. Auto-route resolution would be blind to fnet4-fnet7, forcing all work onto fnet1-fnet3.
+
+**Root cause IDENTIFIED (2026-07-10):** Pi's `a2a_call` tool times out even with explicit URLs to healthy nodes. The fleet nodes are NOT the problem — all 7 are up, all 7 respond to direct `curl` on port 10000 via both local (192.168.0.x) and Tailscale (100.x.x.x) IPs. The A2A server on each node correctly serves agent cards and task endpoints. The timeout is in pi's A2A **client tool layer** — how pi constructs/sends the HTTP request — NOT in the fleet.
+
+**Additional issues found:**
+- 3 stale test agents in `agents.json` (`agent1`, `agent2`, `persistent-agent` with `example.com` URLs) — could confuse routing
+- Mac RAM at 96%, swap at 95% — orchestrator under memory pressure
+- fnet1 load avg 6.98/7.77/8.20 — also runs Nextcloud
+- fnet3 NFS mount was broken (fixed this session by mounting via IP; DNS resolves `mac.fleet.local` to fnet1's IP 192.168.0.131 instead of Mac 192.168.0.154)
+- fnet4-7 NFS status unknown (did not check)
+
+**Original root cause candidates (now mostly ruled out):**
+1. ~~A2A server process not running~~ ✅ All 7 running
+2. `agents.json` registry stale — ✅ Has all 7 nodes PLUS 3 stale test entries that need cleanup
+3. ~~Avahi/mDNS not advertising~~ ✅ IP resolution works (both local + Tailscale)
+4. ~~Port 10000 not reachable~~ ✅ All reachable via curl
+5. ~~Ollama model not loaded~~ ✅ All have models, but cold start may have caused initial timeout during earlier session
+
+**Next steps:**
+1. **Debug pi `a2a_call` timeout** — the tool times out but direct curl works. Need to trace the actual HTTP request pi makes (may be Node.js HTTP agent, TLS, or request format issue)
+2. Clean 3 stale agents from `agents.json`
+3. Fix `mac.fleet.local` DNS on fnet3
+4. Audit fnet4-7 NFS mounts
+5. Address Mac RAM pressure (96%)
+6. Consider adding `fleet-health-check.sh` for quick SSH-based diagnostics
+
 ## Low-Priority Follow-ups (not blocking)
 
-- Option B: command-context task execution — `OLLAMA_KEEP_ALIVE=10m` already mitigates cold start for agent-exec; broader optimization remains for later
-- Upstream PR merge — waiting on DrOlu to review/merge PR #9 + PR #10
+- Option B: command-context task execution -- `OLLAMA_KEEP_ALIVE=10m` already mitigates cold start for agent-exec; broader optimization remains for later
+- Upstream PR merge -- waiting on DrOlu to review/merge PR #9 + PR #10
 
 ## Cross-References
 
@@ -133,4 +163,4 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 ---
 
-*Last updated: 2026-07-05 (auto-route + fleet deployment)*
+*Last updated: 2026-07-10 (fleet discovery partial failure documented; auto-route + fleet deployment 2026-07-05)*
