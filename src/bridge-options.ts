@@ -37,5 +37,10 @@ export function buildBridgeOptions(config: BridgeConfig): SubprocessBridgeOption
     // Phase EXEC Tier B — narration-detection guard (opt-in).
     narrationGuardEnabled: config.narrationGuardEnabled,
     narrationMaxRetries: config.narrationMaxRetries,
+    // Phase EXEC Option B — OLLAMA_KEEP_ALIVE for the regular subprocess bridge.
+    // Maps config.ollamaKeepAlive to env.OLLAMA_KEEP_ALIVE in the spawned child.
+    // Without this, OLLAMA_KEEP_ALIVE defaults to 0 (unload after each response),
+    // causing ~89s cold starts and "Connection error" failures on every new task.
+    ollamaKeepAlive: config.ollamaKeepAlive,
   };
 }

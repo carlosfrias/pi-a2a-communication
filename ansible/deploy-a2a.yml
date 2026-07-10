@@ -54,7 +54,7 @@
     # cloud-via-a2a cross-node loop, drop extensions to avoid --print stdout interference,
     # and cap concurrency/buffer for CPU/RAM-constrained nodes.
     bridge_type: "subprocess"
-    bridge_command: "pi"
+    bridge_command: "/usr/local/bin/pi"
     bridge_timeout: 300000
     bridge_provider: "ollama"
     bridge_model: "qwen3.5:4b"
@@ -85,7 +85,12 @@
     bridge_agentExecEnabled: "{{ (ansible_memtotal_mb | default(0) | int) >= 30000 }}"
     bridge_agentExecModel: "qwen3.5:35b-a3b"
     bridge_agentExecTimeout: 600000
-    bridge_agentExecKeepAlive: "10m" 
+    bridge_agentExecKeepAlive: "10m"
+    # Phase EXEC Option B — OLLAMA_KEEP_ALIVE for the REGULAR subprocess bridge.
+    # Without this, OLLAMA_KEEP_ALIVE defaults to 0 (unload after each request), causing
+    # ~89s cold starts and "Connection error" failures on every new task.
+    # The pi wrapper at /usr/local/bin/pi sets this env var; the config value is the fallback.
+    bridge_ollamaKeepAlive: "10m"
     # Phase EXEC Tier D — dedicated capable-agent prompt for the strong model (the
     # Tier A fleet-executor prompt is tuned for the weak 4B; this one lets the 35B
     # plan / self-check / verify across multi-step agentic work).
@@ -241,7 +246,8 @@
               "agentExecModel": {{ bridge_agentExecModel | to_json }},
               "agentExecTimeout": {{ bridge_agentExecTimeout | to_json }},
               "agentExecSystemPrompt": {{ bridge_agentExecSystemPrompt | to_json }},
-              "agentExecKeepAlive": {{ bridge_agentExecKeepAlive | to_json }}
+              "agentExecKeepAlive": {{ bridge_agentExecKeepAlive | to_json }},
+              "ollamaKeepAlive": {{ bridge_ollamaKeepAlive | to_json }}
             }
           }
       tags: [deploy, config]
@@ -266,6 +272,94 @@
         sed -i 's/"version": "0\.2\.0"/"version": "{{ a2a_version }}"/g' "{{ item.path }}"
       loop: "{{ agent_card_files.files }}"
       when: agent_card_files.files | length > 0
+      tags: [deploy, config]
+
+  # ── Phase 3.5: Self-healing — Ensure pi is accessible from root context ──
+    - name: Find pi binary via nvm
+      ansible.builtin.shell: |
+        export NVM_DIR="/home/{{ ansible_user }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        which pi
+      args:
+        executable: /bin/bash
+      register: pi_nvm_path
+      changed_when: false
+      tags: [deploy, config]
+
+    - name: Create /usr/local/bin/pi wrapper (self-healing PATH fix)
+      ansible.builtin.copy:
+        dest: "/usr/local/bin/pi"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          # pi-wrapper — Ensures pi is accessible regardless of user or PATH.
+          # Sources nvm so the pi binary (Node.js script) can find node.
+          # Used by the A2A bridge subprocess which may run as root without nvm.
+          # Self-healing: created by deploy-a2a.yml, verified by fleet-a2a-remediate.yml
+          export NVM_DIR="/home/{{ ansible_user }}/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-10m}"
+          exec pi "$@"
+      # Task var overrides the play var ansible_become=false (task var > play var > keyword).
+      vars:
+        ansible_become: true
+      tags: [deploy, config]
+
+    - name: Verify pi wrapper works
+      ansible.builtin.command: /usr/local/bin/pi --version
+      register: pi_wrapper_verify
+      changed_when: false
+      tags: [deploy, config]
+
+    - name: Fix OLLAMA_KEEP_ALIVE in pi-agent systemd unit
+      ansible.builtin.shell: |
+        UNIT_FILE="/etc/systemd/system/pi-agent@{{ inventory_hostname }}.service"
+        if [ ! -f "$UNIT_FILE" ]; then
+          UNIT_FILE="/etc/systemd/system/pi-agent@.service"
+        fi
+        if [ -f "$UNIT_FILE" ]; then
+          if grep -q 'OLLAMA_KEEP_ALIVE=0' "$UNIT_FILE"; then
+            sed -i 's/OLLAMA_KEEP_ALIVE=0/OLLAMA_KEEP_ALIVE=10m/' "$UNIT_FILE"
+            echo "FIXED: OLLAMA_KEEP_ALIVE changed from 0 to 10m"
+          elif ! grep -q 'OLLAMA_KEEP_ALIVE' "$UNIT_FILE"; then
+            sed -i '/\[Service\]/a Environment=OLLAMA_KEEP_ALIVE=10m' "$UNIT_FILE"
+            echo "ADDED: OLLAMA_KEEP_ALIVE=10m"
+          else
+            echo "OK: OLLAMA_KEEP_ALIVE already set"
+          fi
+        else
+          echo "NO_UNIT: pi-agent systemd unit not found"
+        fi
+        # Also fix standalone script
+        SCRIPT_FILE="/home/{{ ansible_user }}/fleet-scripts/pi-agent-standalone.sh"
+        if [ -f "$SCRIPT_FILE" ] && grep -q 'OLLAMA_KEEP_ALIVE=0' "$SCRIPT_FILE"; then
+          sed -i 's/OLLAMA_KEEP_ALIVE=0/OLLAMA_KEEP_ALIVE=10m/' "$SCRIPT_FILE"
+          echo "FIXED: standalone script OLLAMA_KEEP_ALIVE changed to 10m"
+        fi
+      args:
+        executable: /bin/bash
+      # Task var overrides the play var ansible_become=false (task var > play var > keyword).
+      vars:
+        ansible_become: true
+      register: keepalive_fix
+      changed_when: "'FIXED' in keepalive_fix.stdout or 'ADDED' in keepalive_fix.stdout"
+      tags: [deploy, config]
+
+    - name: Reload systemd if keepalive was fixed
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      when: "'FIXED' in keepalive_fix.stdout or 'ADDED' in keepalive_fix.stdout"
+      # Task var overrides the play var ansible_become=false (task var > play var > keyword).
+      vars:
+        ansible_become: true
+      tags: [deploy, config]
+
+    - name: Show self-healing results
+      ansible.builtin.debug:
+        msg:
+          - "pi wrapper: /usr/local/bin/pi → {{ pi_nvm_path.stdout }}"
+          - "pi --version: {{ pi_wrapper_verify.stdout_lines[:1] }}"
+          - "OLLAMA_KEEP_ALIVE: {{ keepalive_fix.stdout }}"
       tags: [deploy, config]
 
   # ── Phase 4: Restart Service ─────────────────────────────────────────

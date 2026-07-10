@@ -136,6 +136,15 @@ export interface SubprocessBridgeOptions {
   /** Max bytes captured per stream before killing the child (default: 10 MB). */
   maxBufferBytes?: number;
   /**
+   * Ollama keep-alive for the regular subprocess bridge (Option B).
+   * When set (e.g. "10m"), maps to env.OLLAMA_KEEP_ALIVE in the spawned `pi --print`
+   * child, keeping the model resident and avoiding ~89s cold starts per task.
+   * Without this, the env inherits OLLAMA_KEEP_ALIVE=0 (or the wrapper's default of 10m).
+   * The pi wrapper at /usr/local/bin/pi already sets OLLAMA_KEEP_ALIVE=10m as a fallback;
+   * this config value overrides it for the regular bridge subprocess.
+   */
+  ollamaKeepAlive?: string;
+  /**
    * Narration-detection guard (Phase EXEC Tier B; opt-in, default false). When true,
    * if the `pi --print` output looks like plan-narration (the model described
    * commands instead of executing them), re-run once with a forced "actually
@@ -174,6 +183,8 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
   private extraEnv: Record<string, string>;
   private narrationGuardEnabled: boolean;
   private narrationMaxRetries: number;
+  /** Option B: OLLAMA_KEEP_ALIVE for the regular subprocess bridge. Mapped from config.ollamaKeepAlive. */
+  private ollamaKeepAlive?: string;
   // Concurrency cap state
   private active = 0;
   private waiters: Array<() => void> = [];
@@ -195,6 +206,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
     this.maxQueue = options.maxQueue ?? 0;
     this.maxBufferBytes = options.maxBufferBytes ?? 10 * 1024 * 1024;
     this.extraEnv = options.env ?? {};
+    this.ollamaKeepAlive = options.ollamaKeepAlive;
     this.narrationGuardEnabled = options.narrationGuardEnabled ?? false;
     this.narrationMaxRetries = options.narrationMaxRetries ?? 1;
   }
@@ -286,7 +298,7 @@ export class SubprocessPiTaskBridge implements PiTaskBridge {
 
       const proc = spawn(this.command, args, {
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, PI_A2A_SKIP_SERVER: "1", ...this.extraEnv },
+        env: { ...process.env, PI_A2A_SKIP_SERVER: "1", ...this.extraEnv, ...(this.ollamaKeepAlive ? { OLLAMA_KEEP_ALIVE: this.ollamaKeepAlive } : {}) },
       });
 
       let settled = false;

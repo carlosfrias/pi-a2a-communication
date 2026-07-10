@@ -371,6 +371,13 @@ export interface BridgeConfig {
   agentExecSystemPrompt?: string;
   /** Ollama keep-alive for the agent-exec strong model (default "10m"; "0" = unload each turn). Avoids the per-turn reload churn that OOMs 32GB nodes under the fleet default OLLAMA_KEEP_ALIVE=0. */
   agentExecKeepAlive?: string;
+  /**
+   * Ollama keep-alive for the REGULAR subprocess bridge (default: unset = OLLAMA_KEEP_ALIVE=0 = unload after each response).
+   * When set (e.g. "10m"), the spawned `pi --print` child will set OLLAMA_KEEP_ALIVE in its environment,
+   * keeping the model resident and avoiding ~89s cold starts per task.
+   * This is the code-level implementation of "Option B" from FOCUS.md.
+   */
+  ollamaKeepAlive?: string;
 }
 
 export interface A2AConfig {
