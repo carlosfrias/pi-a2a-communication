@@ -200,6 +200,12 @@ if 'calendar' in entry and entry['calendar']:
             lines.append(f'\t\t\t<key>Weekday</key><integer>{item["Weekday"]}</integer>')
         if 'Day' in item:
             lines.append(f'\t\t\t<key>Day</key><integer>{item["Day"]}</integer>')
+        if 'Month' in item:
+            lines.append(f'\t\t\t<key>Month</key><integer>{item["Month"]}</integer>')
+        if 'Year' in item:
+            lines.append(f'\t\t\t<key>Year</key><integer>{item["Year"]}</integer>')
+        if 'Second' in item:
+            lines.append(f'\t\t\t<key>Second</key><integer>{item["Second"]}</integer>')
         lines.append('\t\t</dict>')
     lines.append('\t</array>')
 
@@ -304,7 +310,7 @@ PY
     fi
     if [[ -z "$interval" ]]; then
       interval="$(python3 - "$existing" <<'PY'
-import json,sys; d=json.loads(sys.argv[1]); print(d.get('interval',''))
+import json,sys; d=json.loads(sys.argv[1]); print(d.get('interval') or '')
 PY
 )"
     fi
@@ -312,7 +318,7 @@ PY
       while IFS= read -r line; do
         [[ -n "$line" ]] && calendar+=("$line")
       done < <(python3 - "$existing" <<'PY'
-import json,sys; d=json.loads(sys.argv[1]); [print(','.join(f"{k}={v}" for k,v in c.items())) for c in d.get('calendar',[])]
+import json,sys; d=json.loads(sys.argv[1]); [print(','.join(f"{k}={v}" for k,v in c.items())) for c in d.get('calendar',[]) if c]
 PY
 )
     fi
