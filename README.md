@@ -113,3 +113,7 @@ Authored and maintained by **Carlos Frias** as the protocol layer of his pi-orch
 ## License
 
 [MIT](./LICENSE) — Copyright (c) 2026 pi-extensions.
+
+---
+
+> **Cross-domain note:** The same practice-building instinct behind this A2A agent work — model the platform, converge it idempotently, encode failure modes — is also applied to API platform operations in the [`apigee-hybrid-workspace`](https://github.com/carlosfrias/apigee-hybrid-workspace) portfolio hub.
