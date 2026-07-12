@@ -15,7 +15,9 @@
   gather_facts: yes
 
   vars:
-    monitor_script_src: "{{ playbook_dir | dirname }}/scripts/orchestrator-fleet-monitor.py"
+    monitor_script_src: "{{ playbook_dir }}/../../scripts/orchestrator-fleet-monitor.py"
+    monitor_wrapper_src: "{{ playbook_dir }}/../../bin/orchestrator-fleet-monitor"
+    monitor_wrapper_dest: "{{ ansible_env.HOME }}/bin/orchestrator-fleet-monitor"
     plist_src: "{{ playbook_dir | dirname }}/launchd/com.frias.orchestrator-fleet-monitor.plist"
     launch_agents_dir: "{{ ansible_env.HOME }}/Library/LaunchAgents"
     logs_dir: "{{ ansible_env.HOME }}/Library/Logs"
@@ -37,6 +39,18 @@
       ansible.builtin.file:
         path: "/Users/friasc/Cloud/carlos-desktop/.fleet-status"
         state: directory
+        mode: '0755'
+
+    - name: Ensure user bin directory exists
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Copy named orchestrator monitor wrapper
+      ansible.builtin.copy:
+        src: "{{ monitor_wrapper_src }}"
+        dest: "{{ monitor_wrapper_dest }}"
         mode: '0755'
 
     - name: Copy orchestrator monitor plist

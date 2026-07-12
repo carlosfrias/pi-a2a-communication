@@ -1,0 +1,10 @@
+#!/bin/bash
+# Named wrapper for com.frias.orchestrator-fleet-monitor LaunchAgent.
+# This exists so macOS "Login Items & Extensions" / "Background Items"
+# shows "orchestrator-fleet-monitor" instead of the generic "python3" label.
+# Runs every 2 minutes via launchd.
+
+unset ANSIBLE_VAULT_PASSWORD_FILE
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+exec /usr/local/bin/python3 \
+  /Users/friasc/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication/scripts/orchestrator-fleet-monitor.py
