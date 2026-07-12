@@ -18,7 +18,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-STATUS_DIR = Path("/mnt/carlos-desktop/.fleet-status")
+STATUS_DIR = Path("/Users/friasc/Cloud/carlos-desktop/.fleet-status")
 ORCHESTRATOR_STATUS = STATUS_DIR / "orchestrator.json"
 INVENTORY = "/Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/pi-a2a-communication/ansible/inventory.ini"
 PLAYBOOKS_DIR = "/Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/playbook-executor/playbooks"
@@ -66,13 +66,15 @@ def run_playbook(playbook: str, target: str) -> bool:
     ]
     log(f"Running: {' '.join(cmd)}")
     try:
+        # Clone env and remove the broken ANSIBLE_VAULT_PASSWORD_FILE directory override
+        clean_env = {k: v for k, v in os.environ.items() if k != "ANSIBLE_VAULT_PASSWORD_FILE"}
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             timeout=300,
-            env={**os.environ, "ANSIBLE_VAULT_PASSWORD_FILE": ""},
+            env=clean_env,
         )
         if result.returncode == 0:
             log(f"Playbook succeeded for {target}")

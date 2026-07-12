@@ -61,12 +61,36 @@ if command -v docker &>/dev/null; then
 fi
 
 # ── Check 4: NFS mount ────────────────────────────────────────────────────
+# Detect both real NFS mounts and autofs placeholders. A mountpoint is only
+# considered healthy if the actual server export is visible in the mount table
+# AND we can write a probe file through it.
 NFS_MOUNTED=false
 NFS_RESPONSIVE=false
-if run_with_timeout 5 mountpoint -q "$NFS_MOUNT" 2>/dev/null; then
+NFS_SERVER_EXPORT="192.168.0.154:/Users/friasc/Cloud/carlos-desktop"
+
+if run_with_timeout 5 mount | grep -qF "$NFS_SERVER_EXPORT" 2>/dev/null; then
     NFS_MOUNTED=true
     if run_with_timeout 5 ls "$NFS_MOUNT" >/dev/null 2>&1; then
         NFS_RESPONSIVE=true
+    fi
+fi
+
+# Defensive write probe: create status dir and a small probe file to confirm
+# the mount is writable and not just an autofs placeholder.
+if [ "$NFS_MOUNTED" = true ] && [ "$NFS_RESPONSIVE" = true ]; then
+    if mkdir -p "$STATUS_DIR_NFS" 2>/dev/null; then
+        probe_file="$STATUS_DIR_NFS/.probe-$(hostname)"
+        if echo "probe $(date -Iseconds)" > "$probe_file" 2>/dev/null; then
+            if [ -s "$probe_file" ]; then
+                rm -f "$probe_file" 2>/dev/null || true
+            else
+                NFS_RESPONSIVE=false
+            fi
+        else
+            NFS_RESPONSIVE=false
+        fi
+    else
+        NFS_RESPONSIVE=false
     fi
 fi
 
@@ -107,24 +131,38 @@ if [ -f "$PREV_FILE" ]; then
 fi
 
 # ── Build status JSON ────────────────────────────────────────────────────
+# Convert bash booleans to JSON literals safely
+PI_ENABLED_JSON=$( [ "$PI_ENABLED" = true ] && echo "True" || echo "False" )
+PI_ACTIVE_JSON=$( [ "$PI_ACTIVE" = true ] && echo "True" || echo "False" )
+A2A_OK_JSON=$( [ "$A2A_OK" = true ] && echo "True" || echo "False" )
+OLLAMA_OK_JSON=$( [ "$OLLAMA_OK" = true ] && echo "True" || echo "False" )
+NFS_MOUNTED_JSON=$( [ "$NFS_MOUNTED" = true ] && echo "True" || echo "False" )
+NFS_RESPONSIVE_JSON=$( [ "$NFS_RESPONSIVE" = true ] && echo "True" || echo "False" )
+REMEDIATION_REQUIRED_JSON=$( [ "$REMEDIATION_REQUIRED" = true ] && echo "True" || echo "False" )
+
+REASONS_JSON='[]'
+if [ ${#REMEDIATION_REASONS[@]} -gt 0 ]; then
+    REASONS_JSON=$(printf '%s\n' "${REMEDIATION_REASONS[@]}" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+fi
+
 STATUS_JSON=$(python3 -c "
 import json, datetime
 status = {
     'hostname': '$HOSTNAME',
     'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     'checks': {
-        'pi_agent_enabled': $PI_ENABLED,
-        'pi_agent_active': $PI_ACTIVE,
-        'a2a_endpoint_ok': $A2A_OK,
+        'pi_agent_enabled': $PI_ENABLED_JSON,
+        'pi_agent_active': $PI_ACTIVE_JSON,
+        'a2a_endpoint_ok': $A2A_OK_JSON,
         'a2a_version': '$A2A_VERSION',
         'a2a_name': '$A2A_NAME',
-        'ollama_container_ok': $OLLAMA_OK,
-        'nfs_mounted': $NFS_MOUNTED,
-        'nfs_responsive': $NFS_RESPONSIVE,
+        'ollama_container_ok': $OLLAMA_OK_JSON,
+        'nfs_mounted': $NFS_MOUNTED_JSON,
+        'nfs_responsive': $NFS_RESPONSIVE_JSON,
     },
     'remediation': {
-        'required': $REMEDIATION_REQUIRED,
-        'reasons': $(printf '%s\n' "${REMEDIATION_REASONS[@]}" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))'),
+        'required': $REMEDIATION_REQUIRED_JSON,
+        'reasons': $REASONS_JSON,
         'consecutive_failures': $CONSECUTIVE_FAILURES,
     }
 }

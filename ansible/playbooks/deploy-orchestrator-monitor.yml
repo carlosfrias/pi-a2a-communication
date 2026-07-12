@@ -12,7 +12,7 @@
 - name: Deploy Orchestrator Fleet Monitor to Mac
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: yes
 
   vars:
     monitor_script_src: "{{ playbook_dir | dirname }}/scripts/orchestrator-fleet-monitor.py"
@@ -33,9 +33,9 @@
         state: directory
         mode: '0755'
 
-    - name: Ensure fleet status directory exists on NFS
+    - name: Ensure fleet status directory exists on shared Cloud path
       ansible.builtin.file:
-        path: "/mnt/carlos-desktop/.fleet-status"
+        path: "/Users/friasc/Cloud/carlos-desktop/.fleet-status"
         state: directory
         mode: '0755'
 

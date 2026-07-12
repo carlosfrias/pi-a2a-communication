@@ -16,12 +16,13 @@
 
   vars:
     scripts_dir: "/home/{{ ansible_user }}/fleet-scripts"
+    # Controller-side paths: files are read from the Mac checkout
+    service_src: "{{ playbook_dir }}/../systemd/fleet-a2a-health-reporter.service"
+    timer_src: "{{ playbook_dir }}/../systemd/fleet-a2a-health-reporter.timer"
+    boot_guard_service_src: "{{ playbook_dir }}/../systemd/fleet-a2a-boot-guard.service"
+    boot_guard_timer_src: "{{ playbook_dir }}/../systemd/fleet-a2a-boot-guard.timer"
+    reporter_src: "{{ playbook_dir }}/../../scripts/fleet-health-reporter.sh"
     a2a_repo: "/home/{{ ansible_user }}/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication"
-    service_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-health-reporter.service"
-    timer_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-health-reporter.timer"
-    boot_guard_service_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-boot-guard.service"
-    boot_guard_timer_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-boot-guard.timer"
-    reporter_src: "{{ a2a_repo }}/scripts/fleet-health-reporter.sh"
 
   tasks:
     - name: Ensure fleet-scripts directory exists
