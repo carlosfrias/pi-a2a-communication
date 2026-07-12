@@ -35,7 +35,8 @@ updated: 2026-07-11
 | Orchestrator monitor LaunchAgent loaded on Mac | ✅ |
 | Orchestrator auto-remediated fnet3/fnet7 NFS autofs issues | ✅ |
 | `validate-fleet-a2a-playbooks.sh` passes | ✅ |
-| Git tag `v0.7.0` pushed | ✅ |
+| Agent cards report v0.7.0 on all nodes | ✅ |
+| Git tag `v0.7.0` + GitHub release published | ✅ |
 
 ### Fleet Bridge Remediation (2026-07-10) ✅
 
