@@ -1,63 +1,64 @@
 #!/usr/bin/env bash
 # apply-fnet-launchd-wrappers.sh
 #
-# Apply named, signed fnet- wrappers to all Python-based LaunchAgents on this Mac.
-# Run this after changing any LaunchAgent command so the wrapper matches.
+# One-shot command to ensure every managed LaunchAgent has a named, signed
+# fnet-* wrapper binary. This is the backwards-compatible entry point; the
+# canonical tool is fnet-schedule.
+#
+# Usage:
+#   apply-fnet-launchd-wrappers.sh           # migrate + sync
+#   apply-fnet-launchd-wrappers.sh --create  # interactive create (delegates to fnet-schedule)
+#   apply-fnet-launchd-wrappers.sh --list    # list managed items
+#
+# This script is automatically invoked by fnet-schedule create/update, so you
+# normally do not need to run it manually.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GENERATOR="$SCRIPT_DIR/generate-fnet-launchd-wrapper.sh"
+FNET_SCHEDULE="$SCRIPT_DIR/fnet-schedule"
 
-PYTHON_VENV="/Users/friasc/Cloud/carlos-desktop/workshop/.venv/bin/python"
-LAUNCH_AGENTS_DIR="${HOME}/Library/LaunchAgents"
-
-if [[ ! -x "$GENERATOR" ]]; then
-  echo "ERROR: generator not found or not executable: $GENERATOR" >&2
+if [[ ! -x "$FNET_SCHEDULE" ]]; then
+  echo "ERROR: fnet-schedule not found: $FNET_SCHEDULE" >&2
   exit 1
 fi
 
-# 1. Fleet orchestrator monitor
-"$GENERATOR" \
-  --name fnet-orchestrator-fleet-monitor \
-  --program /usr/local/bin/python3 \
-  --arg /Users/friasc/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication/scripts/orchestrator-fleet-monitor.py \
-  --plist "$LAUNCH_AGENTS_DIR/com.frias.orchestrator-fleet-monitor.plist" \
-  --reload
+case "${1:-}" in
+  --create|-c)
+    shift || true
+    exec "$FNET_SCHEDULE" create "$@"
+    ;;
+  --update|-u)
+    shift || true
+    exec "$FNET_SCHEDULE" update "$@"
+    ;;
+  --list|-l)
+    exec "$FNET_SCHEDULE" list
+    ;;
+  --help|-h|help)
+    cat <<'EOF'
+apply-fnet-launchd-wrappers.sh — Convenience wrapper around fnet-schedule.
 
-# 2. Trading desk scheduled jobs
-for task in eod morning news-check sunday monday-close; do
-  "$GENERATOR" \
-    --name "fnet-tradingdesk-schedule-${task}" \
-    --program "$PYTHON_VENV" \
-    --arg -m \
-    --arg td \
-    --arg schedule \
-    --arg run \
-    --arg "$task" \
-    --plist "$LAUNCH_AGENTS_DIR/com.tradingdesk.schedule.${task}.plist" \
-    --reload
-done
+This script is auto-invoked by fnet-schedule create/update, so the typical
+workflow is:
 
-# 3. ChromaDB fleet memory sync (shell wrapper that calls Python)
-"$GENERATOR" \
-  --name fnet-chromadb-sync \
-  --program /Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/playbook-executor/scripts/fleet-memory-sync.sh \
-  --arg both \
-  --plist "$LAUNCH_AGENTS_DIR/com.carlosfrias.chromadb-sync.plist" \
-  --reload
+  fnet-schedule create --name my-task --command /path/to/bin --interval 300
 
-# 4. Schwab trades email fetcher (shell wrapper that calls Python)
-"$GENERATOR" \
-  --name fnet-pi-email-fetcher-schwab-trades \
-  --program /Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/pi-email-fetcher/scripts/fetch-schwab-trades.sh \
-  --arg --capture \
-  --arg --positions \
-  --arg --days \
-  --arg 1 \
-  --plist "$LAUNCH_AGENTS_DIR/com.carlosfrias.pi-email-fetcher.schwab-trades.plist" \
-  --reload
+To bulk-reapply wrappers to existing LaunchAgents:
 
-echo "All fnet- LaunchAgent wrappers applied."
-echo "Binaries in ${HOME}/bin:"
-ls -1 "${HOME}/bin"/fnet-* 2>/dev/null || true
+  apply-fnet-launchd-wrappers.sh
+
+Options:
+  (none)       Migrate existing plists and re-apply wrappers
+  --create     Delegate to fnet-schedule create
+  --update     Delegate to fnet-schedule update
+  --list       Show all managed scheduled items
+  --help       Show this help
+EOF
+    ;;
+  *)
+    echo "Applying fnet- wrappers to all LaunchAgent plists..."
+    "$FNET_SCHEDULE" migrate
+    "$FNET_SCHEDULE" sync
+    ;;
+esac
