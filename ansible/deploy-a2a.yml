@@ -103,7 +103,7 @@
     service_name: "pi-agent@{{ inventory_hostname }}"
 
     # A2A version to set in agent cards (matches package.json; bumped 0.5.5 -> 0.6.0 for Phase EXEC)
-    a2a_version: "0.6.0"
+    a2a_version: "0.7.0"
 
     # Bridge type for fleet nodes:
     # 'subprocess' — spawns `pi --print --no-session` with opt-in flags + PI_A2A_SKIP_SERVER
@@ -171,12 +171,8 @@
         msg: "A2A version on {{ inventory_hostname }}: {{ built_version.stdout }}"
       tags: [deploy, code]
 
-  # ── Phase 1.5: Deploy fleet health monitoring + boot guard ─────────
-    - name: Deploy fleet health reporter and boot guard
-      ansible.builtin.include_tasks: playbooks/deploy-fleet-health.yml
-      tags: [deploy, health]
-
-  # ── Phase 2: Remove conflicting npm package ──────────────────────────
+  # NOTE: Fleet health monitoring + boot guard are deployed via
+  #       playbooks/deploy-fleet-health.yml (run separately or via playbook-executor).
     - name: Register A2A extension with pi
       ansible.builtin.shell: |
         export NVM_DIR="$HOME/.nvm"
