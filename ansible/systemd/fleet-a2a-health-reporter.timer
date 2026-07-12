@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Fleet A2A Health Reporter every 2 minutes
+Requires=fleet-a2a-health-reporter.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

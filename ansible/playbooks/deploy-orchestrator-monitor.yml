@@ -1,0 +1,62 @@
+---
+# deploy-orchestrator-monitor.yml — Install the Mac orchestrator fleet monitor
+#
+# Registers a LaunchAgent that runs orchestrator-fleet-monitor.py every 2 min.
+# The monitor reads node status files from /mnt/carlos-desktop/.fleet-status/
+# and drives Ansible remediation until each node is healthy.
+#
+# Usage:
+#   ansible-playbook -i inventory.ini playbooks/deploy-orchestrator-monitor.yml
+#   (runs against localhost on the Mac orchestrator)
+
+- name: Deploy Orchestrator Fleet Monitor to Mac
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+    monitor_script_src: "{{ playbook_dir | dirname }}/scripts/orchestrator-fleet-monitor.py"
+    plist_src: "{{ playbook_dir | dirname }}/launchd/com.frias.orchestrator-fleet-monitor.plist"
+    launch_agents_dir: "{{ ansible_env.HOME }}/Library/LaunchAgents"
+    logs_dir: "{{ ansible_env.HOME }}/Library/Logs"
+
+  tasks:
+    - name: Ensure LaunchAgents directory exists
+      ansible.builtin.file:
+        path: "{{ launch_agents_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Ensure Logs directory exists
+      ansible.builtin.file:
+        path: "{{ logs_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Ensure fleet status directory exists on NFS
+      ansible.builtin.file:
+        path: "/mnt/carlos-desktop/.fleet-status"
+        state: directory
+        mode: '0755'
+
+    - name: Copy orchestrator monitor plist
+      ansible.builtin.copy:
+        src: "{{ plist_src }}"
+        dest: "{{ launch_agents_dir }}/com.frias.orchestrator-fleet-monitor.plist"
+        mode: '0644'
+
+    - name: Load orchestrator monitor LaunchAgent
+      ansible.builtin.command: launchctl load -w "{{ launch_agents_dir }}/com.frias.orchestrator-fleet-monitor.plist"
+      changed_when: true
+
+    - name: Start orchestrator monitor immediately
+      ansible.builtin.command: launchctl start com.frias.orchestrator-fleet-monitor
+      changed_when: true
+
+    - name: Report status
+      ansible.builtin.debug:
+        msg:
+          - "Orchestrator fleet monitor deployed"
+          - "LaunchAgent: {{ launch_agents_dir }}/com.frias.orchestrator-fleet-monitor.plist"
+          - "Log: {{ logs_dir }}/orchestrator-fleet-monitor.log"
+          - "Runs every 2 minutes"

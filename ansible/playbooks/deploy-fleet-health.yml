@@ -1,0 +1,102 @@
+---
+# deploy-fleet-health.yml — Deploy autonomous health reporter + boot guard to fleet nodes
+#
+# Installs/updates:
+#   - fleet-health-reporter.sh  (writes status JSON to NFS shared dir)
+#   - fleet-a2a-health-reporter.service + .timer
+#   - fleet-a2a-boot-guard.service + .timer (already defined; ensures pi-agent on boot)
+#
+# Usage:
+#   ansible-playbook -i inventory.ini playbooks/deploy-fleet-health.yml
+
+- name: Deploy Fleet Health Monitoring to All Nodes
+  hosts: lab_nodes
+  gather_facts: no
+  strategy: free
+
+  vars:
+    scripts_dir: "/home/{{ ansible_user }}/fleet-scripts"
+    a2a_repo: "/home/{{ ansible_user }}/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication"
+    service_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-health-reporter.service"
+    timer_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-health-reporter.timer"
+    boot_guard_service_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-boot-guard.service"
+    boot_guard_timer_src: "{{ a2a_repo }}/ansible/systemd/fleet-a2a-boot-guard.timer"
+    reporter_src: "{{ a2a_repo }}/scripts/fleet-health-reporter.sh"
+
+  tasks:
+    - name: Ensure fleet-scripts directory exists
+      ansible.builtin.file:
+        path: "{{ scripts_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Ensure local status directory exists
+      ansible.builtin.file:
+        path: "/opt/fleet-status"
+        state: directory
+        mode: '0755'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      become: yes
+
+    - name: Install fleet-health-reporter.sh from active repo
+      ansible.builtin.copy:
+        src: "{{ reporter_src }}"
+        dest: "{{ scripts_dir }}/fleet-health-reporter.sh"
+        mode: '0755'
+      become: yes
+
+    - name: Install health reporter service unit
+      ansible.builtin.copy:
+        src: "{{ service_src }}"
+        dest: "/etc/systemd/system/fleet-a2a-health-reporter.service"
+        mode: '0644'
+      become: yes
+
+    - name: Install health reporter timer unit
+      ansible.builtin.copy:
+        src: "{{ timer_src }}"
+        dest: "/etc/systemd/system/fleet-a2a-health-reporter.timer"
+        mode: '0644'
+      become: yes
+
+    - name: Install boot guard service unit
+      ansible.builtin.copy:
+        src: "{{ boot_guard_service_src }}"
+        dest: "/etc/systemd/system/fleet-a2a-boot-guard.service"
+        mode: '0644'
+      become: yes
+
+    - name: Install boot guard timer unit
+      ansible.builtin.copy:
+        src: "{{ boot_guard_timer_src }}"
+        dest: "/etc/systemd/system/fleet-a2a-boot-guard.timer"
+        mode: '0644'
+      become: yes
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      become: yes
+
+    - name: Enable and start health reporter timer
+      ansible.builtin.systemd:
+        name: fleet-a2a-health-reporter.timer
+        enabled: yes
+        state: started
+      become: yes
+
+    - name: Enable and start boot guard timer
+      ansible.builtin.systemd:
+        name: fleet-a2a-boot-guard.timer
+        enabled: yes
+        state: started
+      become: yes
+
+    - name: Run health reporter once immediately
+      ansible.builtin.command: "{{ scripts_dir }}/fleet-health-reporter.sh"
+      changed_when: false
+
+    - name: Report status
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} — fleet health reporter + boot guard deployed"
