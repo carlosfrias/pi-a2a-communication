@@ -269,8 +269,7 @@
 
     - name: Update agent card versions
       ansible.builtin.shell: |
-        sed -i 's/"version": "0\.2\.0-alpha\.[0-9]*"/"version": "{{ a2a_version }}"/g' "{{ item.path }}"
-        sed -i 's/"version": "0\.2\.0"/"version": "{{ a2a_version }}"/g' "{{ item.path }}"
+        sed -i 's/"version": "0\.[0-9]\+\.[0-9]\+"/"version": "{{ a2a_version }}"/g' "{{ item.path }}"
       loop: "{{ agent_card_files.files }}"
       when: agent_card_files.files | length > 0
       tags: [deploy, config]
