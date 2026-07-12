@@ -49,10 +49,10 @@ if [ -n "$A2A_RESPONSE" ]; then
 fi
 
 # ── Check 3: Ollama Docker container ──────────────────────────────────────
+# Dokploy-managed Ollama uses container_name: ollama on every fleet node.
 OLLAMA_OK=false
 if command -v docker &>/dev/null; then
-    DOCKER_NAMES=$(docker ps --filter name=ollama --format '{{.Names}}' 2>/dev/null || true)
-    if [ -n "$DOCKER_NAMES" ]; then
+    if docker ps --filter name=ollama --filter status=running --format '{{.Names}}' 2>/dev/null | grep -qxF 'ollama'; then
         OLLAMA_OK=true
     fi
 fi
