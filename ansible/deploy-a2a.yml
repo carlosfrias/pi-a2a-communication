@@ -147,12 +147,12 @@
         force: yes
       tags: [deploy, code]
 
-    - name: Build A2A extension (npm install + build)
+    - name: Build A2A extension (npm ci + build)
       ansible.builtin.shell: |
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
         cd {{ a2a_repo }}
-        npm install --prefer-offline && npm run build
+        npm ci --prefer-offline && npm run build
       args:
         chdir: "{{ a2a_repo }}"
         executable: /bin/bash
@@ -170,6 +170,11 @@
       ansible.builtin.debug:
         msg: "A2A version on {{ inventory_hostname }}: {{ built_version.stdout }}"
       tags: [deploy, code]
+
+  # ── Phase 1.5: Deploy fleet health monitoring + boot guard ─────────
+    - name: Deploy fleet health reporter and boot guard
+      ansible.builtin.include_tasks: playbooks/deploy-fleet-health.yml
+      tags: [deploy, health]
 
   # ── Phase 2: Remove conflicting npm package ──────────────────────────
     - name: Register A2A extension with pi

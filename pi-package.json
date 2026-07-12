@@ -1,7 +1,7 @@
 {
   "name": "pi-a2a-communication",
   "version": "0.6.0",
-  "description": "A2A client extension for pi \u2014 provides slash commands and tools for A2A v1.0 protocol communication",
+  "description": "A2A client extension for pi — provides slash commands and tools for A2A v1.0 protocol communication plus autonomous fleet health monitoring",
   "author": "Carlos Frias <carlos@frias.io>",
   "contributors": [
     "DrOlu/pi-a2a-communication (original)"
@@ -13,7 +13,10 @@
     "multi-agent",
     "distributed",
     "communication",
-    "pi-extension"
+    "pi-extension",
+    "fleet",
+    "health-monitor",
+    "self-healing"
   ],
   "repository": "https://github.com/carlosfrias/pi-a2a-communication",
   "compatibility": {
@@ -30,7 +33,9 @@
     "/a2a-cancel",
     "/a2a-server",
     "/a2a-config",
-    "/a2a-help"
+    "/a2a-help",
+    "/fleet-health-status",
+    "/fleet-remediate"
   ],
   "tools": [
     "a2a_call",
@@ -44,6 +49,7 @@
     "A2A v1.0 spec compliance fixes (JSON-RPC methods, agent-card path)",
     "Adding SendStreamingMessage SSE support",
     "Adding push notification support",
-    "A2A server code retained for local testing only (production gateway is pi-a2a-gateway)"
+    "Autonomous fleet health monitoring with node reporter + orchestrator remediation loop",
+    "Self-healing systemd units: pi-agent boot guard + health reporter timer"
   ]
 }
