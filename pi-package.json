@@ -1,7 +1,7 @@
 {
   "name": "pi-a2a-communication",
-  "version": "0.6.0",
-  "description": "A2A client extension for pi — provides slash commands and tools for A2A v1.0 protocol communication plus autonomous fleet health monitoring",
+  "version": "0.7.0",
+  "description": "A2A client extension for pi \u2014 provides slash commands and tools for A2A v1.0 protocol communication plus autonomous fleet health monitoring",
   "author": "Carlos Frias <carlos@frias.io>",
   "contributors": [
     "DrOlu/pi-a2a-communication (original)"
