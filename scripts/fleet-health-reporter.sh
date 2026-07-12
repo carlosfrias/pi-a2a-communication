@@ -8,7 +8,7 @@
 # Status path: /mnt/carlos-desktop/.fleet-status/<hostname>.json
 # Fallback path (if NFS unavailable): /opt/fleet-status/<hostname>.json
 
-set -euo pipefail
+set -uo pipefail
 
 HOSTNAME=$(hostname)
 STATUS_DIR_NFS="/mnt/carlos-desktop/.fleet-status"
@@ -21,9 +21,6 @@ NFS_MOUNT="/mnt/carlos-desktop"
 
 log()  { echo "$(date -Iseconds) ${LOG_PREFIX} $*"; }
 warn() { echo "$(date -Iseconds) ${LOG_PREFIX} ⚠️  $*"; }
-
-# ── Ensure local status dir exists ─────────────────────────────────────────
-mkdir -p "$STATUS_DIR_LOCAL"
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 run_with_timeout() {
@@ -121,7 +118,12 @@ fi
 
 # ── Read previous status for consecutive-failure tracking ────────────────
 CONSECUTIVE_FAILURES=0
+
+# Prefer the last successfully-written location (NFS if available, else local).
 PREV_FILE="${STATUS_DIR_LOCAL}/${STATUS_FILE}"
+if [ -f "${STATUS_DIR_NFS}/${STATUS_FILE}" ]; then
+    PREV_FILE="${STATUS_DIR_NFS}/${STATUS_FILE}"
+fi
 if [ -f "$PREV_FILE" ]; then
     PREV_REQUIRED=$(python3 -c "import json,sys; d=json.load(open('$PREV_FILE')); print(d.get('remediation',{}).get('required',False))" 2>/dev/null || echo False)
     PREV_FAILURES=$(python3 -c "import json,sys; d=json.load(open('$PREV_FILE')); print(d.get('remediation',{}).get('consecutive_failures',0))" 2>/dev/null || echo 0)
@@ -169,21 +171,32 @@ status = {
 print(json.dumps(status, indent=2))
 ")
 
-# ── Write local status ───────────────────────────────────────────────────
-echo "$STATUS_JSON" > "$STATUS_DIR_LOCAL/$STATUS_FILE"
-
-# ── Try to mirror to NFS status dir ──────────────────────────────────────
+# ── Write status ─────────────────────────────────────────────────────────
+# NFS is the source of truth for the orchestrator; the local file is only a
+# cache for consecutive-failure tracking when NFS is unavailable.
 NFS_WRITTEN=false
-if [ "$NFS_RESPONSIVE" = true ]; then
-    if mkdir -p "$STATUS_DIR_NFS" 2>/dev/null && echo "$STATUS_JSON" > "$STATUS_DIR_NFS/$STATUS_FILE" 2>/dev/null; then
+LOCAL_WRITTEN=false
+
+# 1. Try to write to NFS (always attempt, even if unresponsive flag is set,
+#    because a transient recovery may have happened since the check).
+if mkdir -p "$STATUS_DIR_NFS" 2>/dev/null; then
+    if echo "$STATUS_JSON" > "$STATUS_DIR_NFS/$STATUS_FILE" 2>/dev/null; then
         NFS_WRITTEN=true
+    fi
+fi
+
+# 2. Fallback to local cache if NFS write failed.
+if [ "$NFS_WRITTEN" != true ]; then
+    if mkdir -p "$STATUS_DIR_LOCAL" 2>/dev/null && echo "$STATUS_JSON" > "$STATUS_DIR_LOCAL/$STATUS_FILE" 2>/dev/null; then
+        LOCAL_WRITTEN=true
     fi
 fi
 
 if [ "$REMEDIATION_REQUIRED" = true ]; then
     warn "Remediation required: ${REMEDIATION_REASONS[*]} (consecutive_failures=$CONSECUTIVE_FAILURES)"
 else
-    log "Healthy — NFS mirror: $NFS_WRITTEN"
+    log "Healthy — NFS mirror: $NFS_WRITTEN, local cache: $LOCAL_WRITTEN"
 fi
 
+# Never fail the service just because the local fallback is unwritable.
 exit 0
