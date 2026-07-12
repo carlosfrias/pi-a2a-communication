@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/local/bin/bash
 # fnet-schedule — Unified macOS LaunchAgent scheduler for fleet components.
 #
 # Creates, updates, and re-applies named, signed fnet-* LaunchAgent wrappers so
@@ -87,11 +87,11 @@ read_registry() {
 
 write_registry() {
   local name="$1"
-  shift
-  python3 - "$name" "$@" <<'PY'
-import json, sys
+  local file_path="$2"
+  python3 - "$name" "$file_path" <<'PY'
+import json, os, sys
 name, file_path = sys.argv[1], sys.argv[2]
-entry_json = sys.stdin.read()
+entry_json = os.environ.get('FNET_REGISTRY_ENTRY', '{}')
 try:
     entry = json.loads(entry_json)
 except json.JSONDecodeError:
@@ -221,7 +221,7 @@ PY
 parse_calendar() {
   local spec="$1"
   python3 - "$spec" <<'PY'
-import sys
+import json, sys
 spec = sys.argv[1]
 result = {}
 for part in spec.split(','):
@@ -398,8 +398,9 @@ PY
   export FNET_SCHEDULE_ENTRY="$entry_json"
   build_plist > "$LAUNCH_AGENTS_DIR/${label}.plist"
 
-  # Write registry
-  echo "$entry_json" | write_registry "$name" "$REGISTRY_FILE"
+  # Write registry entry via env var (heredoc consumes stdin).
+  export FNET_REGISTRY_ENTRY="$entry_json"
+  write_registry "$name" "$REGISTRY_FILE"
 
   # Generate wrapper
   local wrapper_args=()
