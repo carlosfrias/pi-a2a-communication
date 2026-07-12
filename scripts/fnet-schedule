@@ -489,20 +489,6 @@ for filename in sorted(os.listdir(launch_agents_dir)):
     if not prog_args:
         continue
 
-    # Prefer an existing registry name if label matches
-    existing_name = None
-    for reg_name, reg_entry in registry.items():
-        if reg_entry.get('label') == label:
-            existing_name = reg_name
-            break
-    if existing_name:
-        name = existing_name
-    else:
-        # Use the label's last component, keep hyphens, strip invalid filename chars.
-        name = re.sub(r'[^a-zA-Z0-9_-]', '_', label.rsplit('.', 1)[-1])
-        # Avoid leading/trailing underscores/hyphens
-        name = name.strip('_-')
-
     command = prog_args[0]
     args = prog_args[1:]
 
@@ -512,8 +498,8 @@ for filename in sorted(os.listdir(launch_agents_dir)):
     # LaunchAgent allows either a single dict or an array of dicts for calendar schedules.
     if isinstance(calendar, dict):
         calendar = [calendar]
-    stdout_log = data.get('StandardOutPath', f"{os.path.expanduser('~/Library/Logs')}/{name}.log")
-    stderr_log = data.get('StandardErrorPath', stdout_log)
+    stdout_log = data.get('StandardOutPath', '')
+    stderr_log = data.get('StandardErrorPath', '')
     run_at_load = data.get('RunAtLoad', False)
     keep_alive = data.get('KeepAlive', False)
 
@@ -524,20 +510,58 @@ for filename in sorted(os.listdir(launch_agents_dir)):
         schedule_summary.append(f"calendar ({len(calendar)} entries)")
     schedule_summary = '; '.join(schedule_summary) or 'on demand'
 
-    registry[name] = {
-        'name': name,
-        'label': label,
-        'command': command,
-        'args': args,
-        'env': env,
-        'interval': interval,
-        'calendar': calendar,
-        'stdout_log': stdout_log,
-        'stderr_log': stderr_log,
-        'schedule_summary': schedule_summary,
-        'run_at_load': run_at_load,
-        'keep_alive': keep_alive,
-    }
+    # Prefer an existing registry name if label matches
+    existing_name = None
+    for reg_name, reg_entry in registry.items():
+        if reg_entry.get('label') == label:
+            existing_name = reg_name
+            break
+    if existing_name:
+        name = existing_name
+        # If the registry already holds a real underlying command (not the
+        # wrapper binary), keep it so wrapper regeneration stays valid.
+        existing_command = registry[name].get('command', '')
+        if existing_command and not existing_command.startswith(os.path.expanduser('~/bin/fnet-')):
+            command = existing_command
+            args = registry[name].get('args', [])
+            env = registry[name].get('env', {})
+            interval = registry[name].get('interval')
+            calendar = registry[name].get('calendar', [])
+            stdout_log = registry[name].get('stdout_log', stdout_log)
+            stderr_log = registry[name].get('stderr_log', stderr_log)
+            run_at_load = registry[name].get('run_at_load', run_at_load)
+            keep_alive = registry[name].get('keep_alive', keep_alive)
+            schedule_summary = registry[name].get('schedule_summary', schedule_summary)
+        # Keep the existing registry entry; only regenerate wrapper/plist.
+    else:
+        # Use the label's last component, keep hyphens, strip invalid filename chars.
+        name = re.sub(r'[^a-zA-Z0-9_-]', '_', label.rsplit('.', 1)[-1])
+        # Avoid leading/trailing underscores/hyphens
+        name = name.strip('_-')
+
+    # Apply default log paths now that name is known.
+    if not stdout_log:
+        stdout_log = f"{os.path.expanduser('~/Library/Logs')}/{name}.log"
+    if not stderr_log:
+        stderr_log = stdout_log
+
+    if existing_name:
+        pass  # Registry entry preserved above.
+    else:
+        registry[name] = {
+            'name': name,
+            'label': label,
+            'command': command,
+            'args': args,
+            'env': env,
+            'interval': interval,
+            'calendar': calendar,
+            'stdout_log': stdout_log,
+            'stderr_log': stderr_log,
+            'schedule_summary': schedule_summary,
+            'run_at_load': run_at_load,
+            'keep_alive': keep_alive,
+        }
 
     cmd = [generator, '--name', f'fnet-{name}', '--program', command, '--plist', path]
     for a in args:

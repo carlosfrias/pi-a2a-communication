@@ -6,7 +6,8 @@
   <string>com.frias.orchestrator-fleet-monitor</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/friasc/bin/fnet-orchestrator-fleet-monitor</string>
+    <string>/usr/local/bin/python3</string>
+    <string>/Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/pi-a2a-communication/scripts/orchestrator-fleet-monitor.py</string>
   </array>
   <key>StartInterval</key>
   <integer>120</integer>
