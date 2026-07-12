@@ -6,7 +6,7 @@
   <string>com.frias.orchestrator-fleet-monitor</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/friasc/.pi/agent/git/github.com/carlosfrias/pi-a2a-communication/bin/fnet-orchestrator-fleet-monitor</string>
+    <string>/Users/friasc/bin/fnet-orchestrator-fleet-monitor</string>
   </array>
   <key>StartInterval</key>
   <integer>120</integer>

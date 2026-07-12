@@ -2,8 +2,9 @@
 # deploy-orchestrator-monitor.yml — Install the Mac orchestrator fleet monitor
 #
 # Registers a LaunchAgent that runs orchestrator-fleet-monitor.py every 2 min.
-# The monitor reads node status files from /mnt/carlos-desktop/.fleet-status/
-# and drives Ansible remediation until each node is healthy.
+# Uses generate-fnet-launchd-wrapper.sh to build a signed, named Mach-O wrapper
+# so macOS Background Items / Login Items shows "fnet-orchestrator-fleet-monitor"
+# instead of the generic "python3" interpreter.
 #
 # Usage:
 #   ansible-playbook -i inventory.ini playbooks/deploy-orchestrator-monitor.yml
@@ -15,9 +16,9 @@
   gather_facts: yes
 
   vars:
-    monitor_script_src: "{{ playbook_dir }}/../../scripts/orchestrator-fleet-monitor.py"
-    monitor_wrapper_src: "{{ playbook_dir }}/../../bin/fnet-orchestrator-fleet-monitor"
-    monitor_wrapper_dest: "{{ ansible_env.HOME }}/bin/fnet-orchestrator-fleet-monitor"
+    monitor_script: "{{ playbook_dir }}/../../scripts/orchestrator-fleet-monitor.py"
+    monitor_generator: "{{ playbook_dir }}/../../scripts/generate-fnet-launchd-wrapper.sh"
+    monitor_wrapper: "{{ ansible_env.HOME }}/bin/fnet-orchestrator-fleet-monitor"
     plist_src: "{{ playbook_dir | dirname }}/launchd/com.frias.orchestrator-fleet-monitor.plist"
     launch_agents_dir: "{{ ansible_env.HOME }}/Library/LaunchAgents"
     logs_dir: "{{ ansible_env.HOME }}/Library/Logs"
@@ -47,11 +48,16 @@
         state: directory
         mode: '0755'
 
-    - name: Copy named orchestrator monitor wrapper
-      ansible.builtin.copy:
-        src: "{{ monitor_wrapper_src }}"
-        dest: "{{ monitor_wrapper_dest }}"
-        mode: '0755'
+    - name: Generate named, signed wrapper for orchestrator monitor
+      ansible.builtin.shell: |
+        "{{ monitor_generator }}" \
+          --name fnet-orchestrator-fleet-monitor \
+          --program /usr/local/bin/python3 \
+          --arg "{{ monitor_script }}" \
+          --plist "{{ launch_agents_dir }}/com.frias.orchestrator-fleet-monitor.plist"
+      args:
+        executable: /bin/bash
+      changed_when: true
 
     - name: Copy orchestrator monitor plist
       ansible.builtin.copy:
