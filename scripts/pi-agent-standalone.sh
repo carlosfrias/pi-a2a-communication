@@ -31,9 +31,10 @@ unset _saved_args
 SESSION_NAME="pi-agent"
 TMUX_TMPDIR="$HOME/.tmux"
 
-# Export OLLAMA_KEEP_ALIVE=0 so pi's Ollama requests unloads model after each response
-# This complements the systemd override on the ollama service itself.
-export OLLAMA_KEEP_ALIVE=0
+# OLLAMA_KEEP_ALIVE=10m keeps models resident across A2A tasks, avoiding
+# ~89s cold starts on every request. The systemd unit sets the same value;
+# this wrapper default is a safety fallback and can be overridden.
+export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-10m}"
 mkdir -p "$TMUX_TMPDIR"
 export TMUX_TMPDIR
 

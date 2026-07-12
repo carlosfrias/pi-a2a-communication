@@ -1,0 +1,10 @@
+[Unit]
+Description=Run fleet A2A boot guard once after boot
+Requires=fleet-a2a-boot-guard.service
+
+[Timer]
+OnBootSec=30s
+Unit=fleet-a2a-boot-guard.service
+
+[Install]
+WantedBy=timers.target

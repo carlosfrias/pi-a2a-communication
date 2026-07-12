@@ -347,8 +347,6 @@ export interface BridgeConfig {
   maxConcurrent?: number;
   /** Max bytes captured per stream before killing the child (default 10 MB) */
   maxBufferBytes?: number;
- /** Ollama keep-alive for the regular subprocess bridge (Option B; opt-in, default unset). When set (e.g. "10m"), the spawned `pi --print` subprocess sets OLLAMA_KEEP_ALIVE so the model stays resident across tasks (avoids ~89s cold-start per task under the fleet default OLLAMA_KEEP_ALIVE=0). "0" explicitly disables. */
-  ollamaKeepAlive?: string;
   /** Narration-detection guard (Phase EXEC Tier B; opt-in, default false). */
   narrationGuardEnabled?: boolean;
   /** Max narration-guard re-runs (default 1; 0 disables even when guard enabled). */

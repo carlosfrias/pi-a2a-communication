@@ -1,0 +1,45 @@
+# pi-agent systemd unit template for A2A fleet agents
+#
+# Source of truth: pi-a2a-communication/ansible/systemd/pi-agent@.service.template
+# Do NOT edit deployed files directly — edit this template and redeploy.
+#
+# The wrapper runs pi inside a tmux session so pi keeps a pseudo-terminal.
+# A2A extension is loaded via settings.json packages — no --extension flag needed.
+# Legacy coms-net flags (--node, --server-url, --project, --purpose) are removed.
+
+[Unit]
+Description=pi A2A agent %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ ansible_user | default('friasc') }}
+Group={{ ansible_user | default('friasc') }}
+
+ExecStart=/home/{{ ansible_user | default('friasc') }}/fleet-scripts/pi-agent-standalone.sh \
+    --no-session \
+    --name %i
+
+WorkingDirectory=/home/{{ ansible_user | default('friasc') }}
+
+Restart=on-failure
+RestartSec=10
+StartLimitBurst=5
+
+Environment=OLLAMA_KEEP_ALIVE=10m
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pi-agent-%i
+
+NoNewPrivileges=true
+ProtectSystem=no
+ProtectHome=no
+ReadWritePaths=/home/{{ ansible_user | default('friasc') }} /tmp /home/{{ ansible_user | default('friasc') }}/.pi
+PrivateTmp=true
+
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

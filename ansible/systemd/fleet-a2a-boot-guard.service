@@ -1,0 +1,11 @@
+[Unit]
+Description=Fleet A2A boot guard — ensure pi-agent is enabled and running
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'systemctl is-enabled pi-agent@%H || systemctl enable pi-agent@%H; systemctl is-active pi-agent@%H || systemctl start pi-agent@%H'
+
+[Install]
+WantedBy=multi-user.target

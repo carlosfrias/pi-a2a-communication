@@ -311,45 +311,52 @@
       changed_when: false
       tags: [deploy, config]
 
-    - name: Fix OLLAMA_KEEP_ALIVE in pi-agent systemd unit
-      ansible.builtin.shell: |
-        UNIT_FILE="/etc/systemd/system/pi-agent@{{ inventory_hostname }}.service"
-        if [ ! -f "$UNIT_FILE" ]; then
-          UNIT_FILE="/etc/systemd/system/pi-agent@.service"
-        fi
-        if [ -f "$UNIT_FILE" ]; then
-          if grep -q 'OLLAMA_KEEP_ALIVE=0' "$UNIT_FILE"; then
-            sed -i 's/OLLAMA_KEEP_ALIVE=0/OLLAMA_KEEP_ALIVE=10m/' "$UNIT_FILE"
-            echo "FIXED: OLLAMA_KEEP_ALIVE changed from 0 to 10m"
-          elif ! grep -q 'OLLAMA_KEEP_ALIVE' "$UNIT_FILE"; then
-            sed -i '/\[Service\]/a Environment=OLLAMA_KEEP_ALIVE=10m' "$UNIT_FILE"
-            echo "ADDED: OLLAMA_KEEP_ALIVE=10m"
-          else
-            echo "OK: OLLAMA_KEEP_ALIVE already set"
-          fi
-        else
-          echo "NO_UNIT: pi-agent systemd unit not found"
-        fi
-        # Also fix standalone script
-        SCRIPT_FILE="/home/{{ ansible_user }}/fleet-scripts/pi-agent-standalone.sh"
-        if [ -f "$SCRIPT_FILE" ] && grep -q 'OLLAMA_KEEP_ALIVE=0' "$SCRIPT_FILE"; then
-          sed -i 's/OLLAMA_KEEP_ALIVE=0/OLLAMA_KEEP_ALIVE=10m/' "$SCRIPT_FILE"
-          echo "FIXED: standalone script OLLAMA_KEEP_ALIVE changed to 10m"
-        fi
-      args:
-        executable: /bin/bash
+    - name: Ensure fleet-scripts directory exists
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/fleet-scripts"
+        state: directory
+        mode: '0755'
       # Task var overrides the play var ansible_become=false (task var > play var > keyword).
       vars:
         ansible_become: true
-      register: keepalive_fix
-      changed_when: "'FIXED' in keepalive_fix.stdout or 'ADDED' in keepalive_fix.stdout"
       tags: [deploy, config]
 
-    - name: Reload systemd if keepalive was fixed
+    - name: Install pi-agent-standalone.sh from active repo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir | dirname }}/scripts/pi-agent-standalone.sh"
+        dest: "/home/{{ ansible_user }}/fleet-scripts/pi-agent-standalone.sh"
+        mode: '0755'
+      # Task var overrides the play var ansible_become=false.
+      vars:
+        ansible_become: true
+      tags: [deploy, config]
+
+    - name: Install pi-agent systemd unit template from active repo
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/systemd/pi-agent@.service.template"
+        dest: "/etc/systemd/system/pi-agent@.service"
+        mode: '0644'
+      # Task var overrides the play var ansible_become=false.
+      vars:
+        ansible_become: true
+      register: unit_installed
+      tags: [deploy, config]
+
+    - name: Remove stale per-hostname pi-agent unit files
+      ansible.builtin.shell: |
+        find /etc/systemd/system -maxdepth 1 -type f -name 'pi-agent@*.service' ! -name 'pi-agent@.service' -delete
+      args:
+        executable: /bin/bash
+      changed_when: true
+      # Task var overrides the play var ansible_become=false.
+      vars:
+        ansible_become: true
+      tags: [deploy, config]
+
+    - name: Reload systemd after unit install
       ansible.builtin.systemd:
         daemon_reload: yes
-      when: "'FIXED' in keepalive_fix.stdout or 'ADDED' in keepalive_fix.stdout"
-      # Task var overrides the play var ansible_become=false (task var > play var > keyword).
+      # Task var overrides the play var ansible_become=false.
       vars:
         ansible_become: true
       tags: [deploy, config]
@@ -359,20 +366,27 @@
         msg:
           - "pi wrapper: /usr/local/bin/pi → {{ pi_nvm_path.stdout }}"
           - "pi --version: {{ pi_wrapper_verify.stdout_lines[:1] }}"
-          - "OLLAMA_KEEP_ALIVE: {{ keepalive_fix.stdout }}"
+          - "pi-agent unit installed from active repo: {{ unit_installed.dest | default('?') }}"
       tags: [deploy, config]
 
-  # ── Phase 4: Restart Service ─────────────────────────────────────────
-    - name: "Restart pi-agent service (--no-block: does not wait for slow activation; the wait_for task below checks readiness)"
-      ansible.builtin.shell: systemctl restart --no-block {{ service_name }}
-      # The play var `ansible_become: false` (which overrides the inventory ansible_become=true
-      # so code/build/config run as friasc) is a magic var that also overrides a task-level
-      # `become: yes` KEYWORD. So to escalate ONLY this task to root (system service control),
-      # set ansible_become: true as a TASK VAR (task var > play var).
+  # ── Phase 4: Enable and Restart Service ──────────────────────────────
+    # NOTE: state=stopped only in shutdown playbooks — never use enabled=no on pi-agent.
+    # The unit must remain enabled so the agent starts automatically after reboot.
+    - name: Ensure pi-agent service is enabled
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        enabled: yes
+      # Task var overrides the play var ansible_become=false.
       vars:
         ansible_become: true
-      retries: 3
-      delay: 5
+      tags: [deploy, restart]
+
+    - name: "Restart pi-agent service (--no-block: does not wait for slow activation; the wait_for task below checks readiness)"
+      ansible.builtin.shell: systemctl restart --no-block {{ service_name }}
+      # Task var overrides the play var ansible_become=false.
+      vars:
+        ansible_become: true
+      changed_when: true
       tags: [deploy, restart]
 
     - name: Wait for A2A server to respond
