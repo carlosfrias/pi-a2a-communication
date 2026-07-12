@@ -85,7 +85,11 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 # Serialize arguments for the Python helper.
 export WRAPPER_PROGRAM="$PROGRAM"
 export WRAPPER_DEST="$DEST"
-export WRAPPER_ARGS_JSON=$(printf '%s\n' "${ARGS[@]}" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+if [[ ${#ARGS[@]} -gt 0 ]]; then
+  export WRAPPER_ARGS_JSON=$(printf '%s\n' "${ARGS[@]}" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+else
+  export WRAPPER_ARGS_JSON='[]'
+fi
 
 # Generate C source.
 python3 - <<'PY' > "$TMP_DIR/wrapper.c"

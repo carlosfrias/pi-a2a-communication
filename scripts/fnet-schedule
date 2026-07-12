@@ -1,0 +1,636 @@
+#!/usr/local/bin/bash
+# fnet-schedule — Unified macOS LaunchAgent scheduler for fleet components.
+#
+# Creates, updates, and re-applies named, signed fnet-* LaunchAgent wrappers so
+# System Settings > General > Login Items & Extensions shows meaningful names
+# like "fnet-orchestrator-fleet-monitor" instead of "python3".
+#
+# This is the recommended entry point for every scheduled task on the Mac
+# orchestrator. It automatically calls generate-fnet-launchd-wrapper.sh after
+# creating or updating a plist.
+#
+# Usage:
+#   fnet-schedule list                              # show all managed items
+#   fnet-schedule create \
+#     --name orchestrator-fleet-monitor \
+#     --label com.frias.orchestrator-fleet-monitor \
+#     --command /usr/local/bin/python3 \
+#     --arg /Users/friasc/.../orchestrator-fleet-monitor.py \
+#     --interval 120 \
+#     --stdout-log /Users/friasc/Library/Logs/orchestrator-fleet-monitor.log \
+#     --stderr-log /Users/friasc/Library/Logs/orchestrator-fleet-monitor.log \
+#     --env PATH=/usr/local/bin:/usr/bin:/bin \
+#     --env ANSIBLE_VAULT_PASSWORD_FILE=
+#
+#   fnet-schedule update --name orchestrator-fleet-monitor --interval 60
+#   fnet-schedule sync                              # re-apply wrappers to all
+#   fnet-schedule migrate                           # import existing plists
+#   fnet-schedule run --name orchestrator-fleet-monitor  # manual run via wrapper
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WRAPPER_GENERATOR="$SCRIPT_DIR/generate-fnet-launchd-wrapper.sh"
+REGISTRY_DIR="${HOME}/.config/frias"
+REGISTRY_FILE="$REGISTRY_DIR/launchd-schedule-registry.json"
+LAUNCH_AGENTS_DIR="${HOME}/Library/LaunchAgents"
+
+mkdir -p "$REGISTRY_DIR" "$LAUNCH_AGENTS_DIR"
+[[ -f "$REGISTRY_FILE" ]] || echo '{}' > "$REGISTRY_FILE"
+
+usage() {
+  cat <<'EOF'
+Usage: fnet-schedule <command> [options]
+
+Commands:
+  list                       Show all managed scheduled items
+  create                     Create a new scheduled LaunchAgent
+  update                     Update an existing scheduled LaunchAgent
+  sync                       Re-apply wrappers to every registry entry
+  migrate                    Import/wrap existing LaunchAgent plists
+  run --name <name>          Execute the wrapper binary manually
+  delete --name <name>       Remove a scheduled item (registry + plist + wrapper)
+
+Create / Update options:
+  --name <name>              Base name (e.g. orchestrator-fleet-monitor)
+  --label <label>            LaunchAgent label (defaults to com.frias.<name>)
+  --command <path>           Absolute path to executable
+  --arg <value>              One argument to pass (repeatable, ordered)
+  --interval <seconds>       StartInterval schedule
+  --calendar <k=v,k=v>       One StartCalendarInterval entry (repeatable)
+  --stdout-log <path>        Standard output log path
+  --stderr-log <path>        Standard error log path
+  --env <KEY=value>          Environment variable (repeatable)
+  --run-at-load              Add RunAtLoad=true
+  --keep-alive               Add KeepAlive=true
+  --no-reload                Skip launchctl unload/load
+EOF
+  exit 1
+}
+
+fail() { echo "ERROR: $*" >&2; exit 1; }
+
+jq_or_python() {
+  if command -v jq >/dev/null 2>&1; then
+    jq "$@"
+  else
+    python3 - "$@" <<'PY'
+import json, sys
+# simplistic fallback for jq-style get/set not needed here
+PY
+  fi
+}
+
+read_registry() {
+  python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1])), indent=2))' "$REGISTRY_FILE"
+}
+
+write_registry() {
+  local name="$1"
+  local file_path="$2"
+  python3 - "$name" "$file_path" <<'PY'
+import json, os, sys
+name, file_path = sys.argv[1], sys.argv[2]
+entry_json = os.environ.get('FNET_REGISTRY_ENTRY', '{}')
+try:
+    entry = json.loads(entry_json)
+except json.JSONDecodeError:
+    entry = {}
+with open(file_path, 'r') as f:
+    registry = json.load(f)
+registry[name] = entry
+with open(file_path, 'w') as f:
+    json.dump(registry, f, indent=2)
+    f.write('\n')
+PY
+}
+
+remove_registry_entry() {
+  python3 - "$1" "$REGISTRY_FILE" <<'PY'
+import json, sys
+name, file_path = sys.argv[1], sys.argv[2]
+with open(file_path, 'r') as f:
+    registry = json.load(f)
+registry.pop(name, None)
+with open(file_path, 'w') as f:
+    json.dump(registry, f, indent=2)
+    f.write('\n')
+PY
+}
+
+get_registry_entry() {
+  python3 - "$1" "$REGISTRY_FILE" <<'PY'
+import json, sys
+name, file_path = sys.argv[1], sys.argv[2]
+with open(file_path, 'r') as f:
+    registry = json.load(f)
+print(json.dumps(registry.get(name, {}), indent=2))
+PY
+}
+
+list_registry() {
+  python3 - "$REGISTRY_FILE" <<'PY'
+import json, sys
+registry_path = sys.argv[1]
+with open(registry_path, 'r') as f:
+    registry = json.load(f)
+if not registry:
+    print("No managed scheduled items. Use 'fnet-schedule create' or 'fnet-schedule migrate'.")
+    sys.exit(0)
+max_name = max(len(k) for k in registry.keys())
+print(f"{'NAME':<{max_name}}  {'LABEL':<55}  SCHEDULE")
+for name, entry in sorted(registry.items()):
+    label = entry.get('label', '-')
+    schedule = entry.get('schedule_summary', '-')
+    print(f"{name:<{max_name}}  {label:<55}  {schedule}")
+PY
+}
+
+build_plist() {
+  python3 - <<'PY'
+import json, os, sys
+
+entry_json = os.environ['FNET_SCHEDULE_ENTRY']
+entry = json.loads(entry_json)
+
+label = entry['label']
+command = entry['command']
+args = entry.get('args', [])
+stdout_log = entry.get('stdout_log', f"/Users/friasc/Library/Logs/{entry['name']}.log")
+stderr_log = entry.get('stderr_log', stdout_log)
+env = entry.get('env', {})
+run_at_load = entry.get('run_at_load', False)
+keep_alive = entry.get('keep_alive', False)
+
+# Build XML manually to avoid plistlib indentation quirks
+lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+    f'\t<key>Label</key><string>{label}</string>',
+]
+
+if env:
+    lines.append('\t<key>EnvironmentVariables</key>')
+    lines.append('\t<dict>')
+    for k, v in env.items():
+        lines.append(f'\t\t<key>{k}</key><string>{v}</string>')
+    lines.append('\t</dict>')
+
+lines.append('\t<key>ProgramArguments</key>')
+lines.append('\t<array>')
+for a in [command] + args:
+    lines.append(f'\t\t<string>{a}</string>')
+lines.append('\t</array>')
+
+if 'interval' in entry:
+    lines.append(f'\t<key>StartInterval</key><integer>{entry["interval"]}</integer>')
+
+if 'calendar' in entry and entry['calendar']:
+    lines.append('\t<key>StartCalendarInterval</key>')
+    lines.append('\t<array>')
+    for item in entry['calendar']:
+        lines.append('\t\t<dict>')
+        if 'Hour' in item:
+            lines.append(f'\t\t\t<key>Hour</key><integer>{item["Hour"]}</integer>')
+        if 'Minute' in item:
+            lines.append(f'\t\t\t<key>Minute</key><integer>{item["Minute"]}</integer>')
+        if 'Weekday' in item:
+            lines.append(f'\t\t\t<key>Weekday</key><integer>{item["Weekday"]}</integer>')
+        if 'Day' in item:
+            lines.append(f'\t\t\t<key>Day</key><integer>{item["Day"]}</integer>')
+        if 'Month' in item:
+            lines.append(f'\t\t\t<key>Month</key><integer>{item["Month"]}</integer>')
+        if 'Year' in item:
+            lines.append(f'\t\t\t<key>Year</key><integer>{item["Year"]}</integer>')
+        if 'Second' in item:
+            lines.append(f'\t\t\t<key>Second</key><integer>{item["Second"]}</integer>')
+        lines.append('\t\t</dict>')
+    lines.append('\t</array>')
+
+lines.append(f'\t<key>StandardErrorPath</key><string>{stderr_log}</string>')
+lines.append(f'\t<key>StandardOutPath</key><string>{stdout_log}</string>')
+
+if run_at_load:
+    lines.append('\t<key>RunAtLoad</key><true/>')
+if keep_alive:
+    lines.append('\t<key>KeepAlive</key><true/>')
+
+lines.append('</dict>')
+lines.append('</plist>')
+
+print('\n'.join(lines))
+PY
+}
+
+parse_calendar() {
+  local spec="$1"
+  python3 - "$spec" <<'PY'
+import json, sys
+spec = sys.argv[1]
+result = {}
+for part in spec.split(','):
+    if '=' not in part:
+        continue
+    k, v = part.split('=', 1)
+    k = k.strip()
+    v = v.strip()
+    if v == '*':
+        continue
+    # Allow lists like 1,2,3 but StartCalendarInterval needs one dict per combo
+    try:
+        result[k] = int(v)
+    except ValueError:
+        pass
+print(json.dumps(result))
+PY
+}
+
+cmd_create_update() {
+  local mode="$1"  # create or update
+  local name="" label="" command="" interval="" stdout_log="" stderr_log=""
+  local -a args=() calendar=() env_specs=()
+  local run_at_load=false keep_alive=false no_reload=false
+
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)       name="$2"; shift 2 ;;
+      --label)      label="$2"; shift 2 ;;
+      --command)    command="$2"; shift 2 ;;
+      --arg)        args+=("$2"); shift 2 ;;
+      --interval)   interval="$2"; shift 2 ;;
+      --calendar)   calendar+=("$2"); shift 2 ;;
+      --stdout-log) stdout_log="$2"; shift 2 ;;
+      --stderr-log) stderr_log="$2"; shift 2 ;;
+      --env)        env_specs+=("$2"); shift 2 ;;
+      --run-at-load) run_at_load=true; shift ;;
+      --keep-alive)  keep_alive=true; shift ;;
+      --no-reload)   no_reload=true; shift ;;
+      *) echo "Unknown option: $1"; usage ;;
+    esac
+  done
+
+  if [[ -z "$name" ]]; then
+    fail "--name is required"
+  fi
+
+  [[ -z "$label" ]] && label="com.frias.$name"
+
+  if [[ "$mode" == "update" ]]; then
+    local existing
+    existing="$(get_registry_entry "$name")"
+    [[ "$existing" == "{}" ]] && fail "No existing item named '$name'. Use create instead."
+    [[ -z "$command" ]] && command="$(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); print(d.get('command',''))
+PY
+)"
+    if [[ ${#args[@]} -eq 0 ]]; then
+      readarray -t args < <(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); [print(a) for a in d.get('args',[])]
+PY
+)
+    fi
+    [[ -z "$stdout_log" ]] && stdout_log="$(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); print(d.get('stdout_log',''))
+PY
+)"
+    [[ -z "$stderr_log" ]] && stderr_log="$(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); print(d.get('stderr_log',''))
+PY
+)"
+    if [[ ${#env_specs[@]} -eq 0 ]]; then
+      while IFS= read -r line; do
+        [[ -n "$line" ]] && env_specs+=("$line")
+      done < <(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); [print(f"{k}={v}") for k,v in d.get('env',{}).items()]
+PY
+)
+    fi
+    if [[ -z "$interval" ]]; then
+      interval="$(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); print(d.get('interval') or '')
+PY
+)"
+    fi
+    if [[ ${#calendar[@]} -eq 0 ]]; then
+      while IFS= read -r line; do
+        [[ -n "$line" ]] && calendar+=("$line")
+      done < <(python3 - "$existing" <<'PY'
+import json,sys; d=json.loads(sys.argv[1]); [print(','.join(f"{k}={v}" for k,v in c.items())) for c in d.get('calendar',[]) if c]
+PY
+)
+    fi
+  fi
+
+  [[ -z "$command" ]] && fail "--command is required"
+  [[ ! -x "$command" && ! -f "$command" ]] && fail "Command not found: $command"
+
+  if [[ -z "$stdout_log" ]]; then
+    stdout_log="$HOME/Library/Logs/${name}.log"
+  fi
+  if [[ -z "$stderr_log" ]]; then
+    stderr_log="$stdout_log"
+  fi
+
+  local log_dir
+  log_dir="$(dirname "$stdout_log")"
+  mkdir -p "$log_dir"
+  if [[ "$stderr_log" != "$stdout_log" ]]; then
+    mkdir -p "$(dirname "$stderr_log")"
+  fi
+
+  # Parse env
+  declare -A env_map
+  for e in "${env_specs[@]}"; do
+    [[ "$e" == *"="* ]] || fail "Invalid env spec (expected KEY=value): $e"
+    k="${e%%=*}"
+    v="${e#*=}"
+    env_map["$k"]="$v"
+  done
+
+  # Parse calendar entries
+  local -a calendar_entries=()
+  for c in "${calendar[@]}"; do
+    calendar_entries+=("$(parse_calendar "$c")")
+  done
+
+  # Build schedule summary
+  local schedule_summary=""
+  if [[ -n "$interval" ]]; then
+    schedule_summary="every ${interval}s"
+  fi
+  if [[ ${#calendar_entries[@]} -gt 0 ]]; then
+    [[ -n "$schedule_summary" ]] && schedule_summary+="; "
+    schedule_summary+="calendar (${#calendar_entries[@]} entries)"
+  fi
+  [[ -z "$schedule_summary" ]] && schedule_summary="on demand"
+
+  # Encode arrays/env/calendar as JSON in env vars for the single Python builder.
+  export FNET_ARGS_JSON=$(printf '%s\n' "${args[@]}" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+  export FNET_ENV_JSON=$(printf '%s\n' "${env_specs[@]}" | python3 -c 'import json,sys; print(json.dumps(dict(e.split("=",1) for e in [l.strip() for l in sys.stdin if l.strip()])))')
+  export FNET_CAL_JSON=$(printf '%s\n' "${calendar_entries[@]}" | python3 -c 'import json,sys; print("[" + ",".join(l.strip() for l in sys.stdin if l.strip()) + "]")')
+
+  # Build registry entry JSON in one shot.
+  local entry_json
+  entry_json="$(python3 - "$name" "$label" "$command" "$stdout_log" "$stderr_log" "$schedule_summary" "$run_at_load" "$keep_alive" "$interval" <<'PY'
+import json, os, sys
+name, label, command, stdout_log, stderr_log, schedule_summary = sys.argv[1:7]
+run_at_load, keep_alive, interval = sys.argv[7:10]
+entry = {
+    'name': name,
+    'label': label,
+    'command': command,
+    'stdout_log': stdout_log,
+    'stderr_log': stderr_log,
+    'schedule_summary': schedule_summary,
+    'run_at_load': run_at_load == 'true',
+    'keep_alive': keep_alive == 'true',
+}
+if interval:
+    entry['interval'] = int(interval)
+entry['args'] = json.loads(os.environ.get('FNET_ARGS_JSON', '[]'))
+entry['env'] = json.loads(os.environ.get('FNET_ENV_JSON', '{}'))
+entry['calendar'] = json.loads(os.environ.get('FNET_CAL_JSON', '[]'))
+print(json.dumps(entry))
+PY
+)"
+
+  # Validate JSON before writing.
+  python3 -c 'import json,sys; json.loads(sys.argv[1])' "$entry_json" || fail "Failed to build registry entry JSON"
+
+  # Write plist from entry
+  export FNET_SCHEDULE_ENTRY="$entry_json"
+  build_plist > "$LAUNCH_AGENTS_DIR/${label}.plist"
+
+  # Write registry entry via env var (heredoc consumes stdin).
+  export FNET_REGISTRY_ENTRY="$entry_json"
+  write_registry "$name" "$REGISTRY_FILE"
+
+  # Generate wrapper
+  local wrapper_args=()
+  for a in "${args[@]}"; do
+    wrapper_args+=(--arg "$a")
+  done
+  local reload_flag=""
+  $no_reload || reload_flag="--reload"
+
+  "$WRAPPER_GENERATOR" \
+    --name "fnet-${name}" \
+    --program "$command" \
+    "${wrapper_args[@]}" \
+    --plist "$LAUNCH_AGENTS_DIR/${label}.plist" \
+    $reload_flag
+
+  echo "Scheduled item '${name}' ${mode}d (label: ${label})"
+}
+
+cmd_sync() {
+  echo "Syncing fnet- wrappers for all registry items..."
+  python3 - "$REGISTRY_FILE" "$WRAPPER_GENERATOR" "$LAUNCH_AGENTS_DIR" <<'PY'
+import json, subprocess, sys
+
+registry_file = sys.argv[1]
+generator = sys.argv[2]
+launch_agents_dir = sys.argv[3]
+
+with open(registry_file, 'r') as f:
+    registry = json.load(f)
+
+for name, entry in sorted(registry.items()):
+    label = entry['label']
+    command = entry['command']
+    args = entry.get('args', [])
+    plist = f"{launch_agents_dir}/{label}.plist"
+
+    cmd = [generator, '--name', f'fnet-{name}', '--program', command, '--plist', plist, '--reload']
+    for a in args:
+        cmd.extend(['--arg', a])
+
+    print(f"Wrapping {name}...")
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        print(f"WARNING: wrapper generation failed for {name}", file=sys.stderr)
+PY
+  echo "Sync complete."
+}
+
+cmd_migrate() {
+  echo "Migrating existing LaunchAgent plists into registry and applying wrappers..."
+  python3 - "$LAUNCH_AGENTS_DIR" "$REGISTRY_FILE" "$WRAPPER_GENERATOR" <<'PY'
+import json, os, plistlib, re, subprocess, sys
+
+launch_agents_dir = sys.argv[1]
+registry_file = sys.argv[2]
+generator = sys.argv[3]
+
+with open(registry_file, 'r') as f:
+    registry = json.load(f)
+
+pattern = re.compile(r'^(com\.(?:frias|carlosfrias|tradingdesk|obsidian)\..*)\.plist$')
+
+for filename in sorted(os.listdir(launch_agents_dir)):
+    m = pattern.match(filename)
+    if not m:
+        continue
+    label = m.group(1)
+    path = os.path.join(launch_agents_dir, filename)
+    try:
+        with open(path, 'rb') as f:
+            data = plistlib.load(f)
+    except Exception as e:
+        print(f"SKIP {filename}: {e}")
+        continue
+
+    prog_args = data.get('ProgramArguments', [])
+    if not prog_args and 'Program' in data:
+        prog_args = [data['Program']]
+    if not prog_args:
+        continue
+
+    command = prog_args[0]
+    args = prog_args[1:]
+
+    env = data.get('EnvironmentVariables', {})
+    interval = data.get('StartInterval')
+    calendar = data.get('StartCalendarInterval', [])
+    # LaunchAgent allows either a single dict or an array of dicts for calendar schedules.
+    if isinstance(calendar, dict):
+        calendar = [calendar]
+    stdout_log = data.get('StandardOutPath', '')
+    stderr_log = data.get('StandardErrorPath', '')
+    run_at_load = data.get('RunAtLoad', False)
+    keep_alive = data.get('KeepAlive', False)
+
+    schedule_summary = []
+    if interval:
+        schedule_summary.append(f"every {interval}s")
+    if calendar:
+        schedule_summary.append(f"calendar ({len(calendar)} entries)")
+    schedule_summary = '; '.join(schedule_summary) or 'on demand'
+
+    # Prefer an existing registry name if label matches
+    existing_name = None
+    for reg_name, reg_entry in registry.items():
+        if reg_entry.get('label') == label:
+            existing_name = reg_name
+            break
+    if existing_name:
+        name = existing_name
+        # If the registry already holds a real underlying command (not the
+        # wrapper binary), keep it so wrapper regeneration stays valid.
+        existing_command = registry[name].get('command', '')
+        if existing_command and not existing_command.startswith(os.path.expanduser('~/bin/fnet-')):
+            command = existing_command
+            args = registry[name].get('args', [])
+            env = registry[name].get('env', {})
+            interval = registry[name].get('interval')
+            calendar = registry[name].get('calendar', [])
+            stdout_log = registry[name].get('stdout_log', stdout_log)
+            stderr_log = registry[name].get('stderr_log', stderr_log)
+            run_at_load = registry[name].get('run_at_load', run_at_load)
+            keep_alive = registry[name].get('keep_alive', keep_alive)
+            schedule_summary = registry[name].get('schedule_summary', schedule_summary)
+        # Keep the existing registry entry; only regenerate wrapper/plist.
+    else:
+        # Use the label's last component, keep hyphens, strip invalid filename chars.
+        name = re.sub(r'[^a-zA-Z0-9_-]', '_', label.rsplit('.', 1)[-1])
+        # Avoid leading/trailing underscores/hyphens
+        name = name.strip('_-')
+
+    # Apply default log paths now that name is known.
+    if not stdout_log:
+        stdout_log = f"{os.path.expanduser('~/Library/Logs')}/{name}.log"
+    if not stderr_log:
+        stderr_log = stdout_log
+
+    if existing_name:
+        pass  # Registry entry preserved above.
+    else:
+        registry[name] = {
+            'name': name,
+            'label': label,
+            'command': command,
+            'args': args,
+            'env': env,
+            'interval': interval,
+            'calendar': calendar,
+            'stdout_log': stdout_log,
+            'stderr_log': stderr_log,
+            'schedule_summary': schedule_summary,
+            'run_at_load': run_at_load,
+            'keep_alive': keep_alive,
+        }
+
+    cmd = [generator, '--name', f'fnet-{name}', '--program', command, '--plist', path]
+    for a in args:
+        cmd.extend(['--arg', a])
+    # Already loaded; don't reload to avoid double-unload
+
+    print(f"Migrated {name} ({label})")
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+with open(registry_file, 'w') as f:
+    json.dump(registry, f, indent=2)
+    f.write('\n')
+PY
+  echo "Migration complete. Run 'fnet-schedule sync' to reload all agents if desired."
+}
+
+cmd_run() {
+  local name=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name) name="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  [[ -z "$name" ]] && usage
+  exec "$HOME/bin/fnet-${name}" "$@"
+}
+
+cmd_delete() {
+  local name=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name) name="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  [[ -z "$name" ]] && usage
+
+  local entry label
+  entry="$(get_registry_entry "$name")"
+  [[ "$entry" == "{}" ]] && fail "No managed item named '$name'"
+  label="$(python3 - "$entry" <<'PY'
+import json,sys; print(json.loads(sys.argv[1]).get('label',''))
+PY
+)"
+
+  launchctl unload "$LAUNCH_AGENTS_DIR/${label}.plist" 2>/dev/null || true
+  rm -f "$LAUNCH_AGENTS_DIR/${label}.plist"
+  rm -f "$HOME/bin/fnet-${name}"
+  remove_registry_entry "$name"
+  echo "Deleted scheduled item '$name' (label: $label)"
+}
+
+main() {
+  [[ $# -eq 0 ]] && usage
+  local cmd="$1"
+  shift
+
+  case "$cmd" in
+    list)       list_registry ;;
+    create)     cmd_create_update create "$@" ;;
+    update)     cmd_create_update update "$@" ;;
+    sync)       cmd_sync ;;
+    migrate)    cmd_migrate ;;
+    run)        cmd_run "$@" ;;
+    delete)     cmd_delete "$@" ;;
+    -h|--help|help) usage ;;
+    *)          usage ;;
+  esac
+}
+
+main "$@"
