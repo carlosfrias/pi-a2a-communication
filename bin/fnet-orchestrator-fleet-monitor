@@ -1,7 +1,9 @@
 #!/bin/bash
 # Named wrapper for com.frias.orchestrator-fleet-monitor LaunchAgent.
-# This exists so macOS "Login Items & Extensions" / "Background Items"
-# shows "orchestrator-fleet-monitor" instead of the generic "python3" label.
+# Prefix "fnet-" groups all fleet components together in macOS
+# System Settings > General > Login Items & Extensions.
+# This exists so the Background Items list shows
+# "fnet-orchestrator-fleet-monitor" instead of the generic "python3" label.
 # Runs every 2 minutes via launchd.
 
 unset ANSIBLE_VAULT_PASSWORD_FILE

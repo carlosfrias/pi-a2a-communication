@@ -16,8 +16,8 @@
 
   vars:
     monitor_script_src: "{{ playbook_dir }}/../../scripts/orchestrator-fleet-monitor.py"
-    monitor_wrapper_src: "{{ playbook_dir }}/../../bin/orchestrator-fleet-monitor"
-    monitor_wrapper_dest: "{{ ansible_env.HOME }}/bin/orchestrator-fleet-monitor"
+    monitor_wrapper_src: "{{ playbook_dir }}/../../bin/fnet-orchestrator-fleet-monitor"
+    monitor_wrapper_dest: "{{ ansible_env.HOME }}/bin/fnet-orchestrator-fleet-monitor"
     plist_src: "{{ playbook_dir | dirname }}/launchd/com.frias.orchestrator-fleet-monitor.plist"
     launch_agents_dir: "{{ ansible_env.HOME }}/Library/LaunchAgents"
     logs_dir: "{{ ansible_env.HOME }}/Library/Logs"
