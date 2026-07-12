@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-07-11
+
+### Added
+
+- **Autonomous fleet health monitoring** — node-side reporter + Mac orchestrator remediation loop.
+  - `scripts/fleet-health-reporter.sh` runs every 2 minutes via `fleet-a2a-health-reporter.timer` and writes status JSON to the shared NFS directory (`/mnt/carlos-desktop/.fleet-status/`).
+  - Detects pi-agent enabled/active state, A2A endpoint health, Ollama Docker container, and NFS mount health (including autofs placeholders).
+  - `scripts/orchestrator-fleet-monitor.py` runs every 2 minutes on the Mac via LaunchAgent, polls node status files, and drives Ansible remediation until each node is healthy.
+  - `ansible/playbooks/deploy-fleet-health.yml` installs the reporter + boot guard on fleet nodes.
+  - `ansible/playbooks/deploy-orchestrator-monitor.yml` installs the Mac LaunchAgent.
+  - `ansible/systemd/fleet-a2a-boot-guard.service` + `.timer` ensure `pi-agent` is enabled and started after every boot.
+- **Source-of-truth systemd unit** — active `pi-agent@.service.template` now lives in this repo (not the archived `pi-a2a-gateway`).
+- **Guard script** — `playbook-executor/scripts/validate-fleet-a2a-playbooks.sh` fails the build if active playbooks set `enabled: no` on `pi-agent@`, reference archived projects (`coms-net`, `pi-cross-node-comms`, `04-Archive`), or have unresolvable playbook-index.json paths.
+
+### Changed
+
+- `ansible/deploy-a2a.yml` now installs the `pi-agent@.service` template and `pi-agent-standalone.sh` from the active repo, removes stale per-hostname unit files, and ensures `enabled: yes`.
+- `scripts/pi-agent-standalone.sh` defaults `OLLAMA_KEEP_ALIVE` to `10m` instead of `0`.
+- `playbook-executor` shutdown/poweroff playbooks no longer disable `pi-agent` units and no longer carry archived coms-net cleanup.
+
+### Fixed
+
+- Removed duplicate `ollamaKeepAlive` field in `src/types.ts` that broke the TypeScript build.
+
 ## [0.6.0] - 2026-07-03
 
 ### Added

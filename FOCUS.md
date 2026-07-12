@@ -1,29 +1,41 @@
 ---
 name: pi-a2a-communication
-summary: "A2A bridge remediation COMPLETE. Pi PATH fix + OLLAMA_KEEP_ALIVE=10m + Option B code gap all resolved. All 7 fleet nodes verified. 360/360 unit tests pass. Self-healing playbooks deployed."
+summary: "A2A bridge + autonomous fleet health monitoring v0.7.0. Pi PATH fix + OLLAMA_KEEP_ALIVE=10m + Option B + node reporter + Mac orchestrator remediation loop + boot guard. All 7 fleet nodes verified."
 status: active
-phase: "Phase AUTO-ROUTE + Option B — COMPLETE. Fleet Bridge Remediation — COMPLETE."
+phase: "v0.7.0 — Autonomous Fleet Health Monitoring released"
 progress: 100
 tracked: true
 created: 2026-06-18
-updated: 2026-07-10
+updated: 2026-07-11
 ---
 
 # FOCUS — pi-a2a-communication
 
 ## [S-TIGHT]
 
-**Fleet Bridge Remediation COMPLETE (2026-07-10).** Three interlocking root causes identified, validated by deepseek-v4-pro + kimi-k2.7, and resolved:
+**v0.7.0 released (2026-07-11).** Autonomous fleet health monitoring is now deployed:
 
-1. ✅ **Pi PATH fix:** `/usr/local/bin/pi` wrapper deployed to all 7 nodes (sources nvm + sets OLLAMA_KEEP_ALIVE=10m)
-2. ✅ **OLLAMA_KEEP_ALIVE=10m:** All systemd units + standalone scripts updated from 0 → 10m
-3. ✅ **Option B code gap:** `ollamaKeepAlive` mapped in `bridge-options.ts`, `types.ts`, `pi-task-bridge.ts` (7 new tests, 360/360 total pass)
-4. ✅ **deploy-a2a.yml:** `bridge_command` changed to `/usr/local/bin/pi`, `become: yes` tasks use `vars: ansible_become: true` (fixes play var override)
-5. ✅ **Self-healing playbooks:** `remediate-a2a-bridge.yml`, updated `deploy-a2a.yml`, `start-agents-a2a.yml`, `fleet-a2a-remediate.yml`
-
-**All 7 fleet nodes verified:** pi wrapper v0.80.3, OLLAMA_KEEP_ALIVE=10m, A2A servers responding, config uses `/usr/local/bin/pi`.
+1. ✅ **Node reporter** — `fleet-health-reporter.sh` runs every 2 min on all 7 nodes, writes status JSON to shared NFS.
+2. ✅ **Mac orchestrator monitor** — `orchestrator-fleet-monitor.py` runs every 2 min via LaunchAgent, polls status files, and drives Ansible remediation until success.
+3. ✅ **Boot guard** — `fleet-a2a-boot-guard.timer` ensures `pi-agent` is enabled and running after every reboot.
+4. ✅ **Source-of-truth systemd unit** — `pi-agent@.service.template` lives in this active repo, installed by `deploy-a2a.yml`.
+5. ✅ **Playbook guard** — `validate-fleet-a2a-playbooks.sh` prevents `enabled: no` and archive references.
+6. ✅ **All 7 A2A agents online** — verified v0.7.0 with health reporter status mirroring.
 
 ## Completed Work
+
+### v0.7.0 — Autonomous Fleet Health Monitoring ✅
+
+| Component | Status |
+|-----------|--------|
+| `fleet-health-reporter.sh` deployed to fnet1-7 | ✅ |
+| `fleet-a2a-health-reporter.timer` enabled/active | ✅ |
+| `fleet-a2a-boot-guard.timer` enabled/active | ✅ |
+| Status files written to `/mnt/carlos-desktop/.fleet-status/` | ✅ |
+| Orchestrator monitor LaunchAgent loaded on Mac | ✅ |
+| Orchestrator auto-remediated fnet3/fnet7 NFS autofs issues | ✅ |
+| `validate-fleet-a2a-playbooks.sh` passes | ✅ |
+| Git tag `v0.7.0` pushed | ✅ |
 
 ### Fleet Bridge Remediation (2026-07-10) ✅
 
@@ -32,92 +44,62 @@ updated: 2026-07-10
 | Root cause: `pi` not in root's PATH | ✅ Identified |
 | Root cause: OLLAMA_KEEP_ALIVE=0 in systemd | ✅ Identified |
 | Root cause: ollamaKeepAlive not mapped in bridge code | ✅ Identified |
-| `/usr/local/bin/pi` wrapper deployed to all 7 nodes | ✅ Verified (pi --version → 0.80.3) |
+| `/usr/local/bin/pi` wrapper deployed to all 7 nodes | ✅ Verified |
 | OLLAMA_KEEP_ALIVE=10m in all systemd units | ✅ Verified |
 | OLLAMA_KEEP_ALIVE=10m in all standalone scripts | ✅ Verified |
 | config.json bridge_command → `/usr/local/bin/pi` | ✅ All 7 nodes |
 | config.json ollamaKeepAlive → "10m" | ✅ All 7 nodes |
-| Option B: `ollamaKeepAlive` in `BridgeConfig` (types.ts) | ✅ Commit pending |
-| Option B: mapping in `buildBridgeOptions` (bridge-options.ts) | ✅ Commit pending |
-| Option B: env injection in `SubprocessPiTaskBridge` (pi-task-bridge.ts) | ✅ Commit pending |
-| Option B: 7 new unit tests (360/360 total) | ✅ |
-| deploy-a2a.yml: bridge_command → `/usr/local/bin/pi` | ✅ |
-| deploy-a2a.yml: become tasks use `vars: ansible_become: true` | ✅ |
-| deploy-a2a.yml: Phase 3.5 self-healing (pi wrapper + KEEPALIVE) | ✅ |
-| remediate-a2a-bridge.yml: 4-phase self-healing playbook | ✅ |
+| Option B: code + 7 unit tests (360/360 total) | ✅ |
 | A2A servers responding on all 7 nodes | ✅ Verified |
-| Validation: deepseek-v4-pro | ✅ Confirmed root cause |
-| Validation: kimi-k2.7-code audit | ✅ Confirmed Option B gap as BLOCKER |
 
 ### Phase AUTO-ROUTE + Option B — Tier Hints + OLLAMA_KEEP_ALIVE ✅
 
-**Auto-Route:** Eliminates ~15K tokens of "check fleet resources" reads per fleet request. The model passes `agent_url="auto"` or a tier hint; the tool resolves it internally.
-
-**Option B:** `OLLAMA_KEEP_ALIVE=10m` for the regular subprocess bridge (not just agent-exec). Eliminates ~89s per-task cold start. Added `ollamaKeepAlive` to `BridgeConfig`, mapped to `env.OLLAMA_KEEP_ALIVE` in `buildBridgeOptions`.
-
 | Step | Status |
 |------|--------|
-| Auto-route: `src/auto-route.ts` (312 lines, tier classification + resolution) | ✅ Commit `a647557` |
-| Auto-route: Updated `a2a_call`, `a2a_parallel`, `a2a_chain` tool handlers | ✅ Commit `a647557` |
-| Auto-route: 18 unit tests (all passing) | ✅ |
-| Auto-route: RULE 34 added to universal-rules (v1.13.0) | ✅ |
-| Option B: `ollamaKeepAlive` added to `BridgeConfig` (`types.ts`) | ✅ |
-| Option B: `buildBridgeOptions` maps to `env.OLLAMA_KEEP_ALIVE` | ✅ |
-| Option B: 7 unit tests (360/360 total) | ✅ |
-| Fleet-wide deployment (all 7 nodes via A2A shell-exec) | ✅ |
-| Verified all 7 nodes: active + auto-route.js + keepalive 10m | ✅ |
+| Auto-route: `src/auto-route.ts` + tool updates | ✅ |
+| Auto-route: 18 unit tests passing | ✅ |
+| Auto-route: RULE 34 added to universal-rules | ✅ |
+| Option B: `ollamaKeepAlive` in `BridgeConfig` | ✅ |
+| Option B: `buildBridgeOptions` maps to env | ✅ |
+| Option B: fleet-wide deployment verified | ✅ |
 
 ### Phase EXEC — Executor-Tier Gap Remediation ✅
 
-All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap is **CLOSED**.
-
-| Tier | Description | Status |
-|------|-------------|--------|
-| A | Executor-role system prompt | ✅ Deployed all 7 |
-| C | Deterministic `shell-exec` short-circuit (78ms, no model) | ✅ Deployed all 7 |
-| B | Narration-detection guard | ✅ Deployed all 7 |
-| D | Agent-exec strong-model escalation (35b-a3b) | ✅ Deployed on 32GB; 16GB explicit-fail |
+| Tier | Status |
+|------|--------|
+| A — Executor-role system prompt | ✅ Deployed all 7 |
+| C — Deterministic `shell-exec` short-circuit | ✅ Deployed all 7 |
+| B — Narration-detection guard | ✅ Deployed all 7 |
+| D — Agent-exec strong-model escalation (35b-a3b) | ✅ Deployed on 32GB; 16GB explicit-fail |
 
 ### M6–M10 — Spec Compliance, Client, Server ✅
 
 - ✅ M6: All 7 spec gaps fixed (S1–S6b), 19/19 conformance tests
 - ✅ M7.1: 6 upstream issues filed
-- ✅ M7.2: Upstream PRs submitted (PR #9 + PR #10, issues #3–#8 reopened)
+- ✅ M7.2: Upstream PRs submitted
 - ✅ M8: v0.2.0 stable release
 - ✅ M9: Client features (broadcast, chain, status, a2a_chain tool)
 - ✅ M10: Server integration (PiTaskBridge, SubprocessPiTaskBridge, handler routing)
 
 ## Fleet Status
 
-> A2A server v0.6.0+ with auto-route + Option B on all 7 nodes. 32GB nodes also serve `agent-exec` (Tier D, qwen3.5:35b-a3b); 16GB nodes explicitly fail agent-exec. Fleet at commit `a647557`. All nodes configured with `ollamaKeepAlive: "10m"` (Option B). Pi PATH fix applied (`/usr/local/bin/pi` wrapper).
+> A2A server v0.7.0 with auto-route + Option B + health monitoring on all 7 nodes. Health reporter status mirrored to Mac. Orchestrator monitor auto-remediates failures.
 
-| Node | RAM | Profile | Flagship Model | Routes | A2A |
-|------|-----|---------|---------------|--------|-----|
-| fnet1 | 16GB | linux-15gi | qwen3.5:4b | 6 local + 18 cloud | ✅ |
-| fnet2 | 16GB | linux-15gi | qwen3.5:4b | 6 local + 18 cloud | ✅ |
-| fnet3 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | ✅ |
-| fnet4 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | ✅ |
-| fnet5 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | ✅ |
-| fnet6 | 32GB | linux-31gi | qwen3.5:35b-a3b | 23 local + 10 cloud | ✅ |
-| fnet7 | 16GB | linux-15gi | qwen3.5:4b | 6 local + 18 cloud | ✅ |
+| Node | RAM | Profile | A2A | Health Reporter | Boot Guard | Last Status |
+|------|-----|---------|-----|-----------------|------------|-------------|
+| fnet1 | 16GB | linux-15gi | ✅ | ✅ | ✅ | healthy |
+| fnet2 | 16GB | linux-15gi | ✅ | ✅ | ✅ | healthy |
+| fnet3 | 32GB | linux-31gi | ✅ | ✅ | ✅ | healthy |
+| fnet4 | 32GB | linux-31gi | ✅ | ✅ | ✅ | healthy |
+| fnet5 | 32GB | linux-31gi | ✅ | ✅ | ✅ | healthy |
+| fnet6 | 32GB | linux-31gi | ✅ | ✅ | ✅ | healthy |
+| fnet7 | 16GB | linux-15gi | ✅ | ✅ | ✅ | ollama_container_down ⚠️ |
 
-## Known Gaps (all closed or accepted)
+## Known Gaps
 
 | ID | Severity | Gap | Status |
 |----|----------|-----|--------|
-| PATH-FIX | 🔴 High | `pi` not in root's PATH | ✅ **CLOSED** (`/usr/local/bin/pi` wrapper) |
-| KEEPALIVE | 🔴 High | OLLAMA_KEEP_ALIVE=0 in systemd | ✅ **CLOSED** (10m in systemd + wrapper) |
-| OPTION-B | 🟡 Medium | ollamaKeepAlive not mapped in bridge code | ✅ **CLOSED** (bridge-options.ts + types.ts + pi-task-bridge.ts) |
-| DEPLOY-BECOME | 🟡 Medium | deploy-a2a.yml become tasks overridden by play var | ✅ **CLOSED** (vars: ansible_become: true) |
-| EXEC-TIER | 🔴 High | Executor-role tier — fleet nodes echo command plans | ✅ **CLOSED** (Phase EXEC) |
-| AUTO-ROUTE | 🟡 Medium | Model reads ~15K tokens per request | ✅ **CLOSED** (Phase AUTO-ROUTE, RULE 34) |
-| GAP-2 | 🟡 Medium | PiSessionTaskHandler NON-FUNCTIONAL | ✅ Cleaned up |
-| GAP-6 | 🟢 Low | pi `/reload` ESM limitation | ✅ Accepted (RULE 29) |
-
-## Low-Priority Follow-ups (not blocking)
-
-- Upstream PR merge — waiting on DrOlu to review/merge PR #9 + PR #10
-- A2A protocol endpoint documentation (message/send vs tasks/send vs GET /tasks)
+| FLEET-STACK | 🟡 Medium | Docker Swarm manager not on fnet3; Ollama container missing on fnet7 | Monitor detects; manual stack redeploy needed |
 
 ## Cross-References
 
@@ -131,4 +113,4 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 ---
 
-*Last updated: 2026-07-10 (fleet bridge remediation complete: PATH fix + KEEPALIVE + Option B code gap resolved)*
+*Last updated: 2026-07-11 (v0.7.0 autonomous fleet health monitoring released)*
