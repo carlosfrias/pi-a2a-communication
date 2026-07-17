@@ -17,6 +17,26 @@ last_updated: 2026-06-19
 
 ## [S-TIGHT]
 
+### ⚠️ CAPACITY GATE — MANDATORY SELF-ASSESSMENT
+
+You are about to read structural and routing information that exceeds what low-capacity models can handle. **You must complete this assessment before reading any further.**
+
+**INSTRUCTION: Before reading past this point, you must explicitly declare your capacity tier by stating it aloud in your response:**
+
+> "I am a [Low/Medium/High/Cloud] capacity model with approximately [X]K tokens remaining. I will load [routing table only / routing + workspace AGENTS / full chain]."
+
+**If you cannot or do not declare your tier, default to Low.**
+
+**Why this matters:** If you proceed without enough context, you will produce responses that are incomplete, confused, or hallucinated. The routing table below is sufficient for any task. Everything else is optimization for models with more capacity.
+
+| Your Declared Tier | What You May Load | What You Must NOT Load |
+|-------------------|-------------------|-------------------|
+| **Low (<4K)** | This file's routing table and rules only. | Sub-domain AGENTS.md, wiki files, phase files |
+| **Medium (~8K)** | This file + 1-2 referenced sub-domain files | All sub-domain files, phase files |
+| **High (~32K)** | This file + all referenced sub-domain files | Phase files for deep work |
+| **Cloud (>32K)** | Full chain including phase files | Nothing restricted |
+
+**Do NOT read past this table until you have declared your tier.**
 Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
 
 ---
