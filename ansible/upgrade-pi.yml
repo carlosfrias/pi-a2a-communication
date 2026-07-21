@@ -103,7 +103,7 @@
         url: "http://127.0.0.1:10000/.well-known/agent-card.json"
         method: GET
         headers:
-          Authorization: "Bearer lab-fleet-2026"
+          Authorization: "Bearer 423009b18287af8d54e3b462e28eba01ba731bab162d1c3e"
         status_code: [200, 401]   # 200 = authed; 401 = endpoint alive (A2A running)
         timeout: 10
       register: a2a_smoke

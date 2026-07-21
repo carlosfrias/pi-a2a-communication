@@ -19,12 +19,8 @@
 
 *Last updated: 2026-06-20 — session-costs.sh latest + summary modes*
 | 2026-06-24 | m72-upstream-pr | ⚠️ not tracked (self-awareness) | ~80,000 | ~80,000 | $0.00 | $42.22 |
-| 2026-07-01 | [../journal/2026-07-01-1430.md](../journal/2026-07-01-1430.md) + [../journal/2026-07-01-1645.md](../journal/2026-07-01-1645.md) | glm-5.2:cloud, deepseek-v4-pro:cloud, kimi-k2.7-code:cloud | ~88,600,000 | ~304,000 | ~$125.43 | ~$167.65 |
-| 2026-07-02 | 2026-07-02-0708 | ollama/glm-5.2:cloud + deepseek-v4-pro:cloud + kimi-k2.7-code:cloud + ollama/qwen3.5:4b | ~1,000,000 | ~380,000 | ~$3.96 | ~$46.18 |
 
 > ⚠️ No session JSONL for this session. Model usage estimated from context. Cost is $0.00 (via pi harness).
 
 
 > ⚠️ **Retroactive correction 2026-06-28:** Model names normalized to canonical forms using model_normalizer.py. Self-awareness model names (e.g., claude-sonnet-4) replaced with '⚠️ not tracked'. Cumulative costs may need manual review.
-
-> ⚠️ **2026-07-01 session cost ~$125.43** far exceeds the $1.00 escalate threshold (BOOKKEEPING). Marathon session: A2A-to-fnet gap close (phase 1) + workshop submodule structure cleanup / open-notebook consolidation / RULE 29 / vault alignment (phase 2), with 4 dual-model audits (deepseek validate + kimi audit). Cost dominated by an ever-growing glm-5.2:cloud orchestrator context (~88.6M tokens in). Subagent (deepseek/kimi) token usage shows 0 in the cost-tracker meta — under-attributed; the audits did consume tokens. **Routing review (strongly warranted):** decompose long investigations into subagents EARLIER to shed orchestrator context. Source: `session-costs-v2.py latest --session-dir .pi/sessions`.

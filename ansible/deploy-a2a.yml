@@ -97,7 +97,7 @@
     bridge_agentExecSystemPrompt: "You are a capable fleet execution agent working on a remote node. Complete the assigned task by invoking the available tools (bash, read, edit) as many times as needed: plan briefly, execute, observe the real output, and verify. For multi-step work, reason concisely between steps and confirm the result. Paste real command output; never describe a command without executing it. A plan-only or description-only response is a failure."
 
     # A2A auth token
-    bearer_token: "lab-fleet-2026"
+    bearer_token: "423009b18287af8d54e3b462e28eba01ba731bab162d1c3e"
 
     # Service name pattern
     service_name: "pi-agent@{{ inventory_hostname }}"
