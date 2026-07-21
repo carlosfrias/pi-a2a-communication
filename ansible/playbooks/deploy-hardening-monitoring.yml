@@ -1,0 +1,80 @@
+---
+# deploy-hardening-monitoring.yml — Propagate fleet-health-check.sh (check_nvm)
+# + ollama-idle-unload systemd units to all fleet nodes.
+# Ad-hoc playbook for the 2026-07-21 fleet hardening deploy.
+
+- name: Deploy hardening monitoring (fleet-health-check + ollama-idle-unload) to all nodes
+  hosts: lab_nodes
+  gather_facts: no
+  strategy: free
+
+  vars:
+    scripts_dir: "/home/{{ ansible_user }}/fleet-scripts"
+    systemd_dir: "{{ playbook_dir }}/../systemd"
+    scripts_src: "{{ playbook_dir }}/../../scripts"
+
+  tasks:
+    - name: Ensure fleet-scripts directory exists
+      ansible.builtin.file:
+        path: "{{ scripts_dir }}"
+        state: directory
+        mode: '0755'
+      become: yes
+
+    - name: Install fleet-health-check.sh (with check_nvm)
+      ansible.builtin.copy:
+        src: "{{ scripts_src }}/fleet-health-check.sh"
+        dest: "{{ scripts_dir }}/fleet-health-check.sh"
+        mode: '0755'
+      become: yes
+
+    - name: Install fleet-health-check.service
+      ansible.builtin.copy:
+        src: "{{ systemd_dir }}/fleet-health-check.service"
+        dest: "/etc/systemd/system/fleet-health-check.service"
+        mode: '0644'
+      become: yes
+
+    - name: Install fleet-health-check.timer
+      ansible.builtin.copy:
+        src: "{{ systemd_dir }}/fleet-health-check.timer"
+        dest: "/etc/systemd/system/fleet-health-check.timer"
+        mode: '0644'
+      become: yes
+
+    - name: Install ollama-idle-unload.service
+      ansible.builtin.copy:
+        src: "{{ systemd_dir }}/ollama-idle-unload.service"
+        dest: "/etc/systemd/system/ollama-idle-unload.service"
+        mode: '0644'
+      become: yes
+
+    - name: Install ollama-idle-unload.timer
+      ansible.builtin.copy:
+        src: "{{ systemd_dir }}/ollama-idle-unload.timer"
+        dest: "/etc/systemd/system/ollama-idle-unload.timer"
+        mode: '0644'
+      become: yes
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      become: yes
+
+    - name: Enable and start fleet-health-check.timer
+      ansible.builtin.systemd:
+        name: fleet-health-check.timer
+        enabled: yes
+        state: started
+      become: yes
+
+    - name: Enable and start ollama-idle-unload.timer
+      ansible.builtin.systemd:
+        name: ollama-idle-unload.timer
+        enabled: yes
+        state: started
+      become: yes
+
+    - name: Report status
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} — fleet-health-check.sh + timers deployed"
