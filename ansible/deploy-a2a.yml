@@ -299,6 +299,18 @@
           export NVM_DIR="/home/{{ ansible_user }}/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
           export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-10m}"
+
+          # Guard: if pi still resolves to this wrapper script, nvm did not load
+          # and there is no Node.js pi binary. Fail with an error instead of
+          # entering an infinite exec recursion (which pegs CPU at 100%).
+          # Added 2026-07-21 — fnet5 runaway-CPU diagnosis.
+          _SELF_RESOLVED=$(command -v pi 2>/dev/null || true)
+          if [ -z "$_SELF_RESOLVED" ] || [ "$(readlink -f "$_SELF_RESOLVED" 2>/dev/null)" = "$(readlink -f "$0" 2>/dev/null)" ]; then
+              echo "Error: pi Node.js binary not found (nvm not loaded). Is Node.js installed via nvm?" >&2
+              exit 1
+          fi
+          unset _SELF_RESOLVED
+
           exec pi "$@"
       # Task var overrides the play var ansible_become=false (task var > play var > keyword).
       vars:

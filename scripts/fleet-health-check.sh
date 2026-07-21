@@ -137,6 +137,34 @@ check_nfs() {
     fi
 }
 
+# ── Check 1b: nvm + Node.js existence (2026-07-21 hardening) ────────
+# Verifies that ~/.nvm/nvm.sh exists AND that `which node` succeeds after
+# sourcing nvm. If nvm is missing (e.g. deleted), the /usr/local/bin/pi
+# wrapper enters infinite exec recursion → 100% CPU. This check surfaces
+# the missing-nvm condition BEFORE it causes a peg.
+check_nvm() {
+    local nvm_sh="$HOME/.nvm/nvm.sh"
+    if [ ! -s "$nvm_sh" ]; then
+        warn "nvm.sh not found at $nvm_sh — Node.js environment is missing! "
+        warn "This will cause the pi wrapper to fail (or infinite-loop if the guard is absent)."
+        warn "Fix: reinstall nvm + Node.js on this node."
+        ((ISSUES_MANUAL++))
+        return
+    fi
+
+    # Source nvm and verify node is on PATH
+    local node_path
+    node_path=$( . "$nvm_sh" 2>/dev/null && command -v node 2>/dev/null || true )
+    if [ -z "$node_path" ]; then
+        warn "nvm.sh exists but `node` not found after sourcing — Node.js may not be installed via nvm."
+        warn "Fix: run 'nvm install 24.15.0' on this node."
+        ((ISSUES_MANUAL++))
+        return
+    fi
+
+    log "nvm + node OK: $node_path"
+}
+
 # ── Check 2: A2A config exists ──────────────────────────────────────────
 # Verifies the A2A agent config file exists and has required fields.
 check_a2a_config() {
@@ -443,6 +471,7 @@ if [ "$OLLAMA_ONLY" = true ]; then
     check_ollama
 else
     check_nfs
+    check_nvm
     check_a2a_config
     check_systemd
     check_agent

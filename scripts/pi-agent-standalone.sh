@@ -51,8 +51,31 @@ INITIAL_PROMPT_ENABLED=false  # Set to true only for debugging; false prevents i
 # Kill any existing tmux session with this name
 tmux kill-session -t "$SESSION_NAME" 2>/dev/null || true
 
+# ── Pre-flight nvm/node check (2026-07-21 hardening) ──
+# Before launching pi via tmux, verify that nvm loaded and that `which pi`
+# resolves to the real Node.js binary — NOT the /usr/local/bin/pi wrapper.
+# If nvm is missing (e.g. ~/.nvm deleted), `which pi` resolves to the
+# wrapper which would re-exec itself infinitely (100% CPU). Fail fast
+# with a clear log message instead of starting a recursive process.
+PI_BIN=$(which pi 2>/dev/null || true)
+if [ -z "$PI_BIN" ]; then
+    echo "Error: pi binary not found after sourcing nvm. nvm may be missing or Node.js not installed." >&2
+    exit 1
+fi
+# Resolve symlinks to detect if pi resolves to the wrapper itself
+_PI_REAL=$(readlink -f "$PI_BIN" 2>/dev/null || echo "$PI_BIN")
+if [ "$_PI_REAL" = "/usr/local/bin/pi" ]; then
+    echo "Error: pi resolves to /usr/local/bin/pi wrapper (not the real Node.js binary). nvm/Node.js is missing — refusing to start to prevent infinite exec recursion." >&2
+    exit 1
+fi
+unset _PI_REAL
+if ! command -v node &>/dev/null; then
+    echo "Error: node not found on PATH after sourcing nvm. Node.js may not be installed." >&2
+    exit 1
+fi
+
 # Find absolute path to pi
-PI_BIN=$(which pi)
+# (PI_BIN already set above by the pre-flight check)
 if [ -z "$PI_BIN" ]; then
     echo "Error: pi binary not found" >&2
     exit 1
