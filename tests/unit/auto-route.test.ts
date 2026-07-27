@@ -395,4 +395,21 @@ describe("CLI strategy (AC-SAT-3)", () => {
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
+
+  it("falls through (LOUD) when every binary candidate is ENOENT (AC-SAT-3)", () => {
+    // Simulate the pi process PATH lacking /usr/local/bin: the bare-name candidate
+    // ENOENTs, and so do the absolute fallbacks (none installed) -> fall to registry.
+    _setCliExecutorForTest(() => {
+      const e = new Error("spawn fleet-resource-manager ENOENT") as NodeJS.ErrnoException;
+      e.code = "ENOENT";
+      throw e;
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const config = makeConfigManager(FLEET_AGENTS);
+    const result = resolveFleetTarget("auto", config);
+    expect(result.source).toBe("registry");
+    expect(warnSpy).toHaveBeenCalled();
+    expect((warnSpy.mock.calls[0][0] as string)).toMatch(/not found in candidates/i);
+    warnSpy.mockRestore();
+  });
 });

@@ -46,6 +46,14 @@ export function _setCliExecutorForTest(fn: CliExecutor | null): void {
 }
 
 const FRM_BIN = process.env.PI_FRM_BIN || "fleet-resource-manager";
+// Candidate binaries tried in order: the bare name uses PATH; absolute paths
+// cover the common case where the pi extension process PATH lacks /usr/local/bin
+// (e.g. macOS LaunchAgent/sanitized env). First non-ENOENT candidate wins.
+const FRM_BIN_CANDIDATES: string[] = [
+  FRM_BIN,
+  "/usr/local/bin/fleet-resource-manager",
+  "/opt/homebrew/bin/fleet-resource-manager",
+].filter((p) => Boolean(p));
 const FRM_CLI_TIMEOUT_MS = Number(process.env.PI_FRM_CLI_TIMEOUT_MS || 6000);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -193,18 +201,45 @@ const DEFAULT_FALLBACK_URL = "http://fnet3:10000";
  * through to the registry/fallback rather than silently defaulting to fnet3.
  */
 function tryResolveViaCli(hint: string, _prompt?: string): ResolvedTarget | null {
-  const exec: CliExecutor =
-    _cliExecutor ??
-    ((args, opts) =>
-      execFileSync(FRM_BIN, args, {
-        timeout: opts.timeout,
-        encoding: opts.encoding as BufferEncoding,
-      }) as unknown as string);
+  const args = ["a2a-route", "--hint", String(hint), "--json"];
+  const opts = { timeout: FRM_CLI_TIMEOUT_MS, encoding: "utf-8" };
+  let out: string | null = null;
+
+  for (const bin of FRM_BIN_CANDIDATES) {
+    const exec: CliExecutor =
+      _cliExecutor ??
+      ((a, o) =>
+        execFileSync(bin, a, {
+          timeout: o.timeout,
+          encoding: o.encoding as BufferEncoding,
+        }) as unknown as string);
+    try {
+      out = exec(args, opts);
+      break; // success - stop trying candidates
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException)?.code;
+      if (code === "ENOENT") {
+        continue; // binary not at this candidate path - try the next
+      }
+      // Other failure (timeout / non-zero / bad JSON) - LOUD, fall through
+      console.warn(
+        "[auto-route] fleet-resource-manager a2a-route failed (hint=" + hint + ", bin=" + bin + "); " +
+          "falling back to registry routing. " + (e as Error).message
+      );
+      return null;
+    }
+  }
+
+  if (out === null) {
+    // All candidates ENOENT - the CLI isn't installed anywhere we looked
+    console.warn(
+      "[auto-route] fleet-resource-manager binary not found in candidates " +
+        "[" + FRM_BIN_CANDIDATES.join(", ") + "] (hint=" + hint + "); falling back to registry routing."
+    );
+    return null;
+  }
+
   try {
-    const out = exec(["a2a-route", "--hint", String(hint), "--json"], {
-      timeout: FRM_CLI_TIMEOUT_MS,
-      encoding: "utf-8",
-    });
     const plan = JSON.parse(out) as {
       url: string | null;
       node_id: string | null;
