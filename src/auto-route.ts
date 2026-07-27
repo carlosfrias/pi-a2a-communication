@@ -26,6 +26,29 @@ import type { ConfigManager } from "./config.js";
 import type { RemoteAgent } from "./types.js";
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CLI EXECUTOR (test-injectable)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Subprocess executor for the fleet-resource-manager CLI. Injectable so unit
+ * tests can mock the CLI without spawning processes. Returns stdout string.
+ */
+export type CliExecutor = (
+  args: string[],
+  opts: { timeout: number; encoding: string }
+) => string;
+
+let _cliExecutor: CliExecutor | null = null;
+
+/** Test hook: override the CLI executor (pass null to restore default). */
+export function _setCliExecutorForTest(fn: CliExecutor | null): void {
+  _cliExecutor = fn;
+}
+
+const FRM_BIN = process.env.PI_FRM_BIN || "fleet-resource-manager";
+const FRM_CLI_TIMEOUT_MS = Number(process.env.PI_FRM_CLI_TIMEOUT_MS || 6000);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -155,31 +178,60 @@ function hintToTiers(hint: TierHint): NodeTier[] {
 const DEFAULT_FALLBACK_URL = "http://fnet3:10000";
 
 /**
- * Try resolving via fleet-resource-manager CLI.
- * Uses execFileSync with argv array (no shell interpolation) to avoid injection.
+ * Try resolving via fleet-resource-manager CLI (`a2a-route`).
  *
- * NOTE: The current fleet-resource-manager CLI does not support JSON output
- * directly. This function attempts to call it and parse the result, but will
- * silently fall through to registry-based routing on any failure. When the CLI
- * gains a --format json option, this strategy will automatically activate.
+ * This is the FIRST resolution strategy: it has live per-node saturation data
+ * (RAM/CPU/active_tasks from health-monitor) and skips saturated/stale/critical
+ * nodes (AC-SAT-1, FRM-10). Uses execFileSync with an argv array (no shell
+ * interpolation) to avoid injection. On any failure/timeout/parse-error, emits
+ * a LOUD warning (HE-2) and falls through to registry-based routing.
+ *
+ * Output JSON shape (from `fleet-resource-manager a2a-route --json`):
+ *   { url, node_id, tier, hint, source:"cli", saturation{...}, score,
+ *     degraded_tier, skipped[], announce, refuse }
+ * `refuse:true` / `url:null` means no eligible non-saturated node — we fall
+ * through to the registry/fallback rather than silently defaulting to fnet3.
  */
 function tryResolveViaCli(hint: string, _prompt?: string): ResolvedTarget | null {
+  const exec: CliExecutor =
+    _cliExecutor ??
+    ((args, opts) =>
+      execFileSync(FRM_BIN, args, {
+        timeout: opts.timeout,
+        encoding: opts.encoding as BufferEncoding,
+      }) as unknown as string);
   try {
-    // The CLI currently requires file-based input (--combined-file, --scored-file).
-    // It doesn't support --format json or stdin prompts.
-    // For now, we skip the CLI and rely on registry-based routing.
-    // This function is preserved as a hook for future CLI integration.
-    //
-    // When the CLI supports JSON output, uncomment and adjust:
-    // const args = ["route", "--format", "json"];
-    // const output = execFileSync("fleet-resource-manager", args, { timeout: 10000, encoding: "utf-8" });
-    // const plan = JSON.parse(output);
-    // ...parse and return
+    const out = exec(["a2a-route", "--hint", String(hint), "--json"], {
+      timeout: FRM_CLI_TIMEOUT_MS,
+      encoding: "utf-8",
+    });
+    const plan = JSON.parse(out) as {
+      url: string | null;
+      node_id: string | null;
+      tier: NodeTier | null;
+      refuse?: boolean;
+      announce?: string | null;
+    };
+    if (!plan || !plan.url || plan.refuse) {
+      // CLI refused (no eligible node) or no URL — fall through (LOUD if announce)
+      if (plan?.announce) console.warn(`[auto-route] ${plan.announce}`);
+      return null;
+    }
+    return {
+      url: plan.url,
+      source: "cli",
+      hint: String(hint),
+      agentName: plan.node_id ?? undefined,
+      tier: plan.tier ?? undefined,
+    };
+  } catch (e) {
+    // CLI not installed, timed out, or returned bad JSON — fall through (LOUD, HE-2)
+    console.warn(
+      `[auto-route] fleet-resource-manager a2a-route failed (hint=${hint}); ` +
+        `falling back to registry routing. ${(e as Error).message}`
+    );
     return null;
-  } catch {
-    // CLI not available or failed — fall through to registry
   }
-  return null;
 }
 
 /**
@@ -225,6 +277,17 @@ function resolveViaRegistry(
   });
 
   const best = classified[0];
+
+  // FRM-10 / AC-SAT-2: mark the chosen agent as used so the LRU tiebreak
+  // rotates among same-tier nodes on subsequent calls. getRemoteAgents() does
+  // NOT advance lastUsedAt; getRemoteAgent(url) does. Without this, the first
+  // strong node (fnet3) won every `auto`/`executor` call.
+  try {
+    configManager.getRemoteAgent(best.agent.url);
+  } catch {
+    // mock or non-standard ConfigManager — non-fatal
+  }
+
   return {
     url: best.agent.url,
     source: "registry",

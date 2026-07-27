@@ -177,5 +177,34 @@ describe('A2AServer — Characterization', () => {
       const res = await makeRequest('GET', '/unknown-path');
       expect(res.status).toBe(401);
     });
+
+    it('GET /health returns AgentHealth JSON with bearer auth (AC-SAT-10)', async () => {
+      const res = await makeRequest('GET', '/health');
+      // No auth → 401 (health is a non-card path, bearer-protected)
+      expect(res.status).toBe(401);
+
+      // With bearer token → 200 + AgentHealth JSON
+      const authed = await new Promise<any>((resolve, reject) => {
+        const req = http.request({
+          hostname: TEST_HOST, port, path: '/health', method: 'GET',
+          headers: { Authorization: 'Bearer test-token' },
+        }, (r) => {
+          let data = '';
+          r.on('data', (c) => (data += c));
+          r.on('end', () => {
+            let parsed; try { parsed = JSON.parse(data); } catch { parsed = data; }
+            resolve({ status: r.statusCode || 0, data: parsed });
+          });
+        });
+        req.on('error', reject); req.end();
+      });
+      expect(authed.status).toBe(200);
+      expect(authed.data.status).toMatch(/^(healthy|stressed|critical)$/);
+      expect(authed.data.resources).toBeDefined();
+      expect(typeof authed.data.resources.ram_pct).toBe('number');
+      expect(typeof authed.data.resources.cpu_pct).toBe('number');
+      expect(typeof authed.data.resources.active_tasks).toBe('number');
+      expect(authed.data.checkedAt).toBeGreaterThan(0);
+    });
   });
 });
