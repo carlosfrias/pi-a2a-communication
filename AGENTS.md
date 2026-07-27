@@ -4,7 +4,6 @@ tags:
   - pi-a2a-communication
   - a2a
   - agent-protocol
-  - PARA
   - area
 version: 0.3.0
 status: active
@@ -37,7 +36,7 @@ You are about to read structural and routing information that exceeds what low-c
 | **Cloud (>32K)** | Full chain including phase files | Nothing restricted |
 
 **Do NOT read past this table until you have declared your tier.**
-Project AGENTS for `workshop/02-Areas/Infrastructure/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
+Project AGENTS for `Efforts/On/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
 
 ---
 
@@ -120,8 +119,8 @@ Battle-tested rules extracted from incident sessions. Each version supersedes th
 
 ```
 1. carlos-desktop/AGENTS.md                           ← Root router (pick workspace)
-2. workshop/AGENTS.md                                 ← Workspace router
-3. workshop/02-Areas/Infrastructure/AGENTS.md          ← Domain router
+2. AGENTS.md                                 ← Workspace router
+3. AGENTS.md          ← Domain router
 4. pi-a2a-communication/AGENTS.md                     ← YOU ARE HERE (project router)
 5. pi-a2a-communication/FOCUS.md                      ← Current state + handoff
 6. pi-a2a-communication/PLAN.md                       ← Release plan + task tracking
@@ -206,12 +205,12 @@ Per [FDP LIFECYCLE.md](https://github.com/carlosfrias/frias-documentation-protoc
 
 | Rule | Status | Notes |
 |------|--------|-------|
-| RULE 1 | ✅ | Project in `workshop/02-Areas/Infrastructure/` |
+| RULE 1 | ✅ | Project in `Efforts/On/` |
 | RULE 2 | ✅ | TDD enforced by CA-5 |
 | RULE 3 | ✅ | Project AGENTS.md exists |
 | RULE 7 | ✅ | No `pi-coding-agent` npm dependency |
 | RULE 8 | ✅ | No `.pi/settings.json` |
-| RULE 19 | ✅ | Properly classified in `02-Areas` |
+| RULE 19 | ✅ | Properly classified in `Efforts/` |
 | RULE 21 | ✅ | Hyphenated name |
 | RULE 22 | ✅ FIXED | Removed 3 duplicate `Activity Log.md` (space) files, kept kebab-case |
 | RULE 25 | ✅ FIXED | Moved wiki files under `wiki/pi-a2a-communication/` with `reference/` and `guides/` subdirs |
