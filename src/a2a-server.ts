@@ -215,6 +215,12 @@ export class A2AServer {
         await this.handleTaskRequest(req, res, path);
       } else if (path === "/tasks") {
         await this.handleListTasks(req, res);
+      } else if (path === "/health") {
+        // FRM-10 / AC-SAT-10: saturation-aware A2A routing. Bearer-protected
+        // (non-card path, so the auth gate above already enforced it). Returns
+        // AgentHealth JSON consumed on-request by `fleet-resource-manager a2a-route`
+        // (HTTP /health primary gather — no Gist publishing, no per-node daemon).
+        await this.handleHealth(req, res);
       } else {
         this.sendError(res, 404, "Not Found");
       }
@@ -642,6 +648,147 @@ export class A2AServer {
     res.setHeader("Content-Type", "application/json");
     res.writeHead(200);
     res.end(JSON.stringify(this.agentCard));
+  }
+
+  /**
+   * Handle GET /health — AgentHealth JSON for saturation-aware routing
+   * (FRM-10 / AC-SAT-10). Consumed on-request by fleet-resource-manager
+   * a2a-route's HTTP gather (no Gist bus, no always-on publishing).
+   */
+  private async handleHealth(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    if (req.method !== "GET") {
+      this.sendError(res, 405, "Method Not Allowed");
+      return;
+    }
+    try {
+      const health = await this.getHealthMetrics();
+      res.setHeader("Content-Type", "application/json");
+      res.writeHead(200);
+      res.end(JSON.stringify(health));
+    } catch (e) {
+      this.sendError(res, 500, "Health probe failed");
+    }
+  }
+
+  /**
+   * Collect this node's health metrics as A2A AgentHealth JSON.
+   * Linux-leaning (/proc/stat, fs.statfs); degrades gracefully on other platforms.
+   * Status thresholds match health-monitor saturation_detector:
+   *   critical: ram>=92% or cpu>=6.0; stressed: ram>=80% or cpu>=4.0.
+   */
+  private async getHealthMetrics(): Promise<{
+    node_id: string;
+    status: string;
+    checkedAt: number;
+    resources: {
+      ram_pct: number;
+      cpu_pct: number;
+      swap_pct: number;
+      active_tasks: number;
+      disk_pct: number | null;
+      disk_free_gb: number | null;
+    };
+  }> {
+    const nodeId = process.env.NODE_ID || os.hostname();
+    const total = os.totalmem();
+    const free = os.freemem();
+    const ramPct = total > 0 ? +(((total - free) / total) * 100).toFixed(1) : 0;
+    const swapPct = this.readSwapPct();
+    const cpuPct = await this.sampleCpuPercent(100);
+    const activeTasks = this.countActiveTasks();
+    const disk = this.readDiskPct();
+
+    let status = "healthy";
+    if (ramPct >= 92 || cpuPct >= 6.0 || swapPct > 0) status = "critical";
+    else if (ramPct >= 80 || cpuPct >= 4.0) status = "stressed";
+
+    return {
+      node_id: nodeId,
+      status,
+      checkedAt: Date.now(),
+      resources: {
+        ram_pct: ramPct,
+        cpu_pct: cpuPct,
+        swap_pct: swapPct,
+        active_tasks: activeTasks,
+        disk_pct: disk.pct,
+        disk_free_gb: disk.freeGb,
+      },
+    };
+  }
+
+  /** Instantaneous CPU% from two /proc/stat reads ~intervalMs apart. */
+  private async sampleCpuPercent(intervalMs = 100): Promise<number> {
+    try {
+      const first = this.readProcCpuJiffies();
+      if (!first) return 0;
+      await new Promise((r) => setTimeout(r, intervalMs));
+      const second = this.readProcCpuJiffies();
+      if (!second) return 0;
+      const dTotal = second.total - first.total;
+      const dIdle = second.idle - first.idle;
+      if (dTotal <= 0) return 0;
+      return +Math.max(0, Math.min(100, ((dTotal - dIdle) / dTotal) * 100)).toFixed(1);
+    } catch {
+      return 0;
+    }
+  }
+
+  private readProcCpuJiffies(): { total: number; idle: number } | null {
+    try {
+      const stat = fs.readFileSync("/proc/stat", "utf-8");
+      const line = stat.split("\n")[0];
+      // "cpu  user nice system idle iowait irq softirq steal ..."
+      const vals = line.split(/\s+/).slice(1).map(Number);
+      if (vals.length < 4 || vals.some((n) => Number.isNaN(n))) return null;
+      const [user, nice, system, idle, iowait = 0, irq = 0, softirq = 0, steal = 0] = vals;
+      const total = user + nice + system + idle + iowait + irq + softirq + steal;
+      return { total, idle: idle + iowait };
+    } catch {
+      return null;
+    }
+  }
+
+  private readSwapPct(): number {
+    try {
+      const mi = fs.readFileSync("/proc/meminfo", "utf-8");
+      const kv = (k: string) => {
+        const m = mi.match(new RegExp("^" + k + ":\\s+(\\d+)", "m"));
+        return m ? parseInt(m[1], 10) : 0; // kB
+      };
+      const swTotal = kv("SwapTotal"), swFree = kv("SwapFree");
+      if (swTotal <= 0) return 0;
+      return +(((swTotal - swFree) / swTotal) * 100).toFixed(1);
+    } catch {
+      return 0;
+    }
+  }
+
+  private countActiveTasks(): number {
+    try {
+      const p = path.join(os.homedir(), ".pi", "agent", "active_tasks.json");
+      if (!fs.existsSync(p)) return 0;
+      const data = JSON.parse(fs.readFileSync(p, "utf-8"));
+      return Array.isArray(data) ? data.length : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  private readDiskPct(): { pct: number | null; freeGb: number | null } {
+    try {
+      // fs.statfs is available on Linux/macOS (Node >= 18.15)
+      const s = (fs as any).statfsSync("/");
+      const total = s.blocks * s.bsize;
+      const free = s.bfree * s.bsize;
+      if (total <= 0) return { pct: null, freeGb: null };
+      return {
+        pct: +(((total - free) / total) * 100).toFixed(1),
+        freeGb: +(free / 1024 ** 3).toFixed(2),
+      };
+    } catch {
+      return { pct: null, freeGb: null };
+    }
   }
 
   /**
