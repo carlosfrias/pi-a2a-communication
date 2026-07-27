@@ -19,7 +19,7 @@
  *   ✅ /sendMessage and /sendStreamingMessage (legacy paths)
  *
  * Usage:
- *   cd workshop/02-Areas/Infrastructure/pi-a2a-communication
+ *   cd workshop/Efforts/On/pi-a2a-communication
  *   npx vitest run a2a-v1-conformance
  */
 

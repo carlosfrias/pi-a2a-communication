@@ -179,7 +179,7 @@ Scaffolded using [Frias Project Blueprint (FPB)](https://github.com/carlosfrias/
 Per [FDP LIFECYCLE.md](https://github.com/carlosfrias/frias-documentation-protocol/blob/main/skills/frias-documentation-protocol/LIFECYCLE.md):
 
 1. WORKBENCH triage — completed items moved to ✅ Recently Done
-2. Per-prompt capture — `.frias/threads/`
+2. Per-prompt capture — THREAD-vN.md
 3. Thread update — `.frias/threads/THREAD-v1.md`
 4. FOCUS.md update — frontmatter, active work, handoff
 5. Journal entry — `.frias/journal/`

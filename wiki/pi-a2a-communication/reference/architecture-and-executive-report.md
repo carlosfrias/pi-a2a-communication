@@ -462,7 +462,7 @@ flowchart LR
 Deploys the A2A extension to all fleet nodes.
 
 ```bash
-cd workshop/02-Areas/Infrastructure/pi-a2a-communication
+cd Efforts/On/pi-a2a-communication
 ansible-playbook -i ansible/inventory.ini ansible/deploy-a2a.yml
 ```
 
@@ -483,7 +483,7 @@ ansible-playbook -i ansible/inventory.ini ansible/deploy-a2a.yml
 Deploys health monitor + fleet-resource-manager scripts to all fleet nodes.
 
 ```bash
-cd workshop/02-Areas/Infrastructure/fleet-resource-manager
+cd Efforts/Ongoing/fleet-resource-manager
 ansible-playbook -i ansible/inventory.ini ansible/deploy-fleet.yml
 ```
 

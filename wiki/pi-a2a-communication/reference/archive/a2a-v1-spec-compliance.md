@@ -30,12 +30,12 @@ Conformance audit of `pi-a2a-communication@1.0.1` against the [A2A Protocol v1.0
 
 A self-contained Vitest test suite is available in the code repo:
 
-**`workshop/02-Areas/Infrastructure/pi-a2a-communication/tests/a2a-v1-conformance.test.ts`**
+**`Efforts/On/pi-a2a-communication/tests/a2a-v1-conformance.test.ts`**
 
 Run against any instance:
 
 ```bash
-cd workshop/02-Areas/Infrastructure/pi-a2a-communication
+cd Efforts/On/pi-a2a-communication
 npm install pi-a2a-communication vitest
 npx vitest run a2a-v1-conformance
 ```

@@ -127,7 +127,7 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 |---------|--------|----------|
 | pi-a2a-gateway | ❌ Archived | [FOCUS](../../../Efforts/Sleeping/pi-a2a-gateway/FOCUS.md) |
 | pi-cross-node-comms | ❌ Archived | [FOCUS](../../../Efforts/Sleeping/pi-cross-node-comms/FOCUS.md) |
-| node-router | ✅ Archived | `04-Archive/Infrastructure/node-router/` |
+| node-router | ✅ Archived | `Efforts/Sleeping/node-router/` |
 | health-monitor | ⚠️ Stale | [health-monitor](../../health-monitor/) |
 | fleet-resource-manager | ✅ Active | [fleet-resource-manager](../../fleet-resource-manager/) |
 

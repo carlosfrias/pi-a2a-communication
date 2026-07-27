@@ -82,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **node-router archived**: `orchestrator_client.py` and `fleet_agent.py` (coms-net dispatch) archived to `04-Archive/Infrastructure/node-router/`. Scoring, routing, and benchmarking migrated to fleet-resource-manager.
+- **node-router archived**: `orchestrator_client.py` and `fleet_agent.py` (coms-net dispatch) archived to `Efforts/Sleeping/node-router/`. Scoring, routing, and benchmarking migrated to fleet-resource-manager.
 - **Obsolete playbooks deleted**: `deploy-hub-to-fnet2.yml`, `deploy-fleet.yml`, `inventory/coms-net.yml`. Old `start-agents.yml` and `shutdown-fleet.yml` backed up and replaced.
 
 ### Fixed

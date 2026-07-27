@@ -20,9 +20,9 @@ from pathlib import Path
 
 STATUS_DIR = Path("/Users/friasc/Cloud/carlos-desktop/.fleet-status")
 ORCHESTRATOR_STATUS = STATUS_DIR / "orchestrator.json"
-INVENTORY = "/Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/pi-a2a-communication/ansible/inventory.ini"
-PLAYBOOKS_DIR = "/Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/playbook-executor/playbooks"
-A2A_PLAYBOOKS_DIR = "/Users/friasc/Cloud/carlos-desktop/workshop/02-Areas/Infrastructure/pi-a2a-communication/ansible"
+INVENTORY = "/Users/friasc/Cloud/carlos-desktop/Efforts/On/pi-a2a-communication/ansible/inventory.ini"
+PLAYBOOKS_DIR = "/Users/friasc/Cloud/carlos-desktop/Efforts/On/playbook-executor/playbooks"
+A2A_PLAYBOOKS_DIR = "/Users/friasc/Cloud/carlos-desktop/Efforts/On/pi-a2a-communication/ansible"
 
 NODES = [f"fnet{i}" for i in range(1, 8)]
 STALE_THRESHOLD_MINUTES = 10
