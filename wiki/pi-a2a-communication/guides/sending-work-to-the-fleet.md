@@ -333,7 +333,7 @@ See [ansible/deploy-a2a.yml](../../../ansible/deploy-a2a.yml) for fleet standup 
 
 ```bash
 # Deploy to all fleet nodes
-cd Efforts/Infrastructure/pi-a2a-communication
+cd Efforts/Infrastructure/agent-comms/pi-a2a-communication
 ansible-playbook -i ansible/inventory.ini ansible/deploy-a2a.yml
 
 # Config-only update

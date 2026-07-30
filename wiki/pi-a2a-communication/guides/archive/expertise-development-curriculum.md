@@ -2445,7 +2445,7 @@ In the pi session:
 #### Step 5: Run the conformance tests
 
 ```bash
-cd ~/Efforts/Infrastructure/pi-a2a-communication
+cd ~/Efforts/Infrastructure/agent-comms/pi-a2a-communication
 npx vitest run a2a-v1-conformance
 ```
 
@@ -2523,7 +2523,7 @@ Understand how each layer maps to Node.js concepts:
 #### Step 1: Find a conformance gap
 
 ```bash
-cd ~/Efforts/Infrastructure/pi-a2a-communication
+cd ~/Efforts/Infrastructure/agent-comms/pi-a2a-communication
 npx vitest run a2a-v1-conformance
 ```
 

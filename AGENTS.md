@@ -36,7 +36,7 @@ You are about to read structural and routing information that exceeds what low-c
 | **Cloud (>32K)** | Full chain including phase files | Nothing restricted |
 
 **Do NOT read past this table until you have declared your tier.**
-Project AGENTS for `Efforts/Infrastructure/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
+Project AGENTS for `Efforts/Infrastructure/agent-comms/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
 
 ---
 
