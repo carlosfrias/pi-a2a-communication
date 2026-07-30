@@ -2,6 +2,7 @@
 name: pi-a2a-communication
 intensity: Sleeping
 domain: infrastructure
+sub-domain: agent-comms
 summary: "ACTIVE: Auto-Route feature implemented + deployed fleet-wide. v0.6.0+ with tier hints (RULE 34) eliminates ~15K tokens of topology discovery reads. EXEC-TIER gap CLOSED. Upstream PRs submitted."
 status: active
 tracked: true
