@@ -1,9 +1,9 @@
 ---
 name: pi-a2a-communication
+intensity: Sleeping
+domain: infrastructure
 summary: "ACTIVE: Auto-Route feature implemented + deployed fleet-wide. v0.6.0+ with tier hints (RULE 34) eliminates ~15K tokens of topology discovery reads. EXEC-TIER gap CLOSED. Upstream PRs submitted."
 status: active
-phase: "Phase AUTO-ROUTE: Tier Hints for Fleet Routing — COMPLETE"
-progress: 100
 tracked: true
 created: 2026-06-18
 updated: 2026-07-05
@@ -125,9 +125,9 @@ All four tiers deployed + verified on all 7 fleet nodes. The executor-tier gap i
 
 | Project | Status | Location |
 |---------|--------|----------|
-| pi-a2a-gateway | ❌ Archived | [FOCUS](../../../Efforts/Sleeping/pi-a2a-gateway/FOCUS.md) |
-| pi-cross-node-comms | ❌ Archived | [FOCUS](../../../Efforts/Sleeping/pi-cross-node-comms/FOCUS.md) |
-| node-router | ✅ Archived | `Efforts/Sleeping/node-router/` |
+| pi-a2a-gateway | ❌ Archived | [FOCUS](../../../Efforts/PI/pi-a2a-gateway/FOCUS.md) |
+| pi-cross-node-comms | ❌ Archived | [FOCUS](../../../Efforts/PI/pi-cross-node-comms/FOCUS.md) |
+| node-router | ✅ Archived | `Efforts/Infrastructure/node-router/` |
 | health-monitor | ⚠️ Stale | [health-monitor](../../health-monitor/) |
 | fleet-resource-manager | ✅ Active | [fleet-resource-manager](../../fleet-resource-manager/) |
 

@@ -216,7 +216,7 @@ Remaining non-blocking: **#6 — full v0.6.0 vault↔repo FOCUS/PLAN/WORKBENCH s
 
 node-router has been archived. Its coms-net components (`fleet_agent.py`, `orchestrator_client.py`) spoke a deprecated protocol. The scoring/routing/benchmarking capabilities have been migrated to fleet-resource-manager, which uses A2A protocol natively.
 
-- [x] GAP-1.0: Archive node-router project to `Efforts/Sleeping/node-router/`
+- [x] GAP-1.0: Archive node-router project to `Efforts/Infrastructure/node-router/`
 - [x] GAP-1.1: Migrate benchmark capability to fleet-resource-manager `benchmark` subcommand
 - [x] GAP-1.2: Update routing tables (AGENTS.md, project-map.md) to route node-router keywords to fleet-resource-manager
 - [x] GAP-1.3: Replace remaining coms-net dispatch references with A2A tools ✅ (no active coms-net dispatch code remains — only conformance tests verifying absence)

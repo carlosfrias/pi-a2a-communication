@@ -36,7 +36,7 @@ You are about to read structural and routing information that exceeds what low-c
 | **Cloud (>32K)** | Full chain including phase files | Nothing restricted |
 
 **Do NOT read past this table until you have declared your tier.**
-Project AGENTS for `Efforts/On/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
+Project AGENTS for `Efforts/Infrastructure/pi-a2a-communication/`. Fork reactivated for M6 spec compliance. All A2A protocol code MUST comply with v1.0 specification. TDD mandatory — conformance suite is source of truth.
 
 ---
 
@@ -49,7 +49,7 @@ Project AGENTS for `Efforts/On/pi-a2a-communication/`. Fork reactivated for M6 s
 | **Upstream** | `carlosfrias/pi-a2a-communication` (GitHub, main branch) |
 | **Origin** | Forked from `DrOlu/pi-a2a-communication` v1.0.1 |
 | **Parent project** | A2A migration complete — coms-net removed |
-| **Sibling project** | [pi-a2a-gateway](../../../Efforts/Sleeping/pi-a2a-gateway/AGENTS.md) — archived |
+| **Sibling project** | [pi-a2a-gateway](../../../Efforts/PI/pi-a2a-gateway/AGENTS.md) — archived |
 
 ## Key Files
 
